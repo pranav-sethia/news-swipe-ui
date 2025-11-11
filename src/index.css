@@ -1,0 +1,7 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: black;
+  color: white;
+  overflow: hidden; /* Prevents scrollbars from the background */
+}

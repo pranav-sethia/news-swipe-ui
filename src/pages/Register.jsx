@@ -19,7 +19,11 @@ export default function Register() {
       setSuccess('Registration successful! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000); // Redirect after 2s
     } catch (err) {
-      setError(err.message || 'Failed to register.');
+        if (err.response && err.response.data && err.response.data.error) {
+            setError(err.response.data.error); // shows "Email already in use."
+          } else {
+            setError('Failed to register. Please try again.');
+          }
     }
   };
 

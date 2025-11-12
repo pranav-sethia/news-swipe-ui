@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, Typography, Paper, Link } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import * as api from '../api';
 
 export default function Register() {
@@ -14,16 +14,17 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
     try {
-      await api.register( email, password );
+      await api.register(email, password);
       setSuccess('Registration successful! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000); // Redirect after 2s
     } catch (err) {
-        if (err.response && err.response.data && err.response.data.error) {
-            setError(err.response.data.error); // shows "Email already in use."
-          } else {
-            setError('Failed to register. Please try again.');
-          }
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error); // shows "Email already in use."
+      } else {
+        setError('Failed to register. Please try again.');
+      }
     }
   };
 
@@ -51,10 +52,15 @@ export default function Register() {
           color: 'white',
         }}
       >
-        <Typography variant="h4" gutterBottom align="center" sx={{ fontWeight: 600 }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          align="center"
+          sx={{ fontWeight: 600 }}
+        >
           Register
         </Typography>
-        
+
         <TextField
           label="Email"
           type="email"
@@ -65,8 +71,22 @@ export default function Register() {
           onChange={(e) => setEmail(e.target.value)}
           required
           InputLabelProps={{ sx: { color: 'grey' } }}
-          InputProps={{ sx: { color: 'white', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' } } }}
+          InputProps={{
+            sx: {
+              color: 'white',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255,255,255,0.3)',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0,255,250,0.7)',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0,255,250,1)',
+              },
+            },
+          }}
         />
+
         <TextField
           label="Password"
           type="password"
@@ -77,9 +97,22 @@ export default function Register() {
           onChange={(e) => setPassword(e.target.value)}
           required
           InputLabelProps={{ sx: { color: 'grey' } }}
-          InputProps={{ sx: { color: 'white', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' } } }}
+          InputProps={{
+            sx: {
+              color: 'white',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255,255,255,0.3)',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0,255,250,0.7)',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0,255,250,1)',
+              },
+            },
+          }}
         />
-        
+
         {error && (
           <Typography color="error" align="center" sx={{ mt: 2 }}>
             {error}
@@ -98,15 +131,24 @@ export default function Register() {
           size="large"
           sx={{
             mt: 3,
-            background: "rgba(0,255,255,0.15)",
-            "&:hover": { background: "rgba(0,255,255,0.25)" },
+            background: 'rgba(0,255,255,0.15)',
+            '&:hover': { background: 'rgba(0,255,255,0.25)' },
           }}
         >
           Create Account
         </Button>
+
         <Typography align="center" sx={{ mt: 2 }}>
           Already have an account?{' '}
-          <Link href="/login" sx={{ color: '#00e5ff' }}>
+          <Link
+            component={RouterLink}
+            to="/login"
+            sx={{
+              color: '#00e5ff',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+            }}
+          >
             Login here
           </Link>
         </Typography>

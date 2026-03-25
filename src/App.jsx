@@ -193,7 +193,7 @@ export default function App() {
             background: "rgba(20, 20, 20, 0.85)",
             color: "white",
             borderRadius: "20px",
-            boxShadow: "0px 0px 30px rgba(0,255,255,0.12)",
+            boxShadow: "0px 0px 30px rgba(255,102,0,0.12)",
             backdropFilter: "blur(10px)",
             width: "400px",
             height: "550px",
@@ -215,8 +215,8 @@ export default function App() {
             variant="contained"
             onClick={() => setIsResetModalOpen(true)}
             sx={{
-              background: "rgba(0,255,255,0.15)",
-              "&:hover": { background: "rgba(0,255,255,0.25)" },
+              background: "rgba(255,102,0,0.15)",
+              "&:hover": { background: "rgba(255,102,0,0.25)" },
             }}
           >
             Reset Swipes & Reload
@@ -253,11 +253,11 @@ export default function App() {
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        background: "radial-gradient(circle at 30% 50%, #050505, #000)",
+        backgroundColor: "#0a0a0a",
+        backgroundImage: "radial-gradient(rgba(255, 102, 0, 0.05) 1px, transparent 1px)",
+        backgroundSize: "24px 24px",
       }}
     >
-      <StarsBackground />
-
       <UserStats swipeCount={swipeCount} />
 
       <Box sx={{ position: 'relative', width: 420, height: 550, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -395,12 +395,12 @@ function UserStats({ swipeCount }) {
         borderRadius: '20px',
         backdropFilter: 'blur(10px)',
         padding: '24px',
-        boxShadow: '0px 0px 30px rgba(0,255,255,0.12)',
+        boxShadow: '0px 0px 30px rgba(255,102,0,0.12)',
         display: { xs: 'none', lg: 'block' }
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <BarChart sx={{ mr: 1.5, color: 'rgba(0,255,255,0.7)' }} />
+        <BarChart sx={{ mr: 1.5, color: 'rgba(255,102,0,0.7)' }} />
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
           My Stats
         </Typography>
@@ -423,7 +423,7 @@ function UserStats({ swipeCount }) {
               size="small" 
               sx={{ 
                 color: 'white', 
-                background: 'rgba(0,255,255,0.15)' 
+                background: 'rgba(255,102,0,0.15)' 
               }} 
             />
           ))}
@@ -443,7 +443,7 @@ function UserStats({ swipeCount }) {
           Loading...
         </Typography>
       ) : (
-        <Typography variant="h4" sx={{ color: 'rgba(0,255,255,0.7)', fontWeight: 'bold' }}>
+        <Typography variant="h4" sx={{ color: 'rgba(255,102,0,0.7)', fontWeight: 'bold' }}>
           {stats.totalSwipes}
         </Typography>
       )}
@@ -492,7 +492,7 @@ function LikedArticlesPanel({ swipeCount }) {
         borderRadius: '20px',
         backdropFilter: 'blur(10px)',
         padding: '24px',
-        boxShadow: '0px 0px 30px rgba(0,255,255,0.12)',
+        boxShadow: '0px 0px 30px rgba(255,102,0,0.12)',
         display: { xs: 'none', lg: 'flex' },
         flexDirection: 'column',
       }}
@@ -624,79 +624,86 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
     >
       <Card
         sx={{
-          background: "rgba(20, 20, 20, 0.85)",
+          background: "rgba(18, 18, 18, 0.95)",
           color: "white",
-          borderRadius: "20px",
-          boxShadow: "0px 0px 30px rgba(0,255,255,0.12)",
-          backdropFilter: "blur(10px)",
+          borderRadius: "24px",
+          border: "1px solid rgba(255, 102, 0, 0.15)",
+          boxShadow: "0px 12px 40px rgba(0,0,0,0.6)",
+          backdropFilter: "blur(20px)",
           overflow: "hidden",
           width: "400px",
           height: "550px",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <CardMedia
-          component="img"
-          height="280"
-          image={article.image_url || 'https://placehold.co/600x400/333/FFF?text=No+Image'}
-          alt={article.title}
-          onError={(e) => {
-            e.target.onerror = null; 
-            e.target.src = 'https://placehold.co/600x400/333/FFF?text=Image+Not+Available';
-          }}
-          sx={{ 
-            pointerEvents: 'none',
-            objectFit: 'cover'
-          }}
-        />
+        {article.image_url ? (
+          <CardMedia
+            component="img"
+            height="200"
+            image={article.image_url}
+            alt={article.title}
+            onError={(e) => { e.target.style.display = 'none'; }}
+            sx={{ pointerEvents: 'none', objectFit: 'cover' }}
+          />
+        ) : (
+          <Box sx={{ height: "6px", background: "linear-gradient(90deg, #ff6600, #ff8533)" }} />
+        )}
         
         <CardContent
           sx={{
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            textAlign: "center",
-            height: "calc(550px - 280px)",
-            padding: '16px 24px'
+            justifyContent: article.image_url ? "flex-start" : "center",
+            flexGrow: 1,
+            padding: '32px 28px',
+            textAlign: "left",
           }}
         >
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="overline" sx={{ color: '#ff6600', fontWeight: 'bold', letterSpacing: '1px' }}>
+              {article.source_name || 'Hacker News'}
+            </Typography>
+          </Box>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, lineHeight: 1.3, fontSize: article.image_url ? '1.4rem' : '1.7rem' }}>
             {article.title}
           </Typography>
           <Typography
             variant="body2"
             sx={{ 
-              color: "rgba(200,200,200,0.9)", 
-              mt: 1,
+              color: "rgba(255,255,255,0.7)", 
+              mt: 1.5,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
-              WebkitLineClamp: '4',
+              WebkitLineClamp: article.image_url ? '3' : '6',
               WebkitBoxOrient: 'vertical',
+              fontSize: '1rem',
+              lineHeight: 1.6
             }} 
           >
             {article.description}
           </Typography>
 
-          <Box sx={{ pt: 2, pointerEvents: 'auto' }}> 
+          <Box sx={{ mt: 'auto', pt: 3, pointerEvents: 'auto', width: '100%' }}> 
             <Button
-              variant="outlined"
-              size="small"
+              fullWidth
+              variant="contained"
               startIcon={<LinkIcon />}
               href={article.article_url}
               target="_blank"
               rel="noopener noreferrer"
               sx={{
-                color: 'rgba(0,255,255,0.7)',
-                borderColor: 'rgba(0,255,255,0.3)',
+                background: '#ff6600',
+                color: 'white',
+                fontWeight: 'bold',
                 textTransform: 'none',
-                "&:hover": {
-                  background: 'rgba(0,255,255,0.1)',
-                  borderColor: 'rgba(0,255,255,0.7)',
-                }
+                borderRadius: '12px',
+                py: 1.5,
+                "&:hover": { background: '#e65c00' }
               }}
             >
-              Read Full Article
+              Read Article
             </Button>
           </Box>
         </CardContent>
@@ -747,46 +754,4 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
   );
 }
 
-// --- Stars Background Component ---
-function StarsBackground() {
-  const stars = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 100; i++) {
-      arr.push({
-        top: `${Math.random() * 100}%`,
-        left: `${Math.random() * 100}%`,
-        size: Math.random() * 2 + 1,
-        opacity: Math.random() * 0.7 + 0.3,
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        overflow: "hidden",
-        zIndex: 0,
-      }}
-    >
-      {stars.map((s, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            top: s.top,
-            left: s.left,
-            width: s.size,
-            height: s.size,
-            background: "white",
-            borderRadius: "50%",
-            opacity: s.opacity,
-            boxShadow: `0 0 ${s.size * 2}px white`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// Removed StarsBackground for minimal layout

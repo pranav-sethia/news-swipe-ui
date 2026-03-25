@@ -1,29 +1,60 @@
 import React, { useState } from 'react';
-import { Box, TextField, Button, Typography, Paper, Link } from '@mui/material';
+import { Box, TextField, Button, Typography, Paper, Link, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
+
+const C = {
+  orange: '#ff6600',
+  orangeDim: 'rgba(255,102,0,0.12)',
+  card: 'rgba(13,13,13,0.97)',
+  border: 'rgba(255,102,0,0.18)',
+  textDim: 'rgba(232,232,232,0.5)',
+  fontPixel: "'Press Start 2P', monospace",
+  fontMono: "'Share Tech Mono', monospace",
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [guestLoading, setGuestLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     try {
       const res = await api.login(email, password);
-
       localStorage.setItem('token', res.data.token);
       navigate('/');
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.error || 'Login failed. Please try again.'
-      );
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
     }
+  };
+
+  const handleGuest = async () => {
+    setGuestLoading(true);
+    setError('');
+    try {
+      const res = await api.loginAsGuest();
+      localStorage.setItem('token', res.data.token);
+      navigate('/');
+    } catch (err) {
+      setError('Failed to start guest session. Please try again.');
+      setGuestLoading(false);
+    }
+  };
+
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      color: 'white',
+      fontFamily: C.fontMono,
+      '& fieldset': { borderColor: 'rgba(255,255,255,0.12)' },
+      '&:hover fieldset': { borderColor: C.border },
+      '&.Mui-focused fieldset': { borderColor: C.orange },
+    },
+    '& .MuiInputLabel-root': { color: C.textDim, fontFamily: C.fontMono },
+    '& .MuiInputLabel-root.Mui-focused': { color: C.orange },
   };
 
   return (
@@ -33,130 +64,90 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(circle at 30% 50%, #050505, #000)',
+        backgroundColor: '#080808',
+        backgroundImage: `
+          linear-gradient(rgba(255,102,0,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,102,0,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '32px 32px',
       }}
     >
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{
-          padding: 4,
+          p: 4,
           width: '100%',
-          maxWidth: '400px',
-          background: 'rgba(20, 20, 20, 0.85)',
-          color: 'white',
+          maxWidth: '420px',
+          background: C.card,
           borderRadius: '20px',
-          boxShadow: '0px 0px 30px rgba(0,255,250,0.12)',
-          backdropFilter: 'blur(10px)',
+          border: `1px solid ${C.border}`,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
         }}
       >
-        <Typography
-          variant="h4"
-          component="h1"
-          gutterBottom
-          textAlign="center"
-          sx={{ fontWeight: '600', color: 'white' }}
+        {/* Header */}
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography sx={{ fontFamily: C.fontPixel, fontSize: '0.65rem', color: C.orange, letterSpacing: '0.1em', mb: 1 }}>
+            HACKERSWIPE
+          </Typography>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.85rem', color: C.textDim }}>
+            AI-powered Hacker News reader
+          </Typography>
+        </Box>
+
+        {/* Guest CTA */}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handleGuest}
+          disabled={guestLoading}
+          sx={{
+            mb: 3,
+            py: 1.6,
+            background: C.orange,
+            fontFamily: C.fontMono,
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            borderRadius: '10px',
+            '&:hover': { background: '#e65c00' },
+            '&:disabled': { background: 'rgba(255,102,0,0.4)' },
+          }}
         >
-          Login
-        </Typography>
+          {guestLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : '▶ EXPLORE AS GUEST'}
+        </Button>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, px: 1 }}>
+            or sign in
+          </Typography>
+        </Divider>
+
         <form onSubmit={handleSubmit}>
-          <TextField
-            label="Email"
-            variant="outlined"
-            fullWidth
-            margin="normal"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            InputLabelProps={{
-              style: { color: 'rgba(255, 255, 255, 0.7)' },
-            }}
-            InputProps={{
-              style: { color: 'white', borderColor: 'rgba(255, 255, 255, 0.3)' },
-              classes: {
-                notchedOutline: 'rgba(255, 255, 255, 0.3)',
-              },
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'rgba(0,255,250,0.7)',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'rgba(0,255,250,1)',
-                },
-              },
-            }}
-          />
-          <TextField
-            label="Password"
-            type="password"
-            variant="outlined"
-            fullWidth
-            margin="normal"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            InputLabelProps={{
-              style: { color: 'rgba(255, 255, 255, 0.7)' },
-            }}
-            InputProps={{
-              style: { color: 'white' },
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'rgba(0,255,250,0.7)',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'rgba(0,255,250,1)',
-                },
-              },
-            }}
-          />
+          <TextField label="Email" variant="outlined" fullWidth margin="normal"
+            value={email} onChange={(e) => setEmail(e.target.value)} required sx={inputSx} />
+          <TextField label="Password" type="password" variant="outlined" fullWidth margin="normal"
+            value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
+
           {error && (
-            <Typography
-              color="error"
-              variant="body2"
-              textAlign="center"
-              sx={{ mt: 2 }}
-            >
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.75rem', color: '#f87171', mt: 1.5, textAlign: 'center' }}>
               {error}
             </Typography>
           )}
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
+
+          <Button type="submit" variant="outlined" fullWidth
             sx={{
-              mt: 3,
-              mb: 2,
-              padding: '12px',
-              fontWeight: '600',
-              background: 'rgba(0,255,250,0.15)',
-              color: 'white',
-              '&:hover': {
-                background: 'rgba(0,255,250,0.25)',
-              },
-            }}
-          >
-            Login
+              mt: 2.5, mb: 2, py: 1.4,
+              fontFamily: C.fontMono, fontSize: '0.8rem',
+              color: C.orange, borderColor: C.border, borderRadius: '10px',
+              '&:hover': { borderColor: C.orange, background: C.orangeDim },
+            }}>
+            SIGN IN
           </Button>
-          <Typography variant="body2" textAlign="center" color="rgba(255, 255, 255, 0.7)">
-            Don't have an account?{' '}
-            <Link
-              onClick={() => navigate('/register')}
-              sx={{
-                color: 'rgba(0,255,250,1)',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
+
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.75rem', textAlign: 'center', color: C.textDim }}>
+            No account?{' '}
+            <Link onClick={() => navigate('/register')}
+              sx={{ color: C.orange, cursor: 'pointer', '&:hover': { color: '#ff8533' } }}>
               Register
             </Link>
           </Typography>

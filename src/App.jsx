@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
-  Card,
-  CardMedia,
-  CardContent,
   Typography,
   CircularProgress,
   Button,
   IconButton,
-  Paper,
   Chip,
   Dialog,
   DialogActions,
@@ -16,14 +12,17 @@ import {
   DialogContentText,
   DialogTitle,
   Link,
+  Tooltip,
 } from "@mui/material";
-import { 
-  RotateLeft, 
-  Logout, 
-  Link as LinkIcon,
+import {
+  RotateLeft,
+  Logout,
+  OpenInNew,
   BarChart,
   WarningAmber,
   Favorite,
+  ThumbDown,
+  ThumbUp,
 } from "@mui/icons-material";
 import {
   motion,
@@ -35,7 +34,50 @@ import {
 import { useOutletContext } from "react-router-dom";
 import * as api from "./api.js";
 
-// --- Main App Component ---
+// ---------------------------------------------------------------------------
+// Design Tokens (match CSS variables)
+// ---------------------------------------------------------------------------
+const C = {
+  orange: "#ff6600",
+  orangeDim: "rgba(255,102,0,0.12)",
+  orangeGlow: "rgba(255,102,0,0.35)",
+  bg: "#080808",
+  card: "rgba(13,13,13,0.98)",
+  panel: "rgba(10,10,10,0.88)",
+  border: "rgba(255,102,0,0.14)",
+  borderHot: "rgba(255,102,0,0.5)",
+  textDim: "rgba(232,232,232,0.5)",
+  fontPixel: "'Press Start 2P', monospace",
+  fontMono: "'Share Tech Mono', monospace",
+  fontUi: "'Inter', sans-serif",
+};
+
+// ---------------------------------------------------------------------------
+// Hook: Typewriter Effect
+// ---------------------------------------------------------------------------
+function useTypewriter(text, speed = 28, active = true) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!active) { setDisplayed(text); setDone(true); return; }
+    setDisplayed("");
+    setDone(false);
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) { clearInterval(id); setDone(true); }
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed, active]);
+
+  return { displayed, done };
+}
+
+// ---------------------------------------------------------------------------
+// Main App Component
+// ---------------------------------------------------------------------------
 export default function App() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,204 +85,64 @@ export default function App() {
   const { logout } = useOutletContext();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  
+
   const isInitialMount = useRef(true);
   const fetchTimeoutRef = useRef(null);
 
   const fetchFeed = useCallback(async (isReset = false) => {
-    // Prevent multiple simultaneous fetches
-    if (isFetchingMore) {
-      console.log("Already fetching, skipping...");
-      return;
-    }
-    
-    console.log(`🔄 Starting fetch (isReset: ${isReset})`);
+    if (isFetchingMore) return;
     setIsFetchingMore(true);
     setIsLoading(true);
-    
     try {
       const data = await api.getFeed();
-      console.log(`✅ Received ${data.length} articles from API`);
-      
       if (data.length === 0 && !isReset) {
-        console.log("❌ Feed exhausted. No new articles found.");
         setArticles([]);
       } else if (isReset) {
-        console.log(`🔄 Reset: Loaded ${data.length} new articles`);
         setArticles(data);
       } else {
-        console.log(`➕ Appending ${data.length} new articles to stack`);
         setArticles((prev) => [...data, ...prev]);
       }
-    } catch (error) {
-      console.error("❌ Failed to fetch feed:", error);
+    } catch (err) {
+      console.error("Failed to fetch feed:", err);
     } finally {
       setIsLoading(false);
       setIsFetchingMore(false);
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
-      }
+      if (isInitialMount.current) isInitialMount.current = false;
     }
   }, [isFetchingMore]);
 
-  // Initial fetch on mount only
-  useEffect(() => {
-    console.log("🚀 Initial mount - fetching feed");
-    fetchFeed(true);
-  }, []); 
+  useEffect(() => { fetchFeed(true); }, []); // eslint-disable-line
 
-  // Auto-fetch when stack becomes empty
   useEffect(() => {
-    // Clear any pending timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-
-    // Only trigger if:
-    // 1. Stack is empty
-    // 2. Not currently fetching
-    // 3. Not on initial mount
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     if (articles.length === 0 && !isFetchingMore && !isInitialMount.current) {
-      console.log("📭 Stack is empty! Scheduling auto-fetch...");
-      
-      // Use a small timeout to ensure state has settled
-      fetchTimeoutRef.current = setTimeout(() => {
-        console.log("🎯 Executing auto-fetch now");
-        fetchFeed();
-      }, 100);
+      fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 100);
     }
-
-    return () => {
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-    };
+    return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
   }, [articles.length, isFetchingMore, fetchFeed]);
 
   const handleSwipe = async (direction, swipedArticle) => {
-    console.log(`👆 Swiped ${direction} on: ${swipedArticle.title}`);
-    
-    // Calculate if this is the last card before updating state
     const willBeEmpty = articles.length === 1;
-    
     try {
-      // Send swipe to API
       await api.sendSwipe(swipedArticle.id, direction === "right");
-      console.log(`✅ Sent swipe to API for article ${swipedArticle.id}`);
-      setSwipeCount(prev => prev + 1); 
-    } catch (error) {
-      console.error("❌ Failed to send swipe:", error);
+      setSwipeCount((prev) => prev + 1);
+    } catch (err) {
+      console.error("Failed to send swipe:", err);
     }
-    
-    // Remove the card from the stack
-    setArticles((prev) => {
-      const newStack = prev.slice(0, prev.length - 1);
-      console.log(`📚 Stack after swipe: ${newStack.length} articles remaining`);
-      return newStack;
-    });
-    
-    // If this was the last card, show loading state immediately
-    // The useEffect will trigger the fetch
-    if (willBeEmpty) {
-      console.log("🎴 Last card swiped! Stack will be empty.");
-      setIsLoading(true);
-    }
+    setArticles((prev) => prev.slice(0, prev.length - 1));
+    if (willBeEmpty) setIsLoading(true);
   };
 
   const handleReset = async () => {
     try {
       setIsLoading(true);
       await api.resetSwipes();
-      setSwipeCount(prev => prev + 1);
+      setSwipeCount((prev) => prev + 1);
       await fetchFeed(true);
-    } catch (error) {
-      console.error("Failed to reset feed:", error);
+    } catch (err) {
+      console.error("Failed to reset feed:", err);
       setIsLoading(false);
     }
-  };
-  
-  const handleConfirmReset = () => {
-    setIsResetModalOpen(false);
-    handleReset();
-  };
-
-  const renderContent = () => {
-    // Show spinner when loading
-    if (isLoading) {
-      console.log("🔄 Rendering loading spinner");
-      return (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "550px",
-            color: "white",
-            width: 400,
-          }}
-        >
-          <CircularProgress color="inherit" />
-        </Box>
-      );
-    }
-
-    // Show "no more news" only when truly exhausted
-    if (articles.length === 0 && !isFetchingMore) {
-      console.log("📭 Rendering 'No More News' card");
-      return (
-        <Card
-          sx={{
-            background: "rgba(20, 20, 20, 0.85)",
-            color: "white",
-            borderRadius: "20px",
-            boxShadow: "0px 0px 30px rgba(255,102,0,0.12)",
-            backdropFilter: "blur(10px)",
-            width: "400px",
-            height: "550px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            padding: 3,
-          }}
-        >
-          <Typography variant="h5" gutterBottom>
-            No More News
-          </Typography>
-          <Typography sx={{ color: "rgba(200,200,200,0.9)", mb: 3 }}>
-            You've seen all available articles.
-          </Typography>
-          <Button
-            variant="contained"
-            onClick={() => setIsResetModalOpen(true)}
-            sx={{
-              background: "rgba(255,102,0,0.15)",
-              "&:hover": { background: "rgba(255,102,0,0.25)" },
-            }}
-          >
-            Reset Swipes & Reload
-          </Button>
-        </Card>
-      );
-    }
-
-    // Render the card stack
-    console.log(`🎴 Rendering ${articles.length} cards`);
-    return (
-      <AnimatePresence>
-        {articles.map((article, index) => (
-          <NewsCard
-            key={article.id}
-            article={article}
-            onSwipe={(dir) => handleSwipe(dir, article)}
-            isTop={index === articles.length - 1}
-            stackIndex={index}
-            totalCards={articles.length}
-          />
-        ))}
-      </AnimatePresence>
-    );
   };
 
   return (
@@ -248,106 +150,149 @@ export default function App() {
       sx={{
         height: "100vh",
         width: "100vw",
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "grid",
+        gridTemplateColumns: "260px 1fr 260px",
+        gridTemplateRows: "56px 1fr",
+        gap: 0,
+        backgroundColor: C.bg,
+        backgroundImage: `
+          linear-gradient(rgba(255,102,0,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,102,0,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: "32px 32px",
         overflow: "hidden",
-        backgroundColor: "#0a0a0a",
-        backgroundImage: "radial-gradient(rgba(255, 102, 0, 0.05) 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
       }}
     >
-      <UserStats swipeCount={swipeCount} />
-
-      <Box sx={{ position: 'relative', width: 420, height: 550, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {renderContent()}
-      </Box>
-      
-      <LikedArticlesPanel swipeCount={swipeCount} />
-
+      {/* ---- Top Nav Bar ---- */}
       <Box
         sx={{
-          position: "absolute",
-          top: 24,
-          right: 24,
-          zIndex: 200,
-          display: 'flex',
-          gap: 2,
+          gridColumn: "1 / -1",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 3,
+          borderBottom: `1px solid ${C.border}`,
+          background: "rgba(8,8,8,0.95)",
+          backdropFilter: "blur(12px)",
+          zIndex: 100,
         }}
       >
-        <IconButton
-          onClick={() => setIsResetModalOpen(true)}
-          sx={{
-            color: "white",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-            },
-          }}
-          title="Reset Swipes & Reload"
-        >
-          <RotateLeft />
-        </IconButton>
-        
-        <IconButton
-          onClick={logout}
-          sx={{
-            color: "white",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-            },
-          }}
-          title="Logout"
-        >
-          <Logout />
-        </IconButton>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: C.orange,
+              boxShadow: `0 0 8px ${C.orange}`,
+            }}
+          />
+          <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange, letterSpacing: "0.05em" }}>
+            HACKERSWIPE
+          </Typography>
+        </Box>
+
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
+          AI-POWERED HACKER NEWS READER
+        </Typography>
+
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Tooltip title="Reset taste profile">
+            <IconButton
+              onClick={() => setIsResetModalOpen(true)}
+              size="small"
+              sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}
+            >
+              <RotateLeft fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Logout">
+            <IconButton
+              onClick={logout}
+              size="small"
+              sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}
+            >
+              <Logout fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
-      
+
+      {/* ---- Left Stats Panel ---- */}
+      <SidePanel>
+        <StatsPanel swipeCount={swipeCount} />
+      </SidePanel>
+
+      {/* ---- Center Card Stack ---- */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          px: 3,
+          overflow: "hidden",
+        }}
+      >
+        {isLoading ? (
+          <TerminalLoader />
+        ) : articles.length === 0 ? (
+          <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
+        ) : (
+          <AnimatePresence>
+            {articles.map((article, index) => (
+              <NewsCard
+                key={article.id}
+                article={article}
+                onSwipe={(dir) => handleSwipe(dir, article)}
+                isTop={index === articles.length - 1}
+                stackIndex={index}
+                totalCards={articles.length}
+              />
+            ))}
+          </AnimatePresence>
+        )}
+      </Box>
+
+      {/* ---- Right Liked Panel ---- */}
+      <SidePanel align="right">
+        <LikedPanel swipeCount={swipeCount} />
+      </SidePanel>
+
+      {/* ---- Reset Modal ---- */}
       <Dialog
         open={isResetModalOpen}
         onClose={() => setIsResetModalOpen(false)}
         PaperProps={{
           sx: {
-            background: 'rgba(30, 30, 30, 0.9)',
-            color: 'white',
-            borderRadius: '16px',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }
+            background: C.card,
+            color: "white",
+            borderRadius: "16px",
+            border: `1px solid ${C.borderHot}`,
+            fontFamily: C.fontUi,
+          },
         }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-          <WarningAmber sx={{ mr: 1, color: '#f39c12' }} />
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontFamily: C.fontUi, fontWeight: 700 }}>
+          <WarningAmber sx={{ color: "#f39c12" }} />
           Reset Taste Profile?
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: 'rgba(200, 200, 200, 0.9)' }}>
-            This will permanently delete all of your swipe history. Your feed will be reset to random articles.
+          <DialogContentText sx={{ color: C.textDim, fontFamily: C.fontUi }}>
+            This permanently deletes your swipe history. Your feed resets to random articles and your AI profile starts fresh.
           </DialogContentText>
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px' }}>
-          <Button 
-            onClick={() => setIsResetModalOpen(false)} 
-            sx={{ 
-              color: 'white',
-              '&:hover': { background: 'rgba(255, 255, 255, 0.1)'} 
-            }}
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setIsResetModalOpen(false)}
+            sx={{ color: C.textDim, fontFamily: C.fontUi, "&:hover": { color: "white", background: "rgba(255,255,255,0.06)" } }}
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleConfirmReset} 
+          <Button
+            onClick={() => { setIsResetModalOpen(false); handleReset(); }}
             variant="contained"
-            color="error"
-            autoFocus
-            sx={{
-              background: '#c0392b',
-              '&:hover': { background: '#e74c3c' }
-            }}
+            sx={{ background: "#c0392b", fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e74c3c" } }}
           >
-            Confirm Reset
+            Reset
           </Button>
         </DialogActions>
       </Dialog>
@@ -355,403 +300,444 @@ export default function App() {
   );
 }
 
-// --- User Stats Component ---
-function UserStats({ swipeCount }) {
-  const [stats, setStats] = useState({ totalSwipes: 0, topTopics: [] });
-  const [isLoading, setIsLoading] = useState(true);
-  const isFirstLoad = useRef(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (isFirstLoad.current) {
-        setIsLoading(true);
-        isFirstLoad.current = false;
-      }
-      
-      try {
-        const data = await api.getStats();
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-      }
-      setIsLoading(false);
-    };
-
-    fetchStats();
-  }, [swipeCount]);
-
+// ---------------------------------------------------------------------------
+// Side Panel Wrapper
+// ---------------------------------------------------------------------------
+function SidePanel({ children, align = "left" }) {
   return (
-    <Paper
-      elevation={0}
+    <Box
       sx={{
-        position: 'absolute',
-        left: 24,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 280,
-        minHeight: '240px',
-        background: 'rgba(20, 20, 20, 0.65)',
-        color: 'white',
-        borderRadius: '20px',
-        backdropFilter: 'blur(10px)',
-        padding: '24px',
-        boxShadow: '0px 0px 30px rgba(255,102,0,0.12)',
-        display: { xs: 'none', lg: 'block' }
+        borderRight: align === "left" ? `1px solid ${C.border}` : "none",
+        borderLeft: align === "right" ? `1px solid ${C.border}` : "none",
+        height: "100%",
+        overflowY: "auto",
+        background: C.panel,
+        backdropFilter: "blur(10px)",
+        p: 2.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <BarChart sx={{ mr: 1.5, color: 'rgba(255,102,0,0.7)' }} />
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          My Stats
-        </Typography>
-      </Box>
-
-      <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-        Top Liked Sources:
-      </Typography>
-      
-      {isLoading ? (
-        <Typography variant="body2" sx={{ color: 'rgba(200,200,200,0.9)', mb: 3 }}>
-          Loading...
-        </Typography>
-      ) : stats.topTopics.length > 0 ? (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
-          {stats.topTopics.map((topic) => (
-            <Chip 
-              key={topic} 
-              label={topic} 
-              size="small" 
-              sx={{ 
-                color: 'white', 
-                background: 'rgba(255,102,0,0.15)' 
-              }} 
-            />
-          ))}
-        </Box>
-      ) : (
-        <Typography variant="body2" sx={{ color: 'rgba(200,200,200,0.9)', mb: 3, fontStyle: 'italic' }}>
-          Swipe right on articles to see your top sources!
-        </Typography>
-      )}
-      
-      <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-        Total Swipes:
-      </Typography>
-      
-      {isLoading ? (
-        <Typography variant="body2" sx={{ color: 'rgba(200,200,200,0.9)' }}>
-          Loading...
-        </Typography>
-      ) : (
-        <Typography variant="h4" sx={{ color: 'rgba(255,102,0,0.7)', fontWeight: 'bold' }}>
-          {stats.totalSwipes}
-        </Typography>
-      )}
-    </Paper>
+      {children}
+    </Box>
   );
 }
 
-// --- Liked Articles Panel Component ---
-function LikedArticlesPanel({ swipeCount }) {
-  const [liked, setLiked] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const isFirstLoad = useRef(true);
+// ---------------------------------------------------------------------------
+// Stats Panel
+// ---------------------------------------------------------------------------
+function StatsPanel({ swipeCount }) {
+  const [stats, setStats] = useState({ totalSwipes: 0, topTopics: [] });
+  const isFirst = useRef(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLiked = async () => {
-      if (isFirstLoad.current) {
-        setIsLoading(true);
-        isFirstLoad.current = false;
-      }
-      try {
-        const data = await api.getLikedArticles();
-        setLiked(data);
-      } catch (error) {
-        console.error("Failed to fetch liked articles:", error);
-      }
-      setIsLoading(false);
+    const fetch = async () => {
+      if (isFirst.current) { setLoading(true); isFirst.current = false; }
+      try { const d = await api.getStats(); setStats(d); } catch { /* ignore */ }
+      setLoading(false);
     };
-
-    fetchLiked();
+    fetch();
   }, [swipeCount]);
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: 'absolute',
-        right: 24,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 280,
-        height: 'calc(100vh - 160px)',
-        maxHeight: '600px',
-        minHeight: '240px',
-        background: 'rgba(20, 20, 20, 0.65)',
-        color: 'white',
-        borderRadius: '20px',
-        backdropFilter: 'blur(10px)',
-        padding: '24px',
-        boxShadow: '0px 0px 30px rgba(255,102,0,0.12)',
-        display: { xs: 'none', lg: 'flex' },
-        flexDirection: 'column',
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Favorite sx={{ mr: 1.5, color: 'rgba(255, 82, 82, 0.8)' }} />
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          My Likes
+    <>
+      <SectionHeader icon="▸" label="MY STATS" />
+
+      <Box>
+        <Label>TOTAL SWIPES</Label>
+        <Typography sx={{ fontFamily: C.fontPixel, fontSize: "1rem", color: C.orange, mt: 0.5 }}>
+          {loading ? "..." : stats.totalSwipes}
         </Typography>
       </Box>
 
-      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-        {isLoading ? (
-          <Typography variant="body2" sx={{ color: 'rgba(200,200,200,0.9)' }}>
-            Loading...
-          </Typography>
-        ) : liked.length > 0 ? (
-          <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
-            {liked.map((article) => (
-              <Box component="li" key={article.id} sx={{ mb: 2 }}>
-                <Link
-                  href={article.article_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  underline="hover"
-                  sx={{
-                    color: 'rgba(200, 200, 200, 0.9)',
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem',
-                    "&:hover": { color: 'white' },
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: '-webkit-box',
-                    WebkitLineClamp: '2',
-                    WebkitBoxOrient: 'vertical',
-                  }}
-                >
-                  {article.title}
-                </Link>
-                <Typography variant="caption" sx={{ display: 'block', color: 'rgba(200, 200, 200, 0.6)', mt: 0.5 }}>
-                  {article.source_name}
-                </Typography>
-              </Box>
+      <Box>
+        <Label>TOP SOURCES</Label>
+        {loading ? (
+          <Mono dim>loading...</Mono>
+        ) : stats.topTopics.length > 0 ? (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 0.75 }}>
+            {stats.topTopics.map((t) => (
+              <Chip
+                key={t}
+                label={t}
+                size="small"
+                sx={{
+                  color: C.orange,
+                  background: C.orangeDim,
+                  border: `1px solid ${C.border}`,
+                  fontFamily: C.fontMono,
+                  fontSize: "0.7rem",
+                }}
+              />
             ))}
           </Box>
         ) : (
-          <Typography variant="body2" sx={{ color: 'rgba(200,200,200,0.9)', fontStyle: 'italic' }}>
-            Swipe right on articles to save them here!
-          </Typography>
+          <Mono dim>swipe right to build profile</Mono>
         )}
       </Box>
-    </Paper>
+
+      <Box sx={{ mt: "auto" }}>
+        <Mono dim>{"// swipe right = LIKE"}</Mono>
+        <Mono dim>{"// swipe left = SKIP"}</Mono>
+      </Box>
+    </>
   );
 }
 
-// --- News Card Component ---
+// ---------------------------------------------------------------------------
+// Liked Panel
+// ---------------------------------------------------------------------------
+function LikedPanel({ swipeCount }) {
+  const [liked, setLiked] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isFirst = useRef(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      if (isFirst.current) { setLoading(true); isFirst.current = false; }
+      try { const d = await api.getLikedArticles(); setLiked(d); } catch { /* ignore */ }
+      setLoading(false);
+    };
+    fetch();
+  }, [swipeCount]);
+
+  return (
+    <>
+      <SectionHeader icon="♥" label="MY LIKES" color="#ff4757" />
+      {loading ? (
+        <Mono dim>loading...</Mono>
+      ) : liked.length > 0 ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {liked.map((a) => (
+            <Box key={a.id}>
+              <Link
+                href={a.article_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="none"
+                sx={{
+                  color: "#e8e8e8",
+                  fontFamily: C.fontUi,
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  "&:hover": { color: C.orange },
+                  transition: "color 0.2s",
+                }}
+              >
+                {a.title}
+              </Link>
+              <Mono dim style={{ fontSize: "0.65rem", marginTop: 2 }}>
+                hn://hacker-news
+              </Mono>
+            </Box>
+          ))}
+        </Box>
+      ) : (
+        <Mono dim>swipe right on articles to save them here</Mono>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// News Card
+// ---------------------------------------------------------------------------
 function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 300], [-12, 12]);
-  const opacity = useTransform(x, [-300, -150, 0, 150, 300], [0.4, 1, 1, 1, 0.4]);
-  const likeOpacity = useTransform(x, [60, 150], [0, 1]);
-  const nopeOpacity = useTransform(x, [-60, -150], [0, 1]);
-  const threshold = 120;
+  const rotate = useTransform(x, [-350, 350], [-10, 10]);
+  const likeOpacity = useTransform(x, [50, 140], [0, 1]);
+  const skipOpacity = useTransform(x, [-50, -140], [0, 1]);
   const cardsFromTop = totalCards - 1 - stackIndex;
+
+  // Typewriter for title only fires when this is the top card
+  const { displayed, done } = useTypewriter(article.title, 22, isTop);
 
   const handleDragEnd = async (_, info) => {
     if (isExiting || !isTop) return;
-    const offsetX = info.offset.x;
-    const velocityX = info.velocity.x;
-    const shouldLike = offsetX > threshold || velocityX > 600;
-    const shouldNope = offsetX < -threshold || velocityX < -600;
-
-    if (shouldLike) {
+    const { offset: { x: ox }, velocity: { x: vx } } = info;
+    const liked = ox > 120 || vx > 600;
+    const skipped = ox < -120 || vx < -600;
+    if (liked) {
       setIsExiting(true);
-      await controls.start({
-        x: 280,
-        rotate: 8,
-        opacity: 0,
-        scale: 0.95,
-        transition: { duration: 0.4, ease: "easeOut" },
-      });
+      await controls.start({ x: 500, rotate: 10, opacity: 0, transition: { duration: 0.38, ease: "easeOut" } });
       onSwipe("right");
-    } else if (shouldNope) {
+    } else if (skipped) {
       setIsExiting(true);
-      await controls.start({
-        x: -280,
-        rotate: -8,
-        opacity: 0,
-        scale: 0.95,
-        transition: { duration: 0.4, ease: "easeOut" },
-      });
+      await controls.start({ x: -500, rotate: -10, opacity: 0, transition: { duration: 0.38, ease: "easeOut" } });
       onSwipe("left");
     } else {
-      await controls.start({
-        x: 0,
-        rotate: 0,
-        opacity: 1,
-        transition: { type: "spring", stiffness: 420, damping: 35 },
-      });
+      await controls.start({ x: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 30 } });
     }
   };
+
+  const cardWidth = 720;
+  const cardHeight = 480;
 
   return (
     <motion.div
       layout
-      initial={{ scale: 0.98, y: 12, opacity: 1 }}
+      initial={{ scale: 0.97, y: 10, opacity: 0.9 }}
       animate={controls}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.18 } }}
       style={{
         x,
         rotate,
-        opacity,
         position: "absolute",
-        width: 420,
+        width: cardWidth,
         cursor: !isTop || isExiting ? "default" : "grab",
-        display: "flex",
-        justifyContent: "center",
-        scale: isTop ? 1 : 1 - cardsFromTop * 0.05,
-        y: 0,
         zIndex: isTop ? 100 : stackIndex,
+        scale: isTop ? 1 : 1 - cardsFromTop * 0.03,
+        y: cardsFromTop * 8,
       }}
       drag={isTop && !isExiting ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0}
+      dragElastic={0.08}
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
-      <Card
+      {/* Card */}
+      <Box
+        className="card-glow"
         sx={{
-          background: "rgba(18, 18, 18, 0.95)",
-          color: "white",
-          borderRadius: "24px",
-          border: "1px solid rgba(255, 102, 0, 0.15)",
-          boxShadow: "0px 12px 40px rgba(0,0,0,0.6)",
-          backdropFilter: "blur(20px)",
+          width: cardWidth,
+          height: cardHeight,
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: "20px",
           overflow: "hidden",
-          width: "400px",
-          height: "550px",
-          display: "flex",
-          flexDirection: "column",
+          display: "grid",
+          gridTemplateColumns: article.image_url ? "1fr 1fr" : "1fr",
+          position: "relative",
         }}
       >
-        {article.image_url ? (
-          <CardMedia
-            component="img"
-            height="200"
-            image={article.image_url}
-            alt={article.title}
-            onError={(e) => { e.target.style.display = 'none'; }}
-            sx={{ pointerEvents: 'none', objectFit: 'cover' }}
-          />
-        ) : (
-          <Box sx={{ height: "6px", background: "linear-gradient(90deg, #ff6600, #ff8533)" }} />
-        )}
-        
-        <CardContent
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: article.image_url ? "flex-start" : "center",
-            flexGrow: 1,
-            padding: '32px 28px',
-            textAlign: "left",
-          }}
-        >
-          <Box sx={{ mb: 1.5 }}>
-            <Typography variant="overline" sx={{ color: '#ff6600', fontWeight: 'bold', letterSpacing: '1px' }}>
-              {article.source_name || 'Hacker News'}
-            </Typography>
+        {/* === Left: Image === */}
+        {article.image_url && (
+          <Box sx={{ position: "relative", overflow: "hidden" }}>
+            <Box
+              component="img"
+              src={article.image_url}
+              alt={article.title}
+              onError={(e) => { e.target.parentElement.style.display = "none"; }}
+              sx={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }}
+            />
+            {/* Gradient overlay on image */}
+            <Box sx={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(90deg, transparent 60%, rgba(13,13,13,0.95) 100%)",
+            }} />
+            <Box sx={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(0deg, rgba(13,13,13,0.6) 0%, transparent 60%)",
+            }} />
           </Box>
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, lineHeight: 1.3, fontSize: article.image_url ? '1.4rem' : '1.7rem' }}>
-            {article.title}
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ 
-              color: "rgba(255,255,255,0.7)", 
-              mt: 1.5,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: article.image_url ? '3' : '6',
-              WebkitBoxOrient: 'vertical',
-              fontSize: '1rem',
-              lineHeight: 1.6
-            }} 
-          >
-            {article.description}
-          </Typography>
+        )}
 
-          <Box sx={{ mt: 'auto', pt: 3, pointerEvents: 'auto', width: '100%' }}> 
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<LinkIcon />}
-              href={article.article_url}
-              target="_blank"
-              rel="noopener noreferrer"
+        {/* === Right (or full): Content === */}
+        <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
+          {/* Top: meta */}
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, flexShrink: 0, boxShadow: `0 0 6px ${C.orange}` }} />
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange, letterSpacing: "0.08em" }}>
+                HACKER NEWS
+              </Typography>
+            </Box>
+
+            {/* Pixel font typewriter title */}
+            <Typography
               sx={{
-                background: '#ff6600',
-                color: 'white',
-                fontWeight: 'bold',
-                textTransform: 'none',
-                borderRadius: '12px',
-                py: 1.5,
-                "&:hover": { background: '#e65c00' }
+                fontFamily: C.fontPixel,
+                fontSize: article.image_url ? "0.72rem" : "0.9rem",
+                color: "#f5f5f5",
+                lineHeight: 1.8,
+                mb: 2.5,
+                minHeight: article.image_url ? "5rem" : "8rem",
               }}
             >
-              Read Article
-            </Button>
+              {displayed}
+              {!done && <span className="cursor-blink" />}
+            </Typography>
+
+            {/* Description: only show when typing is done */}
+            {done && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: C.fontUi,
+                    fontSize: "0.88rem",
+                    color: C.textDim,
+                    lineHeight: 1.7,
+                    display: "-webkit-box",
+                    WebkitLineClamp: article.image_url ? 3 : 5,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {article.description}
+                </Typography>
+              </motion.div>
+            )}
           </Box>
-        </CardContent>
-      </Card>
-      
-      {/* Like/Dislike Emojis */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        style={{
-          position: "absolute",
-          top: "18%",
-          left: 18,
-          color: "#f87171",
-          fontSize: "2.6rem",
-          fontWeight: "700",
-          pointerEvents: "none",
-          opacity: nopeOpacity,
-          transform: "translateY(-10px)",
-        }}
-        animate={{
-          y: isExiting ? -20 : 0,
-          transition: { duration: 0.25, ease: "easeOut" },
-        }}
-      >
-        ❌
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        style={{
-          position: "absolute",
-          top: "18%",
-          right: 18,
-          color: "#4ade80",
-          fontSize: "2.6rem",
-          fontWeight: "700",
-          pointerEvents: "none",
-          opacity: likeOpacity,
-          transform: "translateY(-10px)",
-        }}
-        animate={{
-          y: isExiting ? -20 : 0,
-          transition: { duration: 0.25, ease: "easeOut" },
-        }}
-      >
-        ❤️
-      </motion.div>
+
+          {/* Bottom: action button area */}
+          {done && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 3 }}>
+                <Button
+                  component="a"
+                  href={article.article_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="outlined"
+                  endIcon={<OpenInNew sx={{ fontSize: "0.9rem !important" }} />}
+                  sx={{
+                    fontFamily: C.fontMono,
+                    fontSize: "0.75rem",
+                    color: C.orange,
+                    borderColor: C.border,
+                    borderRadius: "8px",
+                    textTransform: "none",
+                    px: 2.5,
+                    py: 1,
+                    "&:hover": { borderColor: C.orange, background: C.orangeDim },
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  READ ARTICLE
+                </Button>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                  <Mono dim style={{ fontSize: "0.65rem" }}>or swipe</Mono>
+                  <ActionHint icon={<ThumbDown sx={{ fontSize: 14 }} />} label="SKIP" color="rgba(255,70,70,0.8)" />
+                  <ActionHint icon={<ThumbUp sx={{ fontSize: 14 }} />} label="LIKE" color="rgba(80,220,80,0.8)" />
+                </Box>
+              </Box>
+            </motion.div>
+          )}
+        </Box>
+
+        {/* === Swipe Feedback Overlays === */}
+        <motion.div style={{ opacity: likeOpacity, position: "absolute", top: 24, right: 24, pointerEvents: "none", zIndex: 10 }}>
+          <Box sx={{
+            border: "3px solid #4ade80", borderRadius: "8px", px: 2, py: 0.5,
+            fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#4ade80",
+            transform: "rotate(12deg)",
+          }}>
+            LIKE
+          </Box>
+        </motion.div>
+        <motion.div style={{ opacity: skipOpacity, position: "absolute", top: 24, left: 24, pointerEvents: "none", zIndex: 10 }}>
+          <Box sx={{
+            border: "3px solid #f87171", borderRadius: "8px", px: 2, py: 0.5,
+            fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#f87171",
+            transform: "rotate(-12deg)",
+          }}>
+            SKIP
+          </Box>
+        </motion.div>
+
+        {/* Corner decoration */}
+        <Box sx={{ position: "absolute", bottom: 16, right: 20, fontFamily: C.fontMono, fontSize: "0.6rem", color: C.border }}>
+          {`[${stackIndex + 1}]`}
+        </Box>
+      </Box>
     </motion.div>
   );
 }
 
-// Removed StarsBackground for minimal layout
+// ---------------------------------------------------------------------------
+// Loading State
+// ---------------------------------------------------------------------------
+function TerminalLoader() {
+  const [dots, setDots] = useState("_");
+  useEffect(() => {
+    const id = setInterval(() => setDots((d) => d.length >= 3 ? "_" : d + "_"), 400);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <Box sx={{ textAlign: "center" }}>
+      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, mb: 2, letterSpacing: "0.1em" }}>
+        LOADING FEED
+      </Typography>
+      <Typography sx={{ fontFamily: C.fontMono, fontSize: "1rem", color: C.textDim }}>
+        {`> fetching top stories${dots}`}
+      </Typography>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Exhausted Card
+// ---------------------------------------------------------------------------
+function ExhaustedCard({ onReset }) {
+  return (
+    <Box sx={{ textAlign: "center", maxWidth: 400 }}>
+      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.textDim, mb: 3, lineHeight: 2 }}>
+        FEED EXHAUSTED
+      </Typography>
+      <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, mb: 4, fontSize: "0.9rem" }}>
+        {">"} You've seen all available stories.
+      </Typography>
+      <Button
+        variant="outlined"
+        onClick={onReset}
+        sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}
+      >
+        RESET &amp; RELOAD
+      </Button>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Small Reusable Components
+// ---------------------------------------------------------------------------
+function SectionHeader({ icon, label, color = C.orange }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, borderBottom: `1px solid ${C.border}`, pb: 1.5 }}>
+      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color }}>
+        {icon}
+      </Typography>
+      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.5rem", color, letterSpacing: "0.08em" }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+function Label({ children }) {
+  return (
+    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.5 }}>
+      {children}
+    </Typography>
+  );
+}
+
+function Mono({ children, dim, style }) {
+  return (
+    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: dim ? C.textDim : "#e8e8e8", lineHeight: 1.6, ...style }}>
+      {children}
+    </Typography>
+  );
+}
+
+function ActionHint({ icon, label, color }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color, fontFamily: C.fontMono, fontSize: "0.6rem" }}>
+      {icon}
+      <span>{label}</span>
+    </Box>
+  );
+}

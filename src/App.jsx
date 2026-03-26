@@ -250,17 +250,19 @@ function ArticleDetailsPanel({ article }) {
         </Box>
       )}
 
-      {/* HN Discussion link */}
-      <Box>
-        <Label>DISCUSS ON HN</Label>
-        <Link
-          href={`https://news.ycombinator.com/item?id=${article.hn_id ?? ""}`}
-          target="_blank" rel="noopener noreferrer"
-          sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.orange, "&:hover": { color: "#ff8533" } }}
-        >
-          Open discussion ↗
-        </Link>
-      </Box>
+      {/* HN Discussion link — only when we have the actual ID */}
+      {article.hn_id && (
+        <Box>
+          <Label>DISCUSS ON HN</Label>
+          <Link
+            href={`https://news.ycombinator.com/item?id=${article.hn_id}`}
+            target="_blank" rel="noopener noreferrer"
+            sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.orange, "&:hover": { color: "#ff8533" } }}
+          >
+            Open discussion ↗
+          </Link>
+        </Box>
+      )}
 
       {/* Keyboard shortcuts */}
       <Box sx={{ mt: "auto", borderTop: `1px solid ${C.border}`, pt: 2 }}>
@@ -426,8 +428,9 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
         position: "absolute", width: 720,
         cursor: !isTop || isExiting ? "default" : "grab",
         zIndex: isTop ? 100 : stackIndex,
-        scale: isTop ? 1 : 1 - cardsFromTop * 0.03,
+        scale: isTop ? 1 : 1 - cardsFromTop * 0.04,
         y: cardsFromTop * 8,
+        opacity: isTop ? 1 : Math.max(0.25, 1 - cardsFromTop * 0.35),
       }}
       drag={isTop && !isExiting ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
@@ -457,86 +460,65 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
         ) : (
           /* Decorative left panel for no-image stories */
           <Box sx={{
-            background: "rgba(255,102,0,0.04)",
-            borderRight: `1px solid rgba(255,102,0,0.1)`,
+            background: "rgba(255,102,0,0.03)",
+            borderRight: `1px solid rgba(255,102,0,0.08)`,
             display: "flex", flexDirection: "column",
-            justifyContent: "center", alignItems: "center",
-            gap: 3, p: 3, position: "relative", overflow: "hidden",
+            justifyContent: "space-between", alignItems: "center",
+            p: "40px 24px", position: "relative", overflow: "hidden",
           }}>
-            {/* Decorative grid lines */}
-            <Box sx={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`, backgroundSize: "24px 24px" }} />
-            
-            {/* Big HN-style letter */}
-            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "4rem", color: "rgba(255,102,0,0.15)", lineHeight: 1, userSelect: "none", zIndex: 1 }}>Y</Typography>
-            
-            {/* Points & comments prominently displayed */}
-            <Box sx={{ zIndex: 1, display: "flex", flexDirection: "column", gap: 2, alignItems: "center" }}>
-              {article.score != null && (
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography sx={{ fontFamily: C.fontPixel, fontSize: "1.4rem", color: C.orange, lineHeight: 1 }}>
-                    {article.score}
-                  </Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim, mt: 0.5 }}>POINTS</Typography>
-                </Box>
-              )}
-              {article.num_comments != null && (
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography sx={{ fontFamily: C.fontPixel, fontSize: "1.4rem", color: "rgba(255,255,255,0.4)", lineHeight: 1 }}>
-                    {article.num_comments}
-                  </Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim, mt: 0.5 }}>COMMENTS</Typography>
-                </Box>
-              )}
+            {/* Decorative grid */}
+            <Box sx={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(rgba(255,102,0,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.05) 1px,transparent 1px)`, backgroundSize: "20px 20px" }} />
+
+            {/* Y combinator watermark */}
+            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "5rem", color: "rgba(255,102,0,0.08)", lineHeight: 1, userSelect: "none", zIndex: 1 }}>Y</Typography>
+
+            {/* Decorative circuit lines */}
+            <Box sx={{ zIndex: 1, display: "flex", flexDirection: "column", gap: 0.75, alignSelf: "stretch" }}>
+              {["#ff6600", "rgba(255,102,0,0.4)", "rgba(255,102,0,0.2)", "rgba(255,102,0,0.12)"].map((clr, i) => (
+                <Box key={i} sx={{ height: 1, background: clr, borderRadius: 1, width: `${100 - i * 18}%` }} />
+              ))}
             </Box>
 
-            <Mono dim style={{ fontSize: "0.6rem", zIndex: 1 }}>HACKER NEWS</Mono>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.55rem", color: "rgba(255,102,0,0.3)", zIndex: 1, letterSpacing: "0.15em" }}>HACKER NEWS</Typography>
           </Box>
         )}
 
         {/* Content panel */}
         <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
           <Box>
+            {/* Header: source dot + label */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
               <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />
               <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
-              {/* Inline stats for image cards */}
-              {hasImage && article.score != null && (
-                <Box sx={{ ml: "auto", display: "flex", gap: 1.5, alignItems: "center" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange }}>{article.score}</Typography>
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.55rem", color: C.textDim }}>pts</Typography>
-                  </Box>
-                  {article.num_comments != null && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ChatBubbleOutline sx={{ fontSize: 11, color: C.textDim }} />
-                      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: "rgba(255,255,255,0.5)" }}>{article.num_comments}</Typography>
-                    </Box>
-                  )}
-                </Box>
-              )}
             </Box>
 
             {/* Pixel font typewriter title */}
             <Typography sx={{
               fontFamily: C.fontPixel,
-              fontSize: hasImage ? "0.72rem" : "0.85rem",
-              color: "#f5f5f5", lineHeight: 1.8, mb: 2.5,
-              minHeight: hasImage ? "5.5rem" : "7rem",
+              fontSize: hasImage ? "0.72rem" : "0.8rem",
+              color: "#f5f5f5", lineHeight: 1.8, mb: 2,
+              minHeight: hasImage ? "5rem" : "5.5rem",
             }}>
               {displayed}{!done && <span className="cursor-blink" />}
             </Typography>
 
-            {/* Description: show after typing done */}
+            {/* Summary description — fades in after title types */}
             {done && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+              <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
                 <Typography sx={{
-                  fontFamily: C.fontUi, fontSize: "0.88rem", color: C.textDim, lineHeight: 1.7,
-                  display: "-webkit-box", WebkitLineClamp: hasImage ? 3 : 4,
-                  WebkitBoxOrient: "vertical", overflow: "hidden",
+                  fontFamily: C.fontMono,
+                  fontSize: "0.78rem",
+                  color: "rgba(200,200,200,0.55)",
+                  lineHeight: 1.65,
+                  display: "-webkit-box",
+                  WebkitLineClamp: hasImage ? 3 : 5,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  borderLeft: `2px solid rgba(255,102,0,0.25)`,
+                  pl: 1.5,
                 }}>
-                  {/* If description is just stats, show a generic message instead */}
                   {descIsStats
-                    ? "Trending on Hacker News. Open the article to read more."
+                    ? "A trending story on Hacker News. Click 'Read Article' to explore."
                     : article.description}
                 </Typography>
               </motion.div>
@@ -558,9 +540,26 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
                 >
                   READ ARTICLE
                 </Button>
-                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-                  <ActionHint icon={<ThumbDown sx={{ fontSize: 14 }} />} label="SKIP" color="rgba(255,70,70,0.8)" />
-                  <ActionHint icon={<ThumbUp sx={{ fontSize: 14 }} />} label="LIKE" color="rgba(80,220,80,0.8)" />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  {/* Points + comments subtle badge */}
+                  {(article.score != null || article.num_comments != null) && (
+                    <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mr: 1 }}>
+                      {article.score != null && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, fontWeight: 700 }}>{article.score}</Typography>
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>pts</Typography>
+                        </Box>
+                      )}
+                      {article.num_comments != null && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+                          <ChatBubbleOutline sx={{ fontSize: 11, color: C.textDim }} />
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>{article.num_comments}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                  <ActionHint icon={<ThumbDown sx={{ fontSize: 14 }} />} label="SKIP" color="rgba(255,70,70,0.7)" />
+                  <ActionHint icon={<ThumbUp sx={{ fontSize: 14 }} />} label="LIKE" color="rgba(80,220,80,0.7)" />
                 </Box>
               </Box>
             </motion.div>

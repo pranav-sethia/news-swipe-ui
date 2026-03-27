@@ -324,28 +324,31 @@ function LikedPanel({ swipeCount, onUnliked }) {
             const isViewed = viewed.has(String(a.id));
             return (
               <Box key={a.id} sx={{
-                p: 1.5, borderRadius: "10px",
-                background: isViewed ? "rgba(255,102,0,0.04)" : "rgba(255,255,255,0.02)",
-                border: `1px solid ${isViewed ? "rgba(255,102,0,0.12)" : "rgba(255,255,255,0.04)"}`,
-                transition: "background 0.2s",
+                p: 1.5, borderRadius: "8px", position: "relative",
+                background: isViewed ? "rgba(255,255,255,0.01)" : "rgba(255,102,0,0.04)",
+                border: `1px solid ${isViewed ? "rgba(255,255,255,0.05)" : "rgba(255,102,0,0.2)"}`,
+                borderLeft: isViewed ? `1px solid rgba(255,255,255,0.05)` : `3px solid ${C.orange}`,
+                transition: "all 0.2s ease",
+                "&:hover": { background: "rgba(255,102,0,0.08)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }
               }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 0.5 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
                   <Link
                     href={a.article_url} target="_blank" rel="noopener noreferrer"
                     underline="none"
                     onClick={() => markViewed(a.id)}
                     sx={{
-                      color: isViewed ? C.textDim : "#e8e8e8",
-                      fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.4,
-                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-                      "&:hover": { color: C.orange }, transition: "color 0.2s", flexGrow: 1,
+                      color: isViewed ? C.textDim : "#ffffff",
+                      fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: isViewed ? 500 : 700, lineHeight: 1.4,
+                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                      transition: "color 0.2s", flexGrow: 1, pr: 1,
+                      "&:hover": { color: C.orange }
                     }}
                   >
                     {a.title}
                   </Link>
-                  <Tooltip title="Unlike">
+                  <Tooltip title="Unlike" placement="left">
                     <IconButton onClick={() => handleUnlike(a.id)} size="small"
-                      sx={{ color: C.textDim, flexShrink: 0, ml: 0.5, "&:hover": { color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
+                      sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
                       <Delete sx={{ fontSize: 13 }} />
                     </IconButton>
                   </Tooltip>
@@ -527,15 +530,18 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
 
           {done && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 3 }}>
+              <Box sx={{ 
+                display: "flex", alignItems: "center", justifyContent: "space-between", 
+                mt: 3, pt: 2, borderTop: `1px solid rgba(255,255,255,0.05)`, gap: 2, flexWrap: "wrap" 
+              }}>
                 <Button
                   component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
-                  variant="outlined" endIcon={<OpenInNew sx={{ fontSize: "0.9rem !important" }} />}
+                  endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
                   onClick={(e) => e.stopPropagation()}
                   sx={{
-                    fontFamily: C.fontMono, fontSize: "0.75rem", color: C.orange,
-                    borderColor: C.border, borderRadius: "8px", textTransform: "none", px: 2.5, py: 1,
-                    "&:hover": { borderColor: C.orange, background: C.orangeDim },
+                    fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim,
+                    border: `1px solid ${C.border}`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
+                    "&:hover": { borderColor: C.orange, color: C.orange, background: C.orangeDim },
                   }}
                 >
                   READ ARTICLE

@@ -484,9 +484,9 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
               </Box>
               
-              {article.similarity ? (
+              {article.match_pct ? (
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(0,255,204,0.3)" }}>
-                  {Math.min(99, Math.max(72, Math.round((article.similarity * 100) + 55)))}% MATCH
+                  {article.match_pct}% MATCH
                 </Typography>
               ) : (
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>

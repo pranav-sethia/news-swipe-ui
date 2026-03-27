@@ -475,10 +475,22 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
         {/* Content panel */}
         <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, zIndex: 1, pr: showImageSide ? "36px" : "64px" }}>
           <Box>
-            {/* Header: source dot + label */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
+            {/* Header: source dot + label + algorithm badge */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
+              </Box>
+              
+              {article.similarity ? (
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(0,255,204,0.3)" }}>
+                  {Math.round(article.similarity * 100)}% MATCH
+                </Typography>
+              ) : (
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  DISCOVERY
+                </Typography>
+              )}
             </Box>
 
             {/* Pixel font typewriter title */}

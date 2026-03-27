@@ -19,7 +19,7 @@ const C = {
   orange: "#ff6600",
   orangeDim: "rgba(255,102,0,0.12)",
   bg: "#080808",
-  card: "rgba(13,13,13,0.98)",
+  card: "#0d0d0d",
   panel: "rgba(10,10,10,0.88)",
   border: "rgba(255,102,0,0.14)",
   borderHot: "rgba(255,102,0,0.5)",

@@ -392,7 +392,11 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
       if (isExiting) return;
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
-      if (e.key === "Enter") window.open(article.article_url, "_blank", "noopener");
+      if (e.key === "Enter") {
+        const a = document.createElement("a");
+        a.href = article.article_url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.click();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

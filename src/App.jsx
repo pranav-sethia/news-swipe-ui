@@ -418,7 +418,8 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
 
   // Parse points/comments from description if stored there
   const descIsStats = article.description?.includes("points ·");
-  const hasImage = !!article.image_url;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImageSide = !!article.image_url && !imageFailed;
 
   return (
     <motion.div
@@ -448,46 +449,31 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
-        gridTemplateColumns: "1fr 1fr",
+        gridTemplateColumns: showImageSide ? "1fr 1fr" : "1fr",
         position: "relative",
       }}>
+        {/* Decorative Background for No-Image mode */}
+        {!showImageSide && (
+          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+            <Box sx={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`, backgroundSize: "30px 30px" }} />
+            <Typography sx={{ position: "absolute", right: "-2%", top: "8%", fontFamily: C.fontPixel, fontSize: "28rem", color: "rgba(255,102,0,0.02)", lineHeight: 1, userSelect: "none" }}>Y</Typography>
+            <Box sx={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "4px", background: "linear-gradient(180deg, #ff6600, transparent)" }} />
+          </Box>
+        )}
+
         {/* Image OR decorative left panel */}
-        {hasImage ? (
+        {showImageSide && (
           <Box sx={{ position: "relative", overflow: "hidden" }}>
             <Box component="img" src={article.image_url} alt={article.title}
-              onError={(e) => { e.target.parentElement.style.display = "none"; }}
+              onError={() => setImageFailed(true)}
               sx={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,rgba(13,13,13,0.95)100%)" }} />
+            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
             <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
-          </Box>
-        ) : (
-          /* Decorative left panel for no-image stories */
-          <Box sx={{
-            background: "rgba(255,102,0,0.03)",
-            borderRight: `1px solid rgba(255,102,0,0.08)`,
-            display: "flex", flexDirection: "column",
-            justifyContent: "space-between", alignItems: "center",
-            p: "40px 24px", position: "relative", overflow: "hidden",
-          }}>
-            {/* Decorative grid */}
-            <Box sx={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(rgba(255,102,0,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.05) 1px,transparent 1px)`, backgroundSize: "20px 20px" }} />
-
-            {/* Y combinator watermark */}
-            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "5rem", color: "rgba(255,102,0,0.08)", lineHeight: 1, userSelect: "none", zIndex: 1 }}>Y</Typography>
-
-            {/* Decorative circuit lines */}
-            <Box sx={{ zIndex: 1, display: "flex", flexDirection: "column", gap: 0.75, alignSelf: "stretch" }}>
-              {["#ff6600", "rgba(255,102,0,0.4)", "rgba(255,102,0,0.2)", "rgba(255,102,0,0.12)"].map((clr, i) => (
-                <Box key={i} sx={{ height: 1, background: clr, borderRadius: 1, width: `${100 - i * 18}%` }} />
-              ))}
-            </Box>
-
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.55rem", color: "rgba(255,102,0,0.3)", zIndex: 1, letterSpacing: "0.15em" }}>HACKER NEWS</Typography>
           </Box>
         )}
 
         {/* Content panel */}
-        <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
+        <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, zIndex: 1, pr: showImageSide ? "36px" : "64px" }}>
           <Box>
             {/* Header: source dot + label */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
@@ -498,9 +484,10 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
             {/* Pixel font typewriter title */}
             <Typography sx={{
               fontFamily: C.fontPixel,
-              fontSize: hasImage ? "0.72rem" : "0.8rem",
+              fontSize: showImageSide ? "0.72rem" : "0.85rem",
               color: "#f5f5f5", lineHeight: 1.8, mb: 2,
-              minHeight: hasImage ? "5rem" : "5.5rem",
+              minHeight: showImageSide ? "5rem" : "5.5rem",
+              maxWidth: showImageSide ? "100%" : "95%",
             }}>
               {displayed}{!done && <span className="cursor-blink" />}
             </Typography>
@@ -510,15 +497,16 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
               <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
                 <Typography sx={{
                   fontFamily: C.fontMono,
-                  fontSize: "0.78rem",
+                  fontSize: showImageSide ? "0.78rem" : "0.82rem",
                   color: "rgba(200,200,200,0.55)",
-                  lineHeight: 1.65,
+                  lineHeight: 1.7,
                   display: "-webkit-box",
-                  WebkitLineClamp: hasImage ? 3 : 5,
+                  WebkitLineClamp: showImageSide ? 3 : 5,
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
                   borderLeft: `2px solid rgba(255,102,0,0.25)`,
-                  pl: 1.5,
+                  pl: 2, ml: "1px",
+                  maxWidth: showImageSide ? "100%" : "90%",
                 }}>
                   {descIsStats
                     ? "A trending story on Hacker News. Click 'Read Article' to explore."

@@ -448,7 +448,7 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
-        gridTemplateColumns: hasImage ? "1fr 1fr" : "1fr",
+        gridTemplateColumns: "1fr 1fr",
         position: "relative",
       }}>
         {/* Image OR decorative left panel */}

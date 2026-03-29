@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Box, Typography, CircularProgress, Button, IconButton,
   Chip, Dialog, DialogActions, DialogContent,
@@ -35,7 +35,7 @@ const C = {
 function useTypewriter(text, speed = 22, active = true) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) { setDisplayed(text); setDone(true); return; }
     setDisplayed(""); setDone(false);
     let i = 0;
@@ -410,6 +410,8 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
       if (e.key === "Enter") {
+        e.preventDefault();
+        if (document.activeElement) document.activeElement.blur();
         const a = document.createElement("a");
         a.href = article.article_url; a.target = "_blank"; a.rel = "noopener noreferrer";
         a.click();

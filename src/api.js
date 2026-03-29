@@ -18,6 +18,7 @@ apiClient.interceptors.request.use(
 export const login = (email, password) => apiClient.post('/auth/login', { email, password });
 export const register = (email, password) => apiClient.post('/auth/register', { email, password });
 export const loginAsGuest = () => apiClient.post('/auth/guest');
+export const loginWithGoogle = (credential) => apiClient.post('/api/auth/google', { credential });
 
 // --- Feed ---
 export const getFeed = async () => { const { data } = await apiClient.get('/api/feed'); return data; };

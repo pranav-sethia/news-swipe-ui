@@ -8,6 +8,9 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
 import './index.css';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id.apps.googleusercontent.com';
 
 // Create a simple dark theme
 const darkTheme = createTheme({
@@ -50,9 +53,11 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <RouterProvider router={router} />
-    </ThemeProvider>
-  </React.StrictMode>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </GoogleOAuthProvider>
+  </React.StrictMode>,
 );

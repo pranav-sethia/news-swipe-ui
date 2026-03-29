@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, Typography, Paper, Link, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import * as api from '../api.js';
 
 const C = {
@@ -43,6 +44,17 @@ export default function Login() {
     } catch (err) {
       setError('Failed to start guest session. Please try again.');
       setGuestLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    try {
+      const res = await api.loginWithGoogle(credentialResponse.credential);
+      localStorage.setItem('token', res.data.token);
+      navigate('/');
+    } catch (err) {
+      setError('Google Sign-In failed. Please try again.');
     }
   };
 
@@ -116,6 +128,17 @@ export default function Login() {
         >
           {guestLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : '▶ EXPLORE AS GUEST'}
         </Button>
+
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Sign-In was cancelled or failed.')}
+            theme="filled_black"
+            shape="rectangular"
+            size="large"
+            text="continue_with"
+          />
+        </Box>
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }}>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, px: 1 }}>

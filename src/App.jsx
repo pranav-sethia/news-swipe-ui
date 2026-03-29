@@ -59,6 +59,18 @@ export default function App() {
   const { logout } = useOutletContext();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem("hs_seen_onboarding")) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const dismissOnboarding = () => {
+    localStorage.setItem("hs_seen_onboarding", "true");
+    setShowOnboarding(false);
+  };
 
   const isInitialMount = useRef(true);
   const fetchTimeoutRef = useRef(null);
@@ -190,6 +202,11 @@ export default function App() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* First-time Onboarding Overlay */}
+      <AnimatePresence>
+        {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
+      </AnimatePresence>
     </Box>
   );
 }
@@ -686,5 +703,81 @@ function KeyHint({ icon, label, right }) {
       }}>{icon}</Box>
       <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)" }}>{label}</Typography>
     </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding Walkthrough Overlay
+// ---------------------------------------------------------------------------
+function OnboardingOverlay({ onDismiss }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -30, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+      style={{
+        position: "fixed",
+        bottom: 30,
+        left: 280, // Positioned directly pointing to the left side-panel
+        width: 380,
+        background: "rgba(10,10,10,0.95)",
+        backdropFilter: "blur(20px)",
+        border: `1px solid ${C.orange}`,
+        borderRadius: "16px",
+        padding: "24px",
+        zIndex: 9999,
+        boxShadow: `0 12px 40px rgba(0,0,0,0.8), 0 0 30px rgba(255,102,0,0.15)`,
+      }}
+    >
+      {/* Pulse animation ring */}
+      <motion.div
+        animate={{ boxShadow: ["0 0 0 0 rgba(255,102,0,0.4)", "0 0 0 15px rgba(255,102,0,0)"] }}
+        transition={{ repeat: Infinity, duration: 2 }}
+        style={{
+          position: "absolute", left: -6, bottom: 46, width: 12, height: 12,
+          borderRadius: "50%", background: C.orange, zIndex: 1
+        }}
+      />
+      {/* CSS Triangle pointing left */}
+      <Box sx={{
+        position: "absolute", left: -14, bottom: 42,
+        width: 0, height: 0,
+        borderTop: "10px solid transparent",
+        borderBottom: "10px solid transparent",
+        borderRight: `14px solid ${C.orange}`,
+        zIndex: 0
+      }} />
+      <Box sx={{
+        position: "absolute", left: -12, bottom: 44,
+        width: 0, height: 0,
+        borderTop: "8px solid transparent",
+        borderBottom: "8px solid transparent",
+        borderRight: `12px solid #0d0d0d`,
+        zIndex: 1
+      }} />
+
+      <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.2rem", fontWeight: 800, color: "white", mb: 1, letterSpacing: "-0.5px" }}>
+        Welcome to HackerSwipe! ⚡️
+      </Typography>
+      
+      <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#ccc", lineHeight: 1.6, mb: 3 }}>
+        Use the <strong>controls on the left</strong> or simply drag the cards to swipe.
+        <br/><br/>
+        <strong style={{color: C.orange}}>1. AI Summaries:</strong> Every article is compressed to 1-2 sentences.
+        <br/><br/>
+        <strong style={{color: C.orange}}>2. The Algorithm:</strong> When you Like a story, our ML backend analyzes the topic and rewires your feed to find highly technical matches. Watch the Match % badge adapt!
+      </Typography>
+
+      <Button 
+        fullWidth variant="contained" onClick={onDismiss}
+        disableElevation
+        sx={{ 
+          background: C.orange, color: "black", fontWeight: 800, fontFamily: C.fontUi, textTransform: "none", py: 1,
+          "&:hover": { background: "#ff8533" }
+        }}
+      >
+        Got it, let's explore
+      </Button>
+    </motion.div>
   );
 }

@@ -119,7 +119,7 @@ export default function App() {
     <Box sx={{
       height: "100vh", width: "100vw",
       display: "grid",
-      gridTemplateColumns: "260px 1fr 260px",
+      gridTemplateColumns: { xs: "1fr", md: "260px 1fr 260px" },
       gridTemplateRows: "56px 1fr",
       backgroundColor: C.bg,
       backgroundImage: `linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`,
@@ -175,8 +175,9 @@ export default function App() {
 
       {/* Keyboard hint */}
       <Box sx={{
+        display: { xs: "none", md: "flex" },
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
-        display: "flex", alignItems: "center", gap: 2, zIndex: 50,
+        alignItems: "center", gap: 2, zIndex: 50,
       }}>
         <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="SKIP" />
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
@@ -218,11 +219,12 @@ export default function App() {
 function SidePanel({ children, align = "left" }) {
   return (
     <Box sx={{
+      display: { xs: "none", md: "flex" },
       borderRight: align === "left" ? `1px solid ${C.border}` : "none",
       borderLeft: align === "right" ? `1px solid ${C.border}` : "none",
       height: "100%", overflowY: "auto",
       background: C.panel, backdropFilter: "blur(10px)",
-      p: 2.5, display: "flex", flexDirection: "column", gap: 2,
+      p: 2.5, flexDirection: "column", gap: 2,
     }}>
       {children}
     </Box>
@@ -448,20 +450,22 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const showImageSide = !!article.image_url && !imageFailed;
 
   return (
-    <motion.div
+    <Box
+      component={motion.div}
       layout
       initial={{ scale: 0.97, y: 10, opacity: 0.9 }}
       animate={controls}
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.18 } }}
       style={{
         x, rotate,
-        position: "absolute", width: 720,
+        position: "absolute",
         cursor: !isTop || isExiting ? "default" : "grab",
         zIndex: isTop ? 100 : stackIndex,
         scale: isTop ? 1 : 1 - cardsFromTop * 0.04,
         y: cardsFromTop * 8,
         opacity: isTop ? 1 : Math.max(0.25, 1 - cardsFromTop * 0.35),
       }}
+      sx={{ width: { xs: "90vw", sm: 500, md: 720 } }}
       drag={isTop && !isExiting ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.08}
@@ -469,13 +473,14 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
       <Box className="card-glow" sx={{
-        width: 720, height: 480,
+        width: "100%", height: { xs: "75vh", sm: 600, md: 480 },
         background: C.card,
         border: `1px solid ${C.border}`,
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
-        gridTemplateColumns: showImageSide ? "1fr 1fr" : "1fr",
+        gridTemplateColumns: { xs: "1fr", md: showImageSide ? "1fr 1fr" : "1fr" },
+        gridTemplateRows: { xs: showImageSide ? "200px 1fr" : "1fr", md: "1fr" },
         position: "relative",
       }}>
         {/* Decorative Background for No-Image mode */}
@@ -499,7 +504,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
         )}
 
         {/* Content panel */}
-        <Box sx={{ p: "32px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, zIndex: 1, pr: showImageSide ? "36px" : "64px" }}>
+        <Box sx={{ p: { xs: "20px", md: "32px 36px" }, display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, zIndex: 1, pr: { xs: "20px", md: showImageSide ? "36px" : "64px" } }}>
           <Box>
             {/* Header: source dot + label + algorithm badge */}
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
@@ -608,7 +613,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
 
         <Box sx={{ position: "absolute", bottom: 16, right: 20, fontFamily: C.fontMono, fontSize: "0.6rem", color: C.border }}>{`[${stackIndex + 1}]`}</Box>
       </Box>
-    </motion.div>
+    </Box>
   );
 }
 
@@ -714,15 +719,16 @@ function KeyHint({ icon, label, right }) {
 // ---------------------------------------------------------------------------
 function OnboardingOverlay({ onDismiss }) {
   return (
-    <motion.div
+    <Box
+      component={motion.div}
       initial={{ opacity: 0, x: -30, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-      style={{
+      sx={{
         position: "fixed",
-        bottom: 30,
-        left: 280, // Positioned directly pointing to the left side-panel
-        width: 380,
+        bottom: { xs: 20, md: 30 },
+        left: { xs: "5%", md: 280 },
+        width: { xs: "90%", md: 380 },
         background: "rgba(10,10,10,0.95)",
         backdropFilter: "blur(20px)",
         border: `1px solid ${C.orange}`,
@@ -732,39 +738,45 @@ function OnboardingOverlay({ onDismiss }) {
         boxShadow: `0 12px 40px rgba(0,0,0,0.8), 0 0 30px rgba(255,102,0,0.15)`,
       }}
     >
-      {/* Pulse animation ring */}
-      <motion.div
-        animate={{ boxShadow: ["0 0 0 0 rgba(255,102,0,0.4)", "0 0 0 15px rgba(255,102,0,0)"] }}
-        transition={{ repeat: Infinity, duration: 2 }}
-        style={{
-          position: "absolute", left: -6, bottom: 46, width: 12, height: 12,
-          borderRadius: "50%", background: C.orange, zIndex: 1
-        }}
-      />
-      {/* CSS Triangle pointing left */}
-      <Box sx={{
-        position: "absolute", left: -14, bottom: 42,
-        width: 0, height: 0,
-        borderTop: "10px solid transparent",
-        borderBottom: "10px solid transparent",
-        borderRight: `14px solid ${C.orange}`,
-        zIndex: 0
-      }} />
-      <Box sx={{
-        position: "absolute", left: -12, bottom: 44,
-        width: 0, height: 0,
-        borderTop: "8px solid transparent",
-        borderBottom: "8px solid transparent",
-        borderRight: `12px solid #0d0d0d`,
-        zIndex: 1
-      }} />
+      {/* CSS Triangle pointing left (Desktop Only) */}
+      <Box sx={{ display: { xs: "none", md: "block" } }}>
+        <motion.div
+          animate={{ boxShadow: ["0 0 0 0 rgba(255,102,0,0.4)", "0 0 0 15px rgba(255,102,0,0)"] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          style={{
+            position: "absolute", left: -6, bottom: 46, width: 12, height: 12,
+            borderRadius: "50%", background: C.orange, zIndex: 1
+          }}
+        />
+        <Box sx={{
+          position: "absolute", left: -14, bottom: 42,
+          width: 0, height: 0,
+          borderTop: "10px solid transparent",
+          borderBottom: "10px solid transparent",
+          borderRight: `14px solid ${C.orange}`,
+          zIndex: 0
+        }} />
+        <Box sx={{
+          position: "absolute", left: -12, bottom: 44,
+          width: 0, height: 0,
+          borderTop: "8px solid transparent",
+          borderBottom: "8px solid transparent",
+          borderRight: `12px solid #0d0d0d`,
+          zIndex: 1
+        }} />
+      </Box>
 
       <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.2rem", fontWeight: 800, color: "white", mb: 1, letterSpacing: "-0.5px" }}>
         Welcome to HackerSwipe! ⚡️
       </Typography>
       
       <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#ccc", lineHeight: 1.6, mb: 3 }}>
-        Use the <strong>controls on the left</strong> or simply drag the cards to swipe.
+        <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+          Use the <strong>controls on the left</strong> or simply drag the cards to swipe.
+        </Box>
+        <Box component="span" sx={{ display: { xs: "inline", md: "none" } }}>
+          <strong>Swipe right</strong> to save, <strong>swipe left</strong> to skip.
+        </Box>
         <br/><br/>
         <strong style={{color: C.orange}}>1. AI Summaries:</strong> Every article is compressed to 1-2 sentences.
         <br/><br/>
@@ -781,6 +793,6 @@ function OnboardingOverlay({ onDismiss }) {
       >
         Got it, let's explore
       </Button>
-    </motion.div>
+    </Box>
   );
 }

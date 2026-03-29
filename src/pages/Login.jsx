@@ -10,7 +10,8 @@ const C = {
   border: 'rgba(255,102,0,0.18)',
   textDim: 'rgba(232,232,232,0.5)',
   fontPixel: "'Press Start 2P', monospace",
-  fontMono: "'Share Tech Mono', monospace",
+  fontMono: "'JetBrains Mono', monospace",
+  fontUi: "Inter, sans-serif",
 };
 
 export default function Login() {
@@ -89,7 +90,7 @@ export default function Login() {
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: '0.65rem', color: C.orange, letterSpacing: '0.1em', mb: 1 }}>
             HACKERSWIPE
           </Typography>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.85rem', color: C.textDim }}>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.85rem', color: C.textDim, fontWeight: 500 }}>
             AI-powered Hacker News reader
           </Typography>
         </Box>

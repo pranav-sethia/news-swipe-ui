@@ -10,7 +10,7 @@ import AuthRoute from './components/AuthRoute.jsx';
 import './index.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1074955057997-1t711kuk94bjvn1rec5oq88c3uckg1at.apps.googleusercontent.com';
 
 // Create a simple dark theme
 const darkTheme = createTheme({

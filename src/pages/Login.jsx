@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, Typography, Paper, Link, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
 import * as api from '../api.js';
 
 const C = {
@@ -47,16 +47,19 @@ export default function Login() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setError('');
-    try {
-      const res = await api.loginWithGoogle(credentialResponse.credential);
-      localStorage.setItem('token', res.data.token);
-      navigate('/');
-    } catch (err) {
-      setError('Google Sign-In failed. Please try again.');
-    }
-  };
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setError('');
+      try {
+        const res = await api.loginWithGoogle(tokenResponse.access_token);
+        localStorage.setItem('token', res.data.token);
+        navigate('/');
+      } catch (err) {
+        setError('Google Sign-In failed on the server. Please try again.');
+      }
+    },
+    onError: () => setError('Google Sign-In was cancelled or failed.')
+  });
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -129,16 +132,25 @@ export default function Login() {
           {guestLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : '▶ EXPLORE AS GUEST'}
         </Button>
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google Sign-In was cancelled or failed.')}
-            theme="filled_black"
-            shape="rectangular"
-            size="large"
-            text="continue_with"
-          />
-        </Box>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => handleGoogleLogin()}
+          sx={{
+            mb: 3, py: 1.4,
+            color: '#fff', borderColor: 'rgba(255,255,255,0.2)',
+            fontFamily: C.fontUi, fontSize: '0.85rem', fontWeight: 600,
+            borderRadius: '10px', textTransform: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
+            background: 'rgba(255,255,255,0.02)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            '&:hover': { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.4)', transform: 'translateY(-1px)' },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo" style={{ width: 18, height: 18 }} />
+          Continue with Google
+        </Button>
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }}>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, px: 1 }}>

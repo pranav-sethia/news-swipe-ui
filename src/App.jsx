@@ -36,7 +36,7 @@ function useTypewriter(text, speed = 22, active = true) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   useLayoutEffect(() => {
-    if (!active) { setDisplayed(text); setDone(true); return; }
+    if (!active) { setDisplayed(""); setDone(false); return; }
     setDisplayed(""); setDone(false);
     let i = 0;
     const id = setInterval(() => {
@@ -159,6 +159,7 @@ export default function App() {
                 article={article}
                 onSwipe={(dir) => handleSwipe(dir, article)}
                 isTop={index === articles.length - 1}
+                isInteractive={!isResetModalOpen && !showOnboarding}
                 stackIndex={index}
                 totalCards={articles.length}
               />
@@ -391,7 +392,7 @@ function LikedPanel({ swipeCount, onUnliked }) {
 // ---------------------------------------------------------------------------
 // News Card (with keyboard support + richer no-image fallback)
 // ---------------------------------------------------------------------------
-function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
+function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCards }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
@@ -404,7 +405,7 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
 
   // Keyboard arrow support
   useEffect(() => {
-    if (!isTop) return;
+    if (!isTop || !isInteractive) return;
     const handler = async (e) => {
       if (isExiting) return;
       if (e.key === "ArrowRight") triggerSwipe("right");
@@ -433,7 +434,7 @@ function NewsCard({ article, onSwipe, isTop, stackIndex, totalCards }) {
   }, [controls, onSwipe]);
 
   const handleDragEnd = async (_, info) => {
-    if (isExiting || !isTop) return;
+    if (isExiting || !isTop || !isInteractive) return;
     const liked = info.offset.x > 120 || info.velocity.x > 600;
     const skipped = info.offset.x < -120 || info.velocity.x < -600;
     if (liked) triggerSwipe("right");

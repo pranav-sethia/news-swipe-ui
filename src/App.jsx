@@ -60,6 +60,7 @@ export default function App() {
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem("hs_seen_onboarding")) {
@@ -84,8 +85,11 @@ export default function App() {
       if (data.length === 0 && !isReset) setArticles([]);
       else if (isReset) setArticles(data);
       else setArticles((prev) => [...data, ...prev]);
-    } catch (err) { console.error("Failed to fetch feed:", err); }
-    finally {
+      setHasError(false);
+    } catch (err) {
+      console.error("Failed to fetch feed:", err);
+      setHasError(true);
+    } finally {
       setIsLoading(false); setIsFetchingMore(false);
       if (isInitialMount.current) isInitialMount.current = false;
     }
@@ -96,11 +100,11 @@ export default function App() {
   useEffect(() => {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     // Infinite scrolling: pre-fetch next batch from DB when only 3 cards remain in the stack
-    if (articles.length <= 3 && !isFetchingMore && !isInitialMount.current) {
+    if (articles.length <= 3 && !isFetchingMore && !isInitialMount.current && !hasError) {
       fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 100);
     }
     return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
-  }, [articles.length, isFetchingMore, fetchFeed]);
+  }, [articles.length, isFetchingMore, fetchFeed, hasError]);
 
   const handleSwipe = useCallback(async (direction, swipedArticle) => {
     const willBeEmpty = articles.length === 1;

@@ -600,21 +600,21 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                   {(article.score != null || article.num_comments != null) && (
                     <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mr: 1 }}>
                       {article.score != null && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, fontWeight: 700 }}>{article.score}</Typography>
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>pts</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.85rem", color: C.orange, fontWeight: 700 }}>{article.score}</Typography>
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>pts</Typography>
                         </Box>
                       )}
                       {article.num_comments != null && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-                          <ChatBubbleOutline sx={{ fontSize: 11, color: C.textDim }} />
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>{article.num_comments}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <ChatBubbleOutline sx={{ fontSize: 13, color: C.textDim, mb: "1px" }} />
+                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.80rem", color: "rgba(255,255,255,0.45)" }}>{article.num_comments}</Typography>
                         </Box>
                       )}
                     </Box>
                   )}
-                  <ActionHint icon={<ThumbDown sx={{ fontSize: 14 }} />} label="SKIP" color="rgba(255,70,70,0.7)" />
-                  <ActionHint icon={<ThumbUp sx={{ fontSize: 14 }} />} label="LIKE" color="rgba(80,220,80,0.7)" />
+                  <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(255,100,100,0.8)" />
+                  <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
                 </Box>
               </Box>
         </Box>

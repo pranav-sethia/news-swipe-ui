@@ -20,17 +20,21 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [guestLoading, setGuestLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoginLoading(true);
     try {
       const res = await api.login(email, password);
       localStorage.setItem('token', res.data.token);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -170,14 +174,15 @@ export default function Login() {
             </Typography>
           )}
 
-          <Button type="submit" variant="outlined" fullWidth
+          <Button type="submit" variant="outlined" fullWidth disabled={loginLoading}
             sx={{
               mt: 2.5, mb: 2, py: 1.4,
               fontFamily: C.fontMono, fontSize: '0.8rem',
               color: C.orange, borderColor: C.border, borderRadius: '10px',
               '&:hover': { borderColor: C.orange, background: C.orangeDim },
+              '&:disabled': { color: 'rgba(255,102,0,0.4)', borderColor: 'rgba(255,102,0,0.2)' }
             }}>
-            SIGN IN
+            {loginLoading ? <CircularProgress size={20} sx={{ color: C.orange }} /> : 'SIGN IN'}
           </Button>
 
           <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.75rem', textAlign: 'center', color: C.textDim }}>

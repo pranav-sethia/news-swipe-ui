@@ -30,6 +30,42 @@ const C = {
 };
 
 // ---------------------------------------------------------------------------
+// Hook: Typewriter Effect (rAF-based, no stale closures)
+// ---------------------------------------------------------------------------
+function useTypewriter(text, speed = 28, active = true) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  const rafRef = useRef(null);
+  const lastTimeRef = useRef(null);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    setDisplayed("");
+    setDone(false);
+    indexRef.current = 0;
+    lastTimeRef.current = null;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (!active || !text) return;
+
+    const tick = (timestamp) => {
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const elapsed = timestamp - lastTimeRef.current;
+      if (elapsed >= speed) {
+        lastTimeRef.current = timestamp;
+        indexRef.current += 1;
+        setDisplayed(text.slice(0, indexRef.current));
+        if (indexRef.current >= text.length) { setDone(true); return; }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [text, active, speed]);
+
+  return { displayed: active ? displayed : "", done: active ? done : false };
+}
+
+// ---------------------------------------------------------------------------
 // Main App
 // ---------------------------------------------------------------------------
 export default function App() {
@@ -387,6 +423,9 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const skipOpacity = useTransform(x, [-50, -140], [0, 1]);
   const cardsFromTop = totalCards - 1 - stackIndex;
 
+  // Typewriter only runs on the top card — background cards stay blank to avoid flash
+  const { displayed, done } = useTypewriter(article.title, 28, isTop && !isExiting);
+
   // Keyboard arrow support
   useEffect(() => {
     if (!isTop || !isInteractive) return;
@@ -506,7 +545,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
               )}
             </Box>
 
-            {/* Title */}
+            {/* Title — typewriter runs only on top card; others are blank */}
             <Typography sx={{
               fontFamily: C.fontPixel,
               fontSize: showImageSide ? "0.72rem" : "0.85rem",
@@ -514,11 +553,12 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
               minHeight: showImageSide ? "5rem" : "5.5rem",
               maxWidth: showImageSide ? "100%" : "95%",
             }}>
-              {article.title}
+              {displayed}
+              {isTop && !done && <span className="cursor-blink" />}
             </Typography>
 
-            {/* Summary description */}
-            <Box>
+            {/* Summary description — fades in only after title is done typing */}
+            <Box sx={{ opacity: done ? 1 : 0, transition: "opacity 0.5s ease" }}>
               <Typography sx={{
                   fontFamily: C.fontMono,
                   fontSize: showImageSide ? "0.78rem" : "0.82rem",

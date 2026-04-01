@@ -30,26 +30,6 @@ const C = {
 };
 
 // ---------------------------------------------------------------------------
-// Hook: Typewriter Effect
-// ---------------------------------------------------------------------------
-function useTypewriter(text, speed = 22, active = true) {
-  const [displayed, setDisplayed] = useState("");
-  const [done, setDone] = useState(false);
-  useLayoutEffect(() => {
-    if (!active) { setDisplayed(""); setDone(false); return; }
-    setDisplayed(""); setDone(false);
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setDisplayed(text.slice(0, i));
-      if (i >= text.length) { clearInterval(id); setDone(true); }
-    }, speed);
-    return () => clearInterval(id);
-  }, [text, speed, active]);
-  return { displayed, done };
-}
-
-// ---------------------------------------------------------------------------
 // Main App
 // ---------------------------------------------------------------------------
 export default function App() {
@@ -402,12 +382,10 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-350, 350], [-10, 10]);
+  const rotate = useTransform(x, [-250, 250], [-15, 15]);
   const likeOpacity = useTransform(x, [50, 140], [0, 1]);
   const skipOpacity = useTransform(x, [-50, -140], [0, 1]);
   const cardsFromTop = totalCards - 1 - stackIndex;
-
-  const { displayed, done } = useTypewriter(article.title, 22, isTop);
 
   // Keyboard arrow support
   useEffect(() => {
@@ -431,21 +409,21 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const triggerSwipe = useCallback(async (dir) => {
     setIsExiting(true);
     await controls.start({
-      x: dir === "right" ? 500 : -500,
-      rotate: dir === "right" ? 10 : -10,
+      x: dir === "right" ? window.innerWidth : -window.innerWidth,
+      rotate: dir === "right" ? 25 : -25,
       opacity: 0,
-      transition: { duration: 0.38, ease: "easeOut" },
+      transition: { duration: 0.25, ease: "easeOut" },
     });
     onSwipe(dir);
   }, [controls, onSwipe]);
 
   const handleDragEnd = async (_, info) => {
     if (isExiting || !isTop || !isInteractive) return;
-    const liked = info.offset.x > 120 || info.velocity.x > 600;
-    const skipped = info.offset.x < -120 || info.velocity.x < -600;
+    const liked = info.offset.x > 100 || info.velocity.x > 500;
+    const skipped = info.offset.x < -100 || info.velocity.x < -500;
     if (liked) triggerSwipe("right");
     else if (skipped) triggerSwipe("left");
-    else controls.start({ x: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 30 } });
+    else controls.start({ x: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
   };
 
   // Parse points/comments from description if stored there
@@ -469,10 +447,10 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
         y: cardsFromTop * 8,
         opacity: isTop ? 1 : Math.max(0.25, 1 - cardsFromTop * 0.35),
       }}
-      sx={{ width: { xs: "90vw", sm: 500, md: 720 } }}
+      sx={{ width: { xs: "90vw", sm: 500, md: 720 }, touchAction: "none" }}
       drag={isTop && !isExiting ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.08}
+      dragElastic={0.65}
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
@@ -528,7 +506,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
               )}
             </Box>
 
-            {/* Pixel font typewriter title */}
+            {/* Title */}
             <Typography sx={{
               fontFamily: C.fontPixel,
               fontSize: showImageSide ? "0.72rem" : "0.85rem",
@@ -536,13 +514,12 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
               minHeight: showImageSide ? "5rem" : "5.5rem",
               maxWidth: showImageSide ? "100%" : "95%",
             }}>
-              {displayed}{!done && <span className="cursor-blink" />}
+              {article.title}
             </Typography>
 
-            {/* Summary description — fades in after title types */}
-            {done && (
-              <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-                <Typography sx={{
+            {/* Summary description */}
+            <Box>
+              <Typography sx={{
                   fontFamily: C.fontMono,
                   fontSize: showImageSide ? "0.78rem" : "0.82rem",
                   color: "rgba(200,200,200,0.55)",
@@ -559,16 +536,13 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                     ? "A trending story on Hacker News. Click 'Read Article' to explore."
                     : article.description}
                 </Typography>
-              </motion.div>
-            )}
+            </Box>
           </Box>
 
-          {done && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-              <Box sx={{ 
-                display: "flex", alignItems: "center", justifyContent: "space-between", 
-                mt: 3, pt: 2, borderTop: `1px solid rgba(255,255,255,0.05)`, gap: 2, flexWrap: "wrap" 
-              }}>
+          <Box sx={{ 
+            display: "flex", alignItems: "center", justifyContent: "space-between", 
+            mt: 3, pt: 2, borderTop: `1px solid rgba(255,255,255,0.05)`, gap: 2, flexWrap: "wrap" 
+          }}>
                 <Button
                   component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
                   endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
@@ -603,8 +577,6 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                   <ActionHint icon={<ThumbUp sx={{ fontSize: 14 }} />} label="LIKE" color="rgba(80,220,80,0.7)" />
                 </Box>
               </Box>
-            </motion.div>
-          )}
         </Box>
 
         {/* Swipe feedback overlays */}

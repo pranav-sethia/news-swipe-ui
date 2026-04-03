@@ -737,63 +737,58 @@ function KeyHint({ icon, label, right }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tutorial: Positioned tooltip bubbles pointing at actual UI elements
-// ---------------------------------------------------------------------------
 const TOUR_STEPS = [
   {
-    // Center of screen, points down at the card
     title: "Swipe to explore",
     body: "Drag right to save a story, left to skip. Arrow keys work too.",
     position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
     arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    // Glowing highlight over the card area
+    highlight: { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 740, height: 500, borderRadius: "22px" },
   },
   {
-    // Points right at the left panel
     title: "Story details",
-    body: "Title, score, comments and a link to the HN discussion for whichever card is on top.",
+    body: "Title, score, comments and a link to the HN thread for the card on top.",
     position: { top: "50%", left: 280, transform: "translateY(-50%)" },
     arrow: { top: "50%", left: -10, transform: "translateY(-50%)", borderRight: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.5)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    highlight: { top: 56, left: 0, width: 260, bottom: 0, borderRadius: "0" },
     desktopOnly: true,
   },
   {
-    // Points left at the right panel
     title: "Saved articles",
     body: "Stories you swiped right on live here. Click any title to read it.",
     position: { top: "50%", right: 280, transform: "translateY(-50%)" },
     arrow: { top: "50%", right: -10, transform: "translateY(-50%)", borderLeft: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", right: -12, transform: "translateY(-50%)", borderLeft: `12px solid rgba(255,102,0,0.5)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    arrowBorder: { top: "50%", right: -12, transform: "translateY(-50%)", borderLeft: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    highlight: { top: 56, right: 0, width: 260, bottom: 0, borderRadius: "0" },
     desktopOnly: true,
   },
   {
-    // Points up at the reset button (top-right nav area)
     title: "Reset profile",
     body: "Clears your swipe history and starts the AI fresh.",
     position: { top: 66, right: 48 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    highlight: { top: 8, right: 46, width: 36, height: 36, borderRadius: "50%" },
   },
   {
-    // Points up at the help button
     title: "Need a reminder?",
     body: "Tap this icon any time to replay the tour.",
     position: { top: 66, right: 80 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    highlight: { top: 8, right: 82, width: 36, height: 36, borderRadius: "50%" },
   },
 ];
 
 function TutorialOverlay({ onDismiss }) {
   const [step, setStep] = useState(0);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
-
-  // Skip desktop-only steps on mobile
   const visibleSteps = TOUR_STEPS.filter(s => !s.desktopOnly || !isMobile);
   const current = visibleSteps[step];
   const isLast = step === visibleSteps.length - 1;
-
   const next = () => isLast ? onDismiss() : setStep(s => s + 1);
 
   return (
@@ -803,9 +798,43 @@ function TutorialOverlay({ onDismiss }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      sx={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
-      onClick={onDismiss}
+      sx={{
+        position: "fixed", inset: 0, zIndex: 9998,
+        // Light dim so the UI beneath is readable, but all clicks/drags are captured
+        background: "rgba(0,0,0,0.25)",
+        cursor: "default",
+        userSelect: "none",
+        // Block all pointer events from passing through
+        "& *": { },
+      }}
+      // Stop any click from reaching the app underneath
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
     >
+      {/* Pulsing spotlight highlight around the current feature */}
+      <AnimatePresence mode="wait">
+        {current.highlight && (
+          <Box
+            key={`highlight-${step}`}
+            component={motion.div}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            sx={{
+              position: "fixed",
+              ...current.highlight,
+              border: "2px solid rgba(255,102,0,0.7)",
+              boxShadow: "0 0 0 0 rgba(255,102,0,0.4), inset 0 0 30px rgba(255,102,0,0.06)",
+              animation: "tourGlow 1.8s ease-in-out infinite",
+              pointerEvents: "none",
+              zIndex: 9998,
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Tooltip card */}
       <AnimatePresence mode="wait">
         <Box
           key={step}
@@ -817,24 +846,20 @@ function TutorialOverlay({ onDismiss }) {
           onClick={e => e.stopPropagation()}
           sx={{
             position: "fixed",
-            ...Object.fromEntries(
-              Object.entries(current.position).map(([k, v]) => [k, v])
-            ),
+            ...Object.fromEntries(Object.entries(current.position).map(([k, v]) => [k, v])),
             zIndex: 9999,
             width: { xs: 260, sm: 300 },
             background: C.card,
-            border: `1px solid rgba(255,102,0,0.5)`,
+            border: "1px solid rgba(255,102,0,0.55)",
             borderRadius: "14px",
             p: "18px 20px 16px",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,102,0,0.12)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,102,0,0.15)",
           }}
         >
-          {/* Border arrow */}
           <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrowBorder }} />
-          {/* Fill arrow */}
           <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrow }} />
 
-          {/* Step dots */}
+          {/* Progress dots */}
           <Box sx={{ display: "flex", gap: 0.75, mb: 1.5 }}>
             {visibleSteps.map((_, i) => (
               <Box key={i} sx={{

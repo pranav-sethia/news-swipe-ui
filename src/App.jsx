@@ -41,11 +41,14 @@ function useTypewriter(text, speed = 28, active = true) {
 
   useEffect(() => {
     setDisplayed("");
-    setDone(false);
     indexRef.current = 0;
     lastTimeRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    if (!active || !text) return;
+    // If there's no text (null, undefined, empty string), mark complete immediately
+    // so the description block fades in and the card is never stuck blank.
+    if (!text) { setDone(true); return; }
+    setDone(false);
+    if (!active) return;
 
     const tick = (timestamp) => {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
@@ -451,15 +454,21 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   }, [isTop, isExiting, article]); // eslint-disable-line
 
   const triggerSwipe = useCallback(async (dir) => {
+    // Guard: if already animating out, ignore
+    if (isExiting) return;
     setIsExiting(true);
-    await controls.start({
-      x: dir === "right" ? window.innerWidth : -window.innerWidth,
-      rotate: dir === "right" ? 25 : -25,
-      opacity: 0,
-      transition: { duration: 0.25, ease: "easeOut" },
-    });
+    try {
+      await controls.start({
+        x: dir === "right" ? window.innerWidth : -window.innerWidth,
+        rotate: dir === "right" ? 25 : -25,
+        opacity: 0,
+        transition: { duration: 0.25, ease: "easeOut" },
+      });
+    } catch {
+      // Animation was interrupted (e.g. component unmounted mid-flight) — still complete the swipe
+    }
     onSwipe(dir);
-  }, [controls, onSwipe]);
+  }, [controls, onSwipe, isExiting]);
 
   const handleDragEnd = async (_, info) => {
     if (isExiting || !isTop || !isInteractive) return;

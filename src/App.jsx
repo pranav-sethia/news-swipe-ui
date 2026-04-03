@@ -79,43 +79,64 @@ export default function App() {
   const [runTour, setRunTour] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    if (!localStorage.getItem("hs_seen_tour")) {
-      setRunTour(true);
+  // Define steps dynamically based on what's visible
+  const getSteps = () => {
+    const steps = [
+      {
+        target: ".tour-step-card",
+        content: "Swipe right to save, left to skip. Or drag the card! The AI will instantly learn your technical preferences.",
+        disableBeacon: true,
+        placement: "bottom",
+      }
+    ];
+    // Add Left Panel step only if it exists (desktop)
+    if (document.querySelector(".tour-step-left")) {
+      steps.push({
+        target: ".tour-step-left",
+        content: "Your saved articles are stored here. Watch the Match % badge adapt as the algorithm discovers highly relevant content for you.",
+        placement: "right",
+      });
     }
-  }, []);
+    // Add Shortcuts/Actions step
+    if (document.querySelector(".tour-step-actions")) {
+      steps.push({
+        target: ".tour-step-actions",
+        content: "You can also use the Arrow Keys on your keyboard or tap these buttons to quickly vote.",
+        placement: "top",
+      });
+    }
+    // Reset profile step
+    if (document.querySelector(".tour-step-reset")) {
+      steps.push({
+        target: ".tour-step-reset",
+        content: "Want a fresh start? Reset your taste profile anytime to clear your swipe history.",
+        placement: "bottom",
+      });
+    }
+    return steps;
+  };
+
+  useEffect(() => {
+    // Only auto-start tour if we finished loading, we have articles, and user hasn't seen it
+    if (!isLoading && articles.length > 0 && !localStorage.getItem("hs_seen_tour")) {
+      // Delay slightly to give DOM time to paint completely
+      setTimeout(() => setRunTour(true), 500);
+    }
+  }, [isLoading, articles]);
 
   const handleJoyrideCallback = (data) => {
-    const { status } = data;
+    const { status, type } = data;
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
       setRunTour(false);
       localStorage.setItem("hs_seen_tour", "true");
     }
+    // If a step's target is missing, React Joyride emits step:error, but we dynamically filter above anyway.
   };
 
-  const tourSteps = [
-    {
-      target: ".tour-step-card",
-      content: "Swipe right to save, left to skip. Or drag the card! The AI will instantly learn your technical preferences.",
-      disableBeacon: true,
-      placement: "bottom",
-    },
-    {
-      target: ".tour-step-left",
-      content: "Your saved articles are stored here. Watch the Match % badge adapt as the algorithm discovers highly relevant content for you.",
-      placement: "right",
-    },
-    {
-      target: ".tour-step-actions",
-      content: "You can also use the Arrow Keys on your keyboard or tap these buttons to quickly vote.",
-      placement: "top",
-    },
-    {
-      target: ".tour-step-reset",
-      content: "Want a fresh start? Reset your taste profile anytime to clear your swipe history.",
-      placement: "bottom",
-    }
-  ];
+  const startTourManually = () => {
+    if (articles.length === 0) return; // Can't tour an empty feed
+    setRunTour(true);
+  };
 
   const isInitialMount = useRef(true);
   const fetchTimeoutRef = useRef(null);
@@ -176,7 +197,7 @@ export default function App() {
     }}>
       {/* Nav */}
       <Joyride
-        steps={tourSteps}
+        steps={getSteps()}
         run={runTour}
         continuous
         showProgress
@@ -208,8 +229,10 @@ export default function App() {
         </Box>
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>AI-POWERED HACKER NEWS READER</Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Help / Tutorial"><IconButton onClick={() => setRunTour(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Reset taste profile"><IconButton className="tour-step-reset" onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Help / Tutorial"><IconButton onClick={startTourManually} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
+          <Box className="tour-step-reset" sx={{ display: "flex" }}>
+            <Tooltip title="Reset taste profile"><IconButton onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
+          </Box>
           <Tooltip title="Logout"><IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton></Tooltip>
         </Box>
       </Box>
@@ -244,7 +267,7 @@ export default function App() {
       </SidePanel>
 
       {/* Keyboard hint */}
-      <Box sx={{
+      <Box className="tour-step-actions" sx={{
         display: { xs: "none", md: "flex" },
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
         alignItems: "center", gap: 2, zIndex: 50,
@@ -659,7 +682,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                       )}
                     </Box>
                   )}
-                  <Box className="tour-step-actions">
+                  <Box>
                     <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(255,100,100,0.8)" />
                     <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
                   </Box>

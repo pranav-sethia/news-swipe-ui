@@ -738,116 +738,146 @@ function KeyHint({ icon, label, right }) {
 }
 
 // ---------------------------------------------------------------------------
-// Multi-Step Tutorial Overlay
+// Tutorial: Positioned tooltip bubbles pointing at actual UI elements
 // ---------------------------------------------------------------------------
 const TOUR_STEPS = [
   {
-    emoji: "👋",
-    title: "Welcome to HackerSwipe!",
-    body: "HackerSwipe is an AI-powered Hacker News reader. An algorithm learns your interests and surfaces the most relevant technical stories for you — the more you swipe, the smarter it gets.",
+    // Center of screen, points down at the card
+    title: "Swipe to explore",
+    body: "Drag right to save a story, left to skip. Arrow keys work too.",
+    position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
+    arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
+    arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
   },
   {
-    emoji: "🃏",
-    title: "Swipe to Vote",
-    body: "Drag the card right to Like a story, or left to Skip it. On desktop, you can also use the ← → arrow keys. The AI immediately updates its model of your interests after every swipe.",
+    // Points right at the left panel
+    title: "Story details",
+    body: "Title, score, comments and a link to the HN discussion for whichever card is on top.",
+    position: { top: "50%", left: 280, transform: "translateY(-50%)" },
+    arrow: { top: "50%", left: -10, transform: "translateY(-50%)", borderRight: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
+    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.5)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    desktopOnly: true,
   },
   {
-    emoji: "🤖",
-    title: "The AI Match Score",
-    body: "Each card shows an \"X% MATCH\" badge when the algorithm detected you'd like it, or \"DISCOVERY\" for fresh exploratory picks. The more you like, the higher and more accurate the match scores become.",
+    // Points left at the right panel
+    title: "Saved articles",
+    body: "Stories you swiped right on live here. Click any title to read it.",
+    position: { top: "50%", right: 280, transform: "translateY(-50%)" },
+    arrow: { top: "50%", right: -10, transform: "translateY(-50%)", borderLeft: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
+    arrowBorder: { top: "50%", right: -12, transform: "translateY(-50%)", borderLeft: `12px solid rgba(255,102,0,0.5)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    desktopOnly: true,
   },
   {
-    emoji: "📌",
-    title: "Your Liked Articles",
-    body: "Articles you swipe right on are saved in the right panel so you can read them later. You can unlike them any time. Liked articles also train the recommendation engine for future sessions.",
+    // Points up at the reset button (top-right nav area)
+    title: "Reset profile",
+    body: "Clears your swipe history and starts the AI fresh.",
+    position: { top: 66, right: 48 },
+    arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
   },
   {
-    emoji: "🔄",
-    title: "Reset Your Profile",
-    body: "Click the ↺ icon in the top-right corner to wipe your swipe history and start fresh with a clean recommendation slate. Use the ? icon anytime to replay this tutorial.",
+    // Points up at the help button
+    title: "Need a reminder?",
+    body: "Tap this icon any time to replay the tour.",
+    position: { top: 66, right: 80 },
+    arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.5)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
   },
 ];
 
 function TutorialOverlay({ onDismiss }) {
   const [step, setStep] = useState(0);
-  const current = TOUR_STEPS[step];
-  const isLast = step === TOUR_STEPS.length - 1;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
+
+  // Skip desktop-only steps on mobile
+  const visibleSteps = TOUR_STEPS.filter(s => !s.desktopOnly || !isMobile);
+  const current = visibleSteps[step];
+  const isLast = step === visibleSteps.length - 1;
+
+  const next = () => isLast ? onDismiss() : setStep(s => s + 1);
 
   return (
     <Box
       component={motion.div}
-      key="tutorial-overlay"
+      key="tour-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      sx={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
-      }}
-      onClick={(e) => e.stopPropagation()}
+      sx={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
+      onClick={onDismiss}
     >
-      <Box
-        component={motion.div}
-        key={step}
-        initial={{ opacity: 0, y: 20, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        sx={{
-          width: { xs: "86vw", sm: 480 },
-          background: "rgba(13,13,13,0.98)",
-          border: `1px solid ${C.orange}`,
-          borderRadius: "20px",
-          p: { xs: 3, md: 4 },
-          boxShadow: `0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,102,0,0.1)`,
-        }}
-      >
-        {/* Step indicator dots */}
-        <Box sx={{ display: "flex", gap: 1, mb: 3, justifyContent: "center" }}>
-          {TOUR_STEPS.map((_, i) => (
-            <Box key={i} sx={{
-              width: i === step ? 20 : 6, height: 6, borderRadius: 3,
-              background: i === step ? C.orange : "rgba(255,102,0,0.25)",
-              transition: "all 0.3s ease",
-            }} />
-          ))}
-        </Box>
+      <AnimatePresence mode="wait">
+        <Box
+          key={step}
+          component={motion.div}
+          initial={{ opacity: 0, scale: 0.93, y: -6 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.93 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          onClick={e => e.stopPropagation()}
+          sx={{
+            position: "fixed",
+            ...Object.fromEntries(
+              Object.entries(current.position).map(([k, v]) => [k, v])
+            ),
+            zIndex: 9999,
+            width: { xs: 260, sm: 300 },
+            background: C.card,
+            border: `1px solid rgba(255,102,0,0.5)`,
+            borderRadius: "14px",
+            p: "18px 20px 16px",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,102,0,0.12)",
+          }}
+        >
+          {/* Border arrow */}
+          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrowBorder }} />
+          {/* Fill arrow */}
+          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrow }} />
 
-        {/* Content */}
-        <Typography sx={{ fontSize: "2rem", mb: 1.5, textAlign: "center" }}>{current.emoji}</Typography>
-        <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.15rem", fontWeight: 800, color: "#fff", mb: 1.5, letterSpacing: "-0.3px" }}>
-          {current.title}
-        </Typography>
-        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.88rem", color: "#aaa", lineHeight: 1.7, mb: 3.5 }}>
-          {current.body}
-        </Typography>
+          {/* Step dots */}
+          <Box sx={{ display: "flex", gap: 0.75, mb: 1.5 }}>
+            {visibleSteps.map((_, i) => (
+              <Box key={i} sx={{
+                height: 4, borderRadius: 2,
+                width: i === step ? 16 : 4,
+                background: i === step ? C.orange : "rgba(255,102,0,0.2)",
+                transition: "all 0.25s ease",
+              }} />
+            ))}
+          </Box>
 
-        {/* Navigation */}
-        <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end", alignItems: "center" }}>
-          {step > 0 && (
-            <Button onClick={() => setStep(s => s - 1)}
-              sx={{ fontFamily: C.fontUi, color: C.textDim, textTransform: "none" }}>
-              Back
+          <Typography sx={{ fontFamily: C.fontUi, fontWeight: 700, fontSize: "0.95rem", color: "#fff", mb: 0.75 }}>
+            {current.title}
+          </Typography>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.55, mb: 2 }}>
+            {current.body}
+          </Typography>
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Button onClick={onDismiss} size="small"
+              sx={{ fontFamily: C.fontUi, fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", textTransform: "none", p: 0, minWidth: "auto", "&:hover": { color: "rgba(255,255,255,0.6)", background: "none" } }}>
+              Skip
             </Button>
-          )}
-          <Button onClick={onDismiss}
-            sx={{ fontFamily: C.fontUi, color: C.textDim, textTransform: "none" }}>
-            Skip
-          </Button>
-          <Button
-            variant="contained" disableElevation
-            onClick={() => isLast ? onDismiss() : setStep(s => s + 1)}
-            sx={{
-              background: C.orange, color: "#000", fontWeight: 800, fontFamily: C.fontUi,
-              textTransform: "none", px: 3, borderRadius: "10px",
-              "&:hover": { background: "#ff8533" },
-            }}
-          >
-            {isLast ? "Let's go!" : "Next"}
-          </Button>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              {step > 0 && (
+                <Button onClick={() => setStep(s => s - 1)} size="small"
+                  sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: C.textDim, textTransform: "none", px: 1.5, "&:hover": { background: "rgba(255,255,255,0.05)" } }}>
+                  Back
+                </Button>
+              )}
+              <Button onClick={next} variant="contained" disableElevation size="small"
+                sx={{
+                  fontFamily: C.fontUi, fontSize: "0.8rem", fontWeight: 700,
+                  background: C.orange, color: "#000", textTransform: "none",
+                  px: 2, borderRadius: "8px",
+                  "&:hover": { background: "#ff8533" },
+                }}>
+                {isLast ? "Done" : "Next"}
+              </Button>
+            </Box>
+          </Box>
         </Box>
-      </Box>
+      </AnimatePresence>
     </Box>
   );
 }

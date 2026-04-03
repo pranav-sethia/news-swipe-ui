@@ -173,18 +173,22 @@ export default function App() {
       {/* Center */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
         {isLoading ? <TerminalLoader /> : articles.length === 0 ? <ExhaustedCard onReset={() => setIsResetModalOpen(true)} /> : (
-          <AnimatePresence>
-            {articles.map((article, index) => (
-              <NewsCard
-                key={article.id}
-                article={article}
-                onSwipe={(dir) => handleSwipe(dir, article)}
-                isTop={index === articles.length - 1}
-                isInteractive={!isResetModalOpen && !showOnboarding}
-                stackIndex={index}
-                totalCards={articles.length}
-              />
-            ))}
+          <AnimatePresence mode="popLayout">
+            {/* Only render top 3 cards — rest stay invisible until they become top 3 */}
+            {articles.slice(-3).map((article, sliceIndex, sliceArr) => {
+              const globalIndex = articles.length - sliceArr.length + sliceIndex;
+              return (
+                <NewsCard
+                  key={article.id}
+                  article={article}
+                  onSwipe={(dir) => handleSwipe(dir, article)}
+                  isTop={globalIndex === articles.length - 1}
+                  isInteractive={!isResetModalOpen && !showOnboarding}
+                  stackIndex={globalIndex}
+                  totalCards={articles.length}
+                />
+              );
+            })}
           </AnimatePresence>
         )}
       </Box>
@@ -474,18 +478,20 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   return (
     <Box
       component={motion.div}
-      layout
-      initial={{ scale: 0.97, y: 10, opacity: 0.9 }}
+      initial={{ scale: 0.96, y: 12, opacity: 0.85 }}
       animate={controls}
-      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.18 } }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       style={{
         x, rotate,
         position: "absolute",
         cursor: !isTop || isExiting ? "default" : "grab",
         zIndex: isTop ? 100 : stackIndex,
-        scale: isTop ? 1 : 1 - cardsFromTop * 0.04,
-        y: cardsFromTop * 8,
-        opacity: isTop ? 1 : Math.max(0.25, 1 - cardsFromTop * 0.35),
+        // Only the card directly below the top is slightly visible as a peek card;
+        // any card beyond that is invisible to avoid the glitch.
+        scale: isTop ? 1 : (cardsFromTop === 1 ? 0.96 : 0.93),
+        y: isTop ? 0 : (cardsFromTop === 1 ? 10 : 20),
+        opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.4 : 0),
+        pointerEvents: isTop ? "auto" : "none",
       }}
       sx={{ width: { xs: "90vw", sm: 500, md: 720 }, touchAction: "none" }}
       drag={isTop && !isExiting ? "x" : false}

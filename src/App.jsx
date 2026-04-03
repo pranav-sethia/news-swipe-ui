@@ -748,12 +748,19 @@ function KeyHint({ icon, label, right }) {
 
 const TOUR_STEPS = [
   {
-    title: "Swipe to explore",
-    body: "Drag right to save a story, left to skip. Arrow keys work too.",
+    // Intro: product value prop — centred, no specific element
+    title: "Hacker News, ranked for you",
+    body: "HackerSwipe shows you the best tech stories from Hacker News. The more you swipe, the smarter it gets — it learns your taste and moves relevant stories to the top.",
+    position: { top: "40%", left: "50%", transform: "translate(-50%, -50%)" },
+    arrow: null,
+    arrowBorder: null,
+  },
+  {
+    title: "Swipe right to save. Left to skip.",
+    body: "Each swipe is instant feedback to the AI. After a few stories you'll see a Match % badge appear — that's the algorithm getting confident about your interests.",
     position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
     arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
     arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    // Glowing highlight over the card area
     highlight: { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 740, height: 500, borderRadius: "22px" },
   },
   {

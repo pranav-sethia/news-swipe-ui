@@ -770,16 +770,18 @@ const TOUR_STEPS = [
     body: "Clears your swipe history and starts the AI fresh.",
     position: { top: 66, right: 48 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    highlight: { top: 8, right: 46, width: 36, height: 36, borderRadius: "50%" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    // Centered on the ↺ button: right=74px from edge, circle 40px → right offset = 74-20=54
+    highlight: { top: 8, right: 54, width: 40, height: 40, borderRadius: "50%" },
   },
   {
     title: "Need a reminder?",
     body: "Tap this icon any time to replay the tour.",
     position: { top: 66, right: 80 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    highlight: { top: 8, right: 82, width: 36, height: 36, borderRadius: "50%" },
+    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    // Centered on the ? button: right=110px from edge, circle 40px → right offset = 110-20=90
+    highlight: { top: 8, right: 90, width: 40, height: 40, borderRadius: "50%" },
   },
 ];
 
@@ -824,8 +826,8 @@ function TutorialOverlay({ onDismiss }) {
             sx={{
               position: "fixed",
               ...current.highlight,
-              border: "2px solid rgba(255,102,0,0.7)",
-              boxShadow: "0 0 0 0 rgba(255,102,0,0.4), inset 0 0 30px rgba(255,102,0,0.06)",
+              border: "2px solid rgba(0,255,204,0.8)",
+              boxShadow: "0 0 0 0 rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.05)",
               animation: "tourGlow 1.8s ease-in-out infinite",
               pointerEvents: "none",
               zIndex: 9998,

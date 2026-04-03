@@ -159,8 +159,8 @@ export default function App() {
         </Box>
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>AI-POWERED HACKER NEWS READER</Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Tutorial"><IconButton onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Reset taste profile"><IconButton onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Tutorial"><IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Reset taste profile"><IconButton data-tour="reset" onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
           <Tooltip title="Logout"><IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton></Tooltip>
         </Box>
       </Box>
@@ -771,8 +771,7 @@ const TOUR_STEPS = [
     position: { top: 66, right: 48 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
     arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    // Centered on the ↺ button: right=74px from edge, circle 40px → right offset = 74-20=54
-    highlight: { top: 8, right: 54, width: 40, height: 40, borderRadius: "50%" },
+    targetSelector: "[data-tour='reset']",
   },
   {
     title: "Need a reminder?",
@@ -780,8 +779,7 @@ const TOUR_STEPS = [
     position: { top: 66, right: 80 },
     arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
     arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    // Centered on the ? button: right=110px from edge, circle 40px → right offset = 110-20=90
-    highlight: { top: 8, right: 90, width: 40, height: 40, borderRadius: "50%" },
+    targetSelector: "[data-tour='help']",
   },
 ];
 
@@ -792,6 +790,27 @@ function TutorialOverlay({ onDismiss }) {
   const current = visibleSteps[step];
   const isLast = step === visibleSteps.length - 1;
   const next = () => isLast ? onDismiss() : setStep(s => s + 1);
+
+  // Resolve DOM-based highlight rect for steps that use targetSelector
+  const getHighlightStyle = (step) => {
+    if (step.targetSelector) {
+      const el = document.querySelector(step.targetSelector);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const pad = 8; // padding around the button
+        return {
+          top: r.top - pad,
+          left: r.left - pad,
+          width: r.width + pad * 2,
+          height: r.height + pad * 2,
+          borderRadius: "50%",
+        };
+      }
+    }
+    return step.highlight || null;
+  };
+
+  const highlightStyle = getHighlightStyle(current);
 
   return (
     <Box
@@ -815,7 +834,7 @@ function TutorialOverlay({ onDismiss }) {
     >
       {/* Pulsing spotlight highlight around the current feature */}
       <AnimatePresence mode="wait">
-        {current.highlight && (
+        {highlightStyle && (
           <Box
             key={`highlight-${step}`}
             component={motion.div}
@@ -825,7 +844,7 @@ function TutorialOverlay({ onDismiss }) {
             transition={{ duration: 0.25 }}
             sx={{
               position: "fixed",
-              ...current.highlight,
+              ...highlightStyle,
               border: "2px solid rgba(0,255,204,0.8)",
               boxShadow: "0 0 0 0 rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.05)",
               animation: "tourGlow 1.8s ease-in-out infinite",

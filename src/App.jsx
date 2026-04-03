@@ -6,11 +6,10 @@ import {
 } from "@mui/material";
 import {
   RotateLeft, Logout, OpenInNew, WarningAmber,
-  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, HelpOutline
+  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, HelpOutline,
 } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
-import { Joyride, STATUS } from "react-joyride";
 import * as api from "./api.js";
 
 // ---------------------------------------------------------------------------
@@ -76,66 +75,18 @@ export default function App() {
   const { logout } = useOutletContext();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [runTour, setRunTour] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Define steps dynamically based on what's visible
-  const getSteps = () => {
-    const steps = [
-      {
-        target: ".tour-step-card",
-        content: "Swipe right to save, left to skip. Or drag the card! The AI will instantly learn your technical preferences.",
-        disableBeacon: true,
-        placement: "bottom",
-      }
-    ];
-    // Add Left Panel step only if it exists (desktop)
-    if (document.querySelector(".tour-step-left")) {
-      steps.push({
-        target: ".tour-step-left",
-        content: "Your saved articles are stored here. Watch the Match % badge adapt as the algorithm discovers highly relevant content for you.",
-        placement: "right",
-      });
-    }
-    // Add Shortcuts/Actions step
-    if (document.querySelector(".tour-step-actions")) {
-      steps.push({
-        target: ".tour-step-actions",
-        content: "You can also use the Arrow Keys on your keyboard or tap these buttons to quickly vote.",
-        placement: "top",
-      });
-    }
-    // Reset profile step
-    if (document.querySelector(".tour-step-reset")) {
-      steps.push({
-        target: ".tour-step-reset",
-        content: "Want a fresh start? Reset your taste profile anytime to clear your swipe history.",
-        placement: "bottom",
-      });
-    }
-    return steps;
-  };
-
   useEffect(() => {
-    // Only auto-start tour if we finished loading, we have articles, and user hasn't seen it
-    if (!isLoading && articles.length > 0 && !localStorage.getItem("hs_seen_tour")) {
-      // Delay slightly to give DOM time to paint completely
-      setTimeout(() => setRunTour(true), 500);
+    if (!localStorage.getItem("hs_seen_onboarding")) {
+      setShowOnboarding(true);
     }
-  }, [isLoading, articles]);
+  }, []);
 
-  const handleJoyrideCallback = (data) => {
-    const { status, type } = data;
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      setRunTour(false);
-      localStorage.setItem("hs_seen_tour", "true");
-    }
-    // If a step's target is missing, React Joyride emits step:error, but we dynamically filter above anyway.
-  };
-
-  const startTourManually = () => {
-    if (articles.length === 0) return; // Can't tour an empty feed
-    setRunTour(true);
+  const dismissOnboarding = () => {
+    localStorage.setItem("hs_seen_onboarding", "true");
+    setShowOnboarding(false);
   };
 
   const isInitialMount = useRef(true);
@@ -196,27 +147,6 @@ export default function App() {
       overflow: "hidden",
     }}>
       {/* Nav */}
-      <Joyride
-        steps={getSteps()}
-        run={runTour}
-        continuous
-        showProgress
-        showSkipButton
-        callback={handleJoyrideCallback}
-        styles={{
-          options: {
-            primaryColor: C.orange,
-            backgroundColor: C.card,
-            textColor: "#fff",
-            arrowColor: C.card,
-            zIndex: 10000,
-          },
-          tooltipContainer: { textAlign: "left", fontFamily: C.fontUi },
-          buttonNext: { fontFamily: C.fontUi, fontWeight: 800, borderRadius: 8 },
-          buttonBack: { fontFamily: C.fontUi, color: C.textDim },
-          buttonSkip: { fontFamily: C.fontUi, color: C.textDim },
-        }}
-      />
       <Box sx={{
         gridColumn: "1 / -1", display: "flex", alignItems: "center",
         justifyContent: "space-between", px: 3,
@@ -229,10 +159,8 @@ export default function App() {
         </Box>
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>AI-POWERED HACKER NEWS READER</Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Help / Tutorial"><IconButton onClick={startTourManually} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
-          <Box className="tour-step-reset" sx={{ display: "flex" }}>
-            <Tooltip title="Reset taste profile"><IconButton onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
-          </Box>
+          <Tooltip title="Tutorial"><IconButton onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Reset taste profile"><IconButton onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
           <Tooltip title="Logout"><IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton></Tooltip>
         </Box>
       </Box>
@@ -243,7 +171,7 @@ export default function App() {
       </SidePanel>
 
       {/* Center */}
-      <Box className="tour-step-card" sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
         {isLoading ? <TerminalLoader /> : articles.length === 0 ? <ExhaustedCard onReset={() => setIsResetModalOpen(true)} /> : (
           <AnimatePresence>
             {articles.map((article, index) => (
@@ -252,7 +180,7 @@ export default function App() {
                 article={article}
                 onSwipe={(dir) => handleSwipe(dir, article)}
                 isTop={index === articles.length - 1}
-                isInteractive={!isResetModalOpen && !runTour}
+                isInteractive={!isResetModalOpen && !showOnboarding}
                 stackIndex={index}
                 totalCards={articles.length}
               />
@@ -267,7 +195,7 @@ export default function App() {
       </SidePanel>
 
       {/* Keyboard hint */}
-      <Box className="tour-step-actions" sx={{
+      <Box sx={{
         display: { xs: "none", md: "flex" },
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
         alignItems: "center", gap: 2, zIndex: 50,
@@ -298,6 +226,10 @@ export default function App() {
         </DialogActions>
       </Dialog>
 
+      {/* Tutorial overlay */}
+      <AnimatePresence>
+        {showOnboarding && <TutorialOverlay onDismiss={dismissOnboarding} />}
+      </AnimatePresence>
     </Box>
   );
 }
@@ -337,7 +269,7 @@ function ArticleDetailsPanel({ article }) {
     : null;
 
   return (
-    <Box className="tour-step-left">
+    <>
       <SectionHeader icon="▸" label="STORY DETAILS" />
 
       {/* Points & Comments */}
@@ -384,7 +316,7 @@ function ArticleDetailsPanel({ article }) {
           <ShortcutRow keys={["Enter"]} label="Open article" />
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }
 
@@ -682,10 +614,8 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                       )}
                     </Box>
                   )}
-                  <Box>
-                    <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(255,100,100,0.8)" />
-                    <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
-                  </Box>
+                  <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(255,100,100,0.8)" />
+                  <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
                 </Box>
               </Box>
         </Box>
@@ -797,6 +727,121 @@ function KeyHint({ icon, label, right }) {
         borderRadius: "5px", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)",
       }}>{icon}</Box>
       <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)" }}>{label}</Typography>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-Step Tutorial Overlay
+// ---------------------------------------------------------------------------
+const TOUR_STEPS = [
+  {
+    emoji: "👋",
+    title: "Welcome to HackerSwipe!",
+    body: "HackerSwipe is an AI-powered Hacker News reader. An algorithm learns your interests and surfaces the most relevant technical stories for you — the more you swipe, the smarter it gets.",
+  },
+  {
+    emoji: "🃏",
+    title: "Swipe to Vote",
+    body: "Drag the card right to Like a story, or left to Skip it. On desktop, you can also use the ← → arrow keys. The AI immediately updates its model of your interests after every swipe.",
+  },
+  {
+    emoji: "🤖",
+    title: "The AI Match Score",
+    body: "Each card shows an \"X% MATCH\" badge when the algorithm detected you'd like it, or \"DISCOVERY\" for fresh exploratory picks. The more you like, the higher and more accurate the match scores become.",
+  },
+  {
+    emoji: "📌",
+    title: "Your Liked Articles",
+    body: "Articles you swipe right on are saved in the right panel so you can read them later. You can unlike them any time. Liked articles also train the recommendation engine for future sessions.",
+  },
+  {
+    emoji: "🔄",
+    title: "Reset Your Profile",
+    body: "Click the ↺ icon in the top-right corner to wipe your swipe history and start fresh with a clean recommendation slate. Use the ? icon anytime to replay this tutorial.",
+  },
+];
+
+function TutorialOverlay({ onDismiss }) {
+  const [step, setStep] = useState(0);
+  const current = TOUR_STEPS[step];
+  const isLast = step === TOUR_STEPS.length - 1;
+
+  return (
+    <Box
+      component={motion.div}
+      key="tutorial-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      sx={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Box
+        component={motion.div}
+        key={step}
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        sx={{
+          width: { xs: "86vw", sm: 480 },
+          background: "rgba(13,13,13,0.98)",
+          border: `1px solid ${C.orange}`,
+          borderRadius: "20px",
+          p: { xs: 3, md: 4 },
+          boxShadow: `0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,102,0,0.1)`,
+        }}
+      >
+        {/* Step indicator dots */}
+        <Box sx={{ display: "flex", gap: 1, mb: 3, justifyContent: "center" }}>
+          {TOUR_STEPS.map((_, i) => (
+            <Box key={i} sx={{
+              width: i === step ? 20 : 6, height: 6, borderRadius: 3,
+              background: i === step ? C.orange : "rgba(255,102,0,0.25)",
+              transition: "all 0.3s ease",
+            }} />
+          ))}
+        </Box>
+
+        {/* Content */}
+        <Typography sx={{ fontSize: "2rem", mb: 1.5, textAlign: "center" }}>{current.emoji}</Typography>
+        <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.15rem", fontWeight: 800, color: "#fff", mb: 1.5, letterSpacing: "-0.3px" }}>
+          {current.title}
+        </Typography>
+        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.88rem", color: "#aaa", lineHeight: 1.7, mb: 3.5 }}>
+          {current.body}
+        </Typography>
+
+        {/* Navigation */}
+        <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end", alignItems: "center" }}>
+          {step > 0 && (
+            <Button onClick={() => setStep(s => s - 1)}
+              sx={{ fontFamily: C.fontUi, color: C.textDim, textTransform: "none" }}>
+              Back
+            </Button>
+          )}
+          <Button onClick={onDismiss}
+            sx={{ fontFamily: C.fontUi, color: C.textDim, textTransform: "none" }}>
+            Skip
+          </Button>
+          <Button
+            variant="contained" disableElevation
+            onClick={() => isLast ? onDismiss() : setStep(s => s + 1)}
+            sx={{
+              background: C.orange, color: "#000", fontWeight: 800, fontFamily: C.fontUi,
+              textTransform: "none", px: 3, borderRadius: "10px",
+              "&:hover": { background: "#ff8533" },
+            }}
+          >
+            {isLast ? "Let's go!" : "Next"}
+          </Button>
+        </Box>
+      </Box>
     </Box>
   );
 }

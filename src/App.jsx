@@ -96,7 +96,7 @@ export default function App() {
   const fetchTimeoutRef = useRef(null);
   const topCard = articles[articles.length - 1] ?? null;
 
-  const fetchFeed = useCallback(async (isReset = false) => {
+  const fetchFeed = useCallback(async (isReset = false, replaceStale = false) => {
     // Use ref guard — state-based guard causes stale closure deadlocks
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -111,6 +111,21 @@ export default function App() {
         setArticles((prev) => {
           const existingIds = new Set(prev.map((a) => a.id));
           const fresh = data.filter((a) => !existingIds.has(a.id));
+          
+          if (replaceStale) {
+            // Option B (Seamless UX): We just updated our taste profile!
+            // The cards sitting underneath the top ones are STALE. 
+            // Keep the top 2 cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
+            const KEEP_TOP = 2;
+            if (prev.length <= KEEP_TOP) {
+              return [...fresh, ...prev];
+            } else {
+              const topCards = prev.slice(prev.length - KEEP_TOP);
+              return [...fresh, ...topCards];
+            }
+          }
+          
+          // Default behavior: just prepend to the bottom of the stack
           return [...fresh, ...prev];
         });
       }
@@ -142,11 +157,19 @@ export default function App() {
     // SYNCHRONOUS card removal — no async/await.
     // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
-    // API call is fire-and-forget in the background — no blocking of the UI thread.
+    
+    // Background API call. No blocking.
     api.sendSwipe(swipedArticle.id, direction === "right")
-      .then(() => setSwipeCount((p) => p + 1))
+      .then(() => {
+        setSwipeCount((p) => p + 1);
+        if (direction === "right") {
+          // Immediately pull fresh matches generated from the new taste vector
+          // and seamlessly replace the stale tail-end of the queue!
+          fetchFeed(false, true);
+        }
+      })
       .catch(() => {}); // silently ignore network errors
-  }, []);
+  }, [fetchFeed]);
 
   const handleReset = async () => {
     try {

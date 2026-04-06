@@ -145,8 +145,13 @@ export default function App() {
   }, []);
 
   const handleReset = async () => {
-    try { setIsLoading(true); await api.resetSwipes(); setSwipeCount((p) => p + 1); await fetchFeed(true); }
-    catch (err) { console.error("Failed to reset:", err); setIsLoading(false); }
+    try {
+      setIsLoading(true);
+      setArticles([]); // Clear old articles immediately so loader shows
+      await api.resetSwipes();
+      setSwipeCount((p) => p + 1);
+      await fetchFeed(true);
+    } catch (err) { console.error("Failed to reset:", err); setIsLoading(false); }
   };
 
   return (
@@ -186,7 +191,10 @@ export default function App() {
 
       {/* Center */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
-        {isLoading ? <TerminalLoader /> : articles.length === 0 ? <ExhaustedCard onReset={() => setIsResetModalOpen(true)} /> : (
+        {/* Only show loader when the stack is truly empty. Background fetches are invisible — no glitch. */}
+        {articles.length === 0 ? (
+          isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
+        ) : (
           <AnimatePresence mode="popLayout">
             {/* Only render top 3 cards — rest stay invisible until they become top 3 */}
             {articles.slice(-3).map((article, sliceIndex, sliceArr) => {

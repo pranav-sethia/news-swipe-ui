@@ -129,19 +129,23 @@ export default function App() {
 
   useEffect(() => {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
-    // Pre-fetch next batch when only 3 cards remain
-    if (articles.length <= 3 && !isFetchingRef.current && !isInitialMount.current && !hasError) {
+    // Pre-fetch next batch when only 3 cards remain.
+    // NOTE: hasError is NOT a guard here — if an error occurred we want to retry on the next swipe,
+    // not permanently disable prefetching. isFetchingRef prevents concurrent overlapping fetches.
+    if (articles.length <= 3 && !isFetchingRef.current && !isInitialMount.current) {
       fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 300);
     }
     return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
-  }, [articles.length, hasError, fetchFeed]);
+  }, [articles.length, fetchFeed]);
 
-  const handleSwipe = useCallback(async (direction, swipedArticle) => {
-    // Remove the card from the local stack immediately — no loading flash, no glitch.
+  const handleSwipe = useCallback((direction, swipedArticle) => {
+    // SYNCHRONOUS card removal — no async/await.
+    // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
-    // Fire-and-forget the swipe to the server asynchronously
-    try { await api.sendSwipe(swipedArticle.id, direction === "right"); setSwipeCount((p) => p + 1); }
-    catch { /* ignore network errors silently */ }
+    // API call is fire-and-forget in the background — no blocking of the UI thread.
+    api.sendSwipe(swipedArticle.id, direction === "right")
+      .then(() => setSwipeCount((p) => p + 1))
+      .catch(() => {}); // silently ignore network errors
   }, []);
 
   const handleReset = async () => {

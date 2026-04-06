@@ -74,7 +74,6 @@ function useTypewriter(text, speed = 28, active = true) {
 export default function App() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const { logout } = useOutletContext();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -93,62 +92,57 @@ export default function App() {
   };
 
   const isInitialMount = useRef(true);
+  const isFetchingRef = useRef(false); // Use a ref to avoid stale closures causing deadlocks
   const fetchTimeoutRef = useRef(null);
   const topCard = articles[articles.length - 1] ?? null;
 
   const fetchFeed = useCallback(async (isReset = false) => {
-    if (isFetchingMore) return;
-    setIsFetchingMore(true); setIsLoading(true);
+    // Use ref guard — state-based guard causes stale closure deadlocks
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setIsLoading(true);
     try {
       const data = await api.getFeed();
-      if (data.length === 0 && !isReset) setArticles([]);
-      else if (isReset) setArticles(data);
-      else setArticles((prev) => [...data, ...prev]);
+      if (isReset) {
+        setArticles(data);
+      } else {
+        // Prepend new articles. Filter out any IDs already in the current stack
+        // to prevent duplicates caused by race conditions between swipe DB writes and feed fetches.
+        setArticles((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const fresh = data.filter((a) => !existingIds.has(a.id));
+          return [...fresh, ...prev];
+        });
+      }
       setHasError(false);
     } catch (err) {
       console.error("Failed to fetch feed:", err);
       setHasError(true);
     } finally {
-      setIsLoading(false); setIsFetchingMore(false);
+      setIsLoading(false);
+      isFetchingRef.current = false;
       if (isInitialMount.current) isInitialMount.current = false;
     }
-  }, [isFetchingMore]);
+  }, []); // No deps — uses refs and functional setState to avoid stale closures
 
   useEffect(() => { fetchFeed(true); }, []); // eslint-disable-line
 
   useEffect(() => {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
-    // Infinite scrolling: pre-fetch next batch from DB when only 3 cards remain in the stack
-    if (articles.length <= 3 && !isFetchingMore && !isInitialMount.current && !hasError) {
-      fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 100);
+    // Pre-fetch next batch when only 3 cards remain
+    if (articles.length <= 3 && !isFetchingRef.current && !isInitialMount.current && !hasError) {
+      fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 300);
     }
     return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
-  }, [articles.length, isFetchingMore, fetchFeed, hasError]);
+  }, [articles.length, hasError, fetchFeed]);
 
   const handleSwipe = useCallback(async (direction, swipedArticle) => {
-    let flashed = false;
+    // Remove the card from the local stack immediately — no loading flash, no glitch.
+    setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
+    // Fire-and-forget the swipe to the server asynchronously
     try { await api.sendSwipe(swipedArticle.id, direction === "right"); setSwipeCount((p) => p + 1); }
-    catch { /* fire-and-forget */ }
-    
-    setArticles((prev) => {
-      const remainder = prev.slice(0, prev.length - 1);
-      
-      // SMART FLUSH: If the user liked this article, they just updated their taste profile.
-      // If all remaining buffered articles are "Discovery" (dumb) cards, delete them immediately
-      // so the UI is forced to fetch the brand new curated matches!
-      if (direction === "right" && remainder.length > 0) {
-        const areAllDumb = remainder.every(a => a.match_pct == null);
-        if (areAllDumb) {
-          flashed = true;
-          return [];
-        }
-      }
-      
-      return remainder;
-    });
-    
-    if (articles.length === 1 || flashed) setIsLoading(true);
-  }, [articles.length]);
+    catch { /* ignore network errors silently */ }
+  }, []);
 
   const handleReset = async () => {
     try { setIsLoading(true); await api.resetSwipes(); setSwipeCount((p) => p + 1); await fetchFeed(true); }

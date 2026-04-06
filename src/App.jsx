@@ -126,11 +126,28 @@ export default function App() {
   }, [articles.length, isFetchingMore, fetchFeed, hasError]);
 
   const handleSwipe = useCallback(async (direction, swipedArticle) => {
-    const willBeEmpty = articles.length === 1;
+    let flashed = false;
     try { await api.sendSwipe(swipedArticle.id, direction === "right"); setSwipeCount((p) => p + 1); }
     catch { /* fire-and-forget */ }
-    setArticles((prev) => prev.slice(0, prev.length - 1));
-    if (willBeEmpty) setIsLoading(true);
+    
+    setArticles((prev) => {
+      const remainder = prev.slice(0, prev.length - 1);
+      
+      // SMART FLUSH: If the user liked this article, they just updated their taste profile.
+      // If all remaining buffered articles are "Discovery" (dumb) cards, delete them immediately
+      // so the UI is forced to fetch the brand new curated matches!
+      if (direction === "right" && remainder.length > 0) {
+        const areAllDumb = remainder.every(a => a.match_pct == null);
+        if (areAllDumb) {
+          flashed = true;
+          return [];
+        }
+      }
+      
+      return remainder;
+    });
+    
+    if (articles.length === 1 || flashed) setIsLoading(true);
   }, [articles.length]);
 
   const handleReset = async () => {

@@ -6,7 +6,7 @@ import {
 } from "@mui/material";
 import {
   RotateLeft, Logout, OpenInNew, WarningAmber,
-  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, HelpOutline,
+  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline,
 } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
@@ -159,7 +159,8 @@ export default function App() {
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
     
     // Background API call. No blocking.
-    api.sendSwipe(swipedArticle.id, direction === "right")
+    const likedValue = direction === "right" ? true : (direction === "left" ? false : null);
+    api.sendSwipe(swipedArticle.id, likedValue)
       .then(() => {
         setSwipeCount((p) => p + 1);
         if (direction === "right") {
@@ -219,7 +220,16 @@ export default function App() {
       {/* Center */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
         {/* Only show loader when the stack is truly empty. Background fetches are invisible — no glitch. */}
-        {articles.length === 0 ? (
+        {hasError ? (
+          <Box sx={{ textAlign: "center", maxWidth: 400 }}>
+            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: "#f39c12", mb: 3, lineHeight: 2 }}>NETWORK ERROR</Typography>
+            <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, mb: 4, fontSize: "0.9rem" }}>{">"} Could not connect to the API. Check your connection or server status.</Typography>
+            <Button variant="outlined" onClick={() => fetchFeed(true)}
+              sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}>
+              RETRY CONNECTION
+            </Button>
+          </Box>
+        ) : articles.length === 0 ? (
           isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
         ) : (
           <AnimatePresence mode="popLayout">
@@ -253,7 +263,9 @@ export default function App() {
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
         alignItems: "center", gap: 2, zIndex: 50,
       }}>
-        <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="SKIP" />
+        <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
+        <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
         <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} right />
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)", ml: 2 }}>or drag the card</Typography>
@@ -364,7 +376,8 @@ function ArticleDetailsPanel({ article }) {
       <Box sx={{ mt: "auto", borderTop: `1px solid ${C.border}`, pt: 2 }}>
         <Label>KEYBOARD</Label>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 0.5 }}>
-          <ShortcutRow keys={["←"]} label="Skip story" />
+          <ShortcutRow keys={["←"]} label="Dislike story" />
+          <ShortcutRow keys={["↑"]} label="Skip neutrally" />
           <ShortcutRow keys={["→"]} label="Like story" />
           <ShortcutRow keys={["Enter"]} label="Open article" />
         </Box>
@@ -472,9 +485,11 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const rotate = useTransform(x, [-250, 250], [-15, 15]);
   const likeOpacity = useTransform(x, [50, 140], [0, 1]);
   const skipOpacity = useTransform(x, [-50, -140], [0, 1]);
+  const neutralOpacity = useTransform(y, [-50, -140], [0, 1]);
   const cardsFromTop = totalCards - 1 - stackIndex;
 
   // Typewriter only runs on the top card — background cards stay blank to avoid flash
@@ -487,6 +502,7 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
       if (isExiting) return;
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
+      if (e.key === "ArrowUp") triggerSwipe("up");
       if (e.key === "Enter") {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();
@@ -505,8 +521,9 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
     setIsExiting(true);
     try {
       await controls.start({
-        x: dir === "right" ? window.innerWidth : -window.innerWidth,
-        rotate: dir === "right" ? 25 : -25,
+        x: dir === "right" ? window.innerWidth : (dir === "left" ? -window.innerWidth : 0),
+        y: dir === "up" ? -window.innerHeight : 0,
+        rotate: dir === "right" ? 25 : (dir === "left" ? -25 : 0),
         opacity: 0,
         transition: { duration: 0.25, ease: "easeOut" },
       });
@@ -519,10 +536,12 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
   const handleDragEnd = async (_, info) => {
     if (isExiting || !isTop || !isInteractive) return;
     const liked = info.offset.x > 100 || info.velocity.x > 500;
-    const skipped = info.offset.x < -100 || info.velocity.x < -500;
+    const disliked = info.offset.x < -100 || info.velocity.x < -500;
+    const skipped = info.offset.y < -100 || info.velocity.y < -500;
     if (liked) triggerSwipe("right");
-    else if (skipped) triggerSwipe("left");
-    else controls.start({ x: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
+    else if (disliked) triggerSwipe("left");
+    else if (skipped) triggerSwipe("up");
+    else controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
   };
 
   // Parse points/comments from description if stored there
@@ -537,20 +556,20 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
       animate={controls}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       style={{
-        x, rotate,
+        x, y, rotate,
         position: "absolute",
         cursor: !isTop || isExiting ? "default" : "grab",
         zIndex: isTop ? 100 : stackIndex,
         // Only the card directly below the top is slightly visible as a peek card;
         // any card beyond that is invisible to avoid the glitch.
         scale: isTop ? 1 : (cardsFromTop === 1 ? 0.96 : 0.93),
-        y: isTop ? 0 : (cardsFromTop === 1 ? 10 : 20),
+        y: isTop ? y : (cardsFromTop === 1 ? 10 : 20),
         opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.4 : 0),
         pointerEvents: isTop ? "auto" : "none",
       }}
       sx={{ width: { xs: "90vw", sm: 500, md: 720 }, touchAction: "none" }}
-      drag={isTop && !isExiting ? "x" : false}
-      dragConstraints={{ left: 0, right: 0 }}
+      drag={isTop && !isExiting ? true : false}
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.65}
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
@@ -675,7 +694,8 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
                       )}
                     </Box>
                   )}
-                  <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(255,100,100,0.8)" />
+                  <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="DISLIKE" color="rgba(255,100,100,0.8)" />
+                  <ActionHint icon={<ArrowUpward sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(200,200,200,0.8)" />
                   <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
                 </Box>
               </Box>
@@ -686,7 +706,10 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
           <Box sx={{ border: "3px solid #4ade80", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#4ade80", transform: "rotate(12deg)" }}>LIKE</Box>
         </motion.div>
         <motion.div style={{ opacity: skipOpacity, position: "absolute", top: 24, left: 24, pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #f87171", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#f87171", transform: "rotate(-12deg)" }}>SKIP</Box>
+          <Box sx={{ border: "3px solid #f87171", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#f87171", transform: "rotate(-12deg)" }}>DISLIKE</Box>
+        </motion.div>
+        <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
+          <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>
         </motion.div>
 
         <Box sx={{ position: "absolute", bottom: 16, right: 20, fontFamily: C.fontMono, fontSize: "0.6rem", color: C.border }}>{`[${stackIndex + 1}]`}</Box>
@@ -802,8 +825,8 @@ const TOUR_STEPS = [
     arrowBorder: null,
   },
   {
-    title: "Swipe right to save. Left to skip.",
-    body: "Each swipe is instant feedback to the AI. After a few stories you'll see a Match % badge appear - that's the algorithm getting confident about your interests.",
+    title: "Right to save. Left to dislike. Up to skip.",
+    body: "Each swipe trains the AI instantly. Swiping right moves similar stories to the top. Swiping left teaches it to avoid those topics. Swiping up skips the story neutrally.",
     position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
     arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
     arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },

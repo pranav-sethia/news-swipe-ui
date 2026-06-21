@@ -641,7 +641,20 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
               
               {article.match_pct ? (
                 <Tooltip 
-                  title={article.match_reason ? `Recommended because you liked: ${article.match_reason}` : "Personalized for you based on your taste"} 
+                  title={
+                    article.match_reason ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.7rem", color: "rgba(255,255,255,0.6)" }}>
+                          Recommended because you liked:
+                        </Typography>
+                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#00ffcc", fontWeight: 500, lineHeight: 1.3, fontStyle: "italic" }}>
+                          "{article.match_reason}"
+                        </Typography>
+                      </Box>
+                    ) : (
+                      "Personalized for you based on your taste"
+                    )
+                  } 
                   placement="top"
                   arrow
                   componentsProps={{

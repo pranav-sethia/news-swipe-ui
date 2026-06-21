@@ -569,7 +569,7 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
   };
 
   // Parse points/comments from description if stored there
-  const descIsStats = article.description?.includes("points ·");
+
   const [imageFailed, setImageFailed] = useState(false);
   const showImageSide = !!article.image_url && !imageFailed;
 
@@ -712,9 +712,7 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
                   pl: 2, ml: "1px",
                   maxWidth: showImageSide ? "100%" : "90%",
                 }}>
-                  {descIsStats
-                    ? "A trending story on Hacker News. Click 'Read Article' to explore."
-                    : article.description}
+                  {article.description}
                 </Typography>
             </Box>
           </Box>

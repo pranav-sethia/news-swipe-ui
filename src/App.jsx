@@ -527,9 +527,6 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
       if (e.key === "ArrowUp") triggerSwipe("up");
-      if (e.key === "c" || e.key === "C") {
-        if (!isExiting && isTop && onOpenComments) onOpenComments();
-      }
       if (e.key === "Enter") {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();

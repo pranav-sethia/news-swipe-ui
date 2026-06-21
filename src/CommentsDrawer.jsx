@@ -53,6 +53,8 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       onClose={onClose}
       onKeyDown={(e) => {
         if (e.key === "c" || e.key === "C") {
+          e.stopPropagation();
+          e.preventDefault();
           onClose();
         }
       }}

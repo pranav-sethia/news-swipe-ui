@@ -640,9 +640,44 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
               </Box>
               
               {article.match_pct ? (
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(0,255,204,0.3)" }}>
-                  {article.match_pct}% MATCH
-                </Typography>
+                <Tooltip 
+                  title={article.match_reason ? `Recommended because you liked: ${article.match_reason}` : "Personalized for you based on your taste"} 
+                  placement="top"
+                  arrow
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        background: "rgba(13,13,13,0.95)",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(0,255,204,0.3)",
+                        color: "#e8e8e8",
+                        fontFamily: C.fontUi,
+                        fontSize: "0.75rem",
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                        p: 1.5,
+                        borderRadius: "8px",
+                        maxWidth: 250
+                      }
+                    },
+                    arrow: {
+                      sx: { color: "rgba(13,13,13,0.95)" }
+                    }
+                  }}
+                >
+                  <Typography sx={{ 
+                    fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", 
+                    background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", 
+                    border: "1px solid rgba(0,255,204,0.3)",
+                    cursor: "help",
+                    textDecoration: "underline",
+                    textDecorationStyle: "dashed",
+                    textUnderlineOffset: "3px",
+                    textDecorationColor: "rgba(0,255,204,0.5)",
+                    "&:hover": { background: "rgba(0,255,204,0.2)", textDecorationColor: "#00ffcc" }
+                  }}>
+                    {article.match_pct}% MATCH
+                  </Typography>
+                </Tooltip>
               ) : (
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
                   DISCOVERY

@@ -6,11 +6,12 @@ import {
 } from "@mui/material";
 import {
   RotateLeft, Logout, OpenInNew, WarningAmber,
-  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline,
+  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline, QuestionAnswer
 } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
 import * as api from "./api.js";
+import CommentsDrawer from "./CommentsDrawer.jsx";
 
 // ---------------------------------------------------------------------------
 // Design Tokens
@@ -79,12 +80,25 @@ export default function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("hs_seen_onboarding")) {
+    const handler = (e) => {
+      if (e.key === "c" || e.key === "C") {
+        if (!isResetModalOpen && !showOnboarding) {
+          setIsCommentsOpen(prev => !prev);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isResetModalOpen, showOnboarding]);
+
+  useEffect(() => {
+    if (!localStorage.getItem("hs_seen_onboarding") && !isLoading && articles.length > 0) {
       setShowOnboarding(true);
     }
-  }, []);
+  }, [isLoading, articles.length]);
 
   const dismissOnboarding = () => {
     localStorage.setItem("hs_seen_onboarding", "true");
@@ -154,6 +168,7 @@ export default function App() {
   }, [articles.length, fetchFeed]);
 
   const handleSwipe = useCallback((direction, swipedArticle) => {
+    setIsCommentsOpen(false); // Close comments on swipe
     // SYNCHRONOUS card removal — no async/await.
     // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
@@ -241,6 +256,7 @@ export default function App() {
                   key={article.id}
                   article={article}
                   onSwipe={(dir) => handleSwipe(dir, article)}
+                  onOpenComments={() => setIsCommentsOpen(true)}
                   isTop={globalIndex === articles.length - 1}
                   isInteractive={!isResetModalOpen && !showOnboarding}
                   stackIndex={globalIndex}
@@ -251,6 +267,13 @@ export default function App() {
           </AnimatePresence>
         )}
       </Box>
+
+      {/* Comments Drawer */}
+      <CommentsDrawer 
+        open={isCommentsOpen} 
+        onClose={() => setIsCommentsOpen(false)} 
+        hnId={topCard?.hn_id} 
+      />
 
       {/* Right panel: Liked articles */}
       <SidePanel align="right">
@@ -379,6 +402,7 @@ function ArticleDetailsPanel({ article }) {
           <ShortcutRow keys={["←"]} label="Dislike story" />
           <ShortcutRow keys={["↑"]} label="Skip neutrally" />
           <ShortcutRow keys={["→"]} label="Like story" />
+          <ShortcutRow keys={["C"]} label="Read comments" />
           <ShortcutRow keys={["Enter"]} label="Open article" />
         </Box>
       </Box>
@@ -481,7 +505,7 @@ function LikedPanel({ swipeCount, onUnliked }) {
 // ---------------------------------------------------------------------------
 // News Card (with keyboard support + richer no-image fallback)
 // ---------------------------------------------------------------------------
-function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCards }) {
+function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
@@ -503,6 +527,9 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
       if (e.key === "ArrowUp") triggerSwipe("up");
+      if (e.key === "c" || e.key === "C") {
+        if (!isExiting && isTop && onOpenComments) onOpenComments();
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();
@@ -664,18 +691,35 @@ function NewsCard({ article, onSwipe, isTop, isInteractive, stackIndex, totalCar
             display: "flex", alignItems: "center", justifyContent: "space-between", 
             mt: 3, pt: 2, borderTop: `1px solid rgba(255,255,255,0.05)`, gap: 2, flexWrap: "wrap" 
           }}>
-                <Button
-                  component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
-                  endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
-                  onClick={(e) => e.stopPropagation()}
-                  sx={{
-                    fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim,
-                    border: `1px solid ${C.border}`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
-                    "&:hover": { borderColor: C.orange, color: C.orange, background: C.orangeDim },
-                  }}
-                >
-                  READ ARTICLE
-                </Button>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button
+                    component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
+                    endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
+                    onClick={(e) => e.stopPropagation()}
+                    sx={{
+                      fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
+                      background: C.orangeDim,
+                      border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
+                      "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.2)" },
+                    }}
+                  >
+                    READ ARTICLE
+                  </Button>
+                  {article.hn_id && (
+                    <Button
+                      onClick={(e) => { e.stopPropagation(); if (onOpenComments) onOpenComments(); }}
+                      endIcon={<QuestionAnswer sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
+                      sx={{
+                        fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
+                        background: C.orangeDim,
+                        border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
+                        "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.2)" },
+                      }}
+                    >
+                      COMMENTS
+                    </Button>
+                  )}
+                </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   {/* Points + comments subtle badge */}
                   {(article.score != null || article.num_comments != null) && (
@@ -831,6 +875,13 @@ const TOUR_STEPS = [
     arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
     arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
     highlight: { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 740, height: 500, borderRadius: "22px" },
+  },
+  {
+    title: "Community discussions",
+    body: "Press 'C' or tap the Comments button to read what the Hacker News community is saying without leaving the app.",
+    position: { top: "50%", left: "50%", transform: "translate(-50%, -50%)" },
+    arrow: null,
+    arrowBorder: null,
   },
   {
     title: "Story details",

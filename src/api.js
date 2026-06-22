@@ -41,4 +41,4 @@ export const resetSwipes = () => apiClient.post('/api/reset');
 
 // --- Stats & Likes ---
 export const getStats = async () => { const { data } = await apiClient.get('/api/stats'); return data; };
-export const getLikedArticles = async () => { const { data } = await apiClient.get('/api/liked-articles'); return data; };
+export const getLikedArticles = async () => { const { data } = await apiClient.get('/api/liked-articles'); return data; };export const getTasteProfile = async () => { const { data } = await apiClient.get('/api/taste-profile'); return data; };

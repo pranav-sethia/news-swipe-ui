@@ -159,13 +159,12 @@ export default function App() {
   useEffect(() => {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     // Pre-fetch next batch when only 3 cards remain.
-    // NOTE: hasError is NOT a guard here — if an error occurred we want to retry on the next swipe,
-    // not permanently disable prefetching. isFetchingRef prevents concurrent overlapping fetches.
-    if (articles.length <= 3 && !isFetchingRef.current && !isInitialMount.current) {
+    // Use !isLoading guard so this doesn't fire when we manually setArticles([]) during a reset.
+    if (articles.length <= 3 && !isLoading && !isFetchingRef.current && !isInitialMount.current) {
       fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 300);
     }
     return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
-  }, [articles.length, fetchFeed]);
+  }, [articles.length, isLoading, fetchFeed]);
 
   const handleSwipe = useCallback((direction, swipedArticle) => {
     setIsCommentsOpen(false); // Close comments on swipe
@@ -190,9 +189,13 @@ export default function App() {
   const handleReset = async () => {
     try {
       setIsLoading(true);
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
       setArticles([]); // Clear old articles immediately so loader shows
       await api.resetSwipes();
       setSwipeCount((p) => p + 1);
+      
+      // Force unlock any pending fetches that might have been inflight before reset
+      isFetchingRef.current = false;
       await fetchFeed(true);
     } catch (err) { console.error("Failed to reset:", err); setIsLoading(false); }
   };
@@ -227,9 +230,9 @@ export default function App() {
         </Box>
       </Box>
 
-      {/* Left panel: Article details for current card */}
+      {/* Left panel: Taste Profile & Keyboard Shortcuts */}
       <SidePanel>
-        <ArticleDetailsPanel article={topCard} />
+        <TasteProfilePanel swipeCount={swipeCount} />
       </SidePanel>
 
       {/* Center */}
@@ -341,69 +344,77 @@ function SidePanel({ children, align = "left" }) {
 }
 
 // ---------------------------------------------------------------------------
-// Left Panel: Article Details for the current top card
+// Left Panel: Taste Profile & Keyboard Shortcuts
 // ---------------------------------------------------------------------------
-function ArticleDetailsPanel({ article }) {
-  if (!article) {
-    return (
-      <>
-        <SectionHeader icon="▸" label="STORY DETAILS" />
-        <Mono dim>{"// awaiting story..."}</Mono>
-      </>
-    );
-  }
-  const publishedDate = article.published_at
-    ? new Date(article.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : null;
+function TasteProfilePanel({ swipeCount }) {
+  const [profile, setProfile] = useState([]);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    api.getTasteProfile().then(data => {
+      setProfile(data.profile || []);
+      setTotal(data.totalLiked || 0);
+    }).catch(console.error);
+  }, [swipeCount]);
+
+  const colors = ["#00ffcc", "#ff6600", "#9b59b6", "#3498db", "#e74c3c"];
 
   return (
     <>
-      <SectionHeader icon="▸" label="STORY DETAILS" />
-
-      {/* Points & Comments */}
-      <Box sx={{ display: "flex", gap: 2 }}>
-        <StatBadge value={article.score ?? article.points ?? "—"} label="POINTS" icon="▲" />
-        <StatBadge value={article.num_comments ?? "—"} label="COMMENTS" icon="💬" />
-      </Box>
-
-      {/* Title preview */}
-      <Box>
-        <Label>TITLE</Label>
-        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5, mt: 0.5 }}>
-          {article.title}
-        </Typography>
-      </Box>
-
-      {publishedDate && (
-        <Box>
-          <Label>PUBLISHED</Label>
-          <Mono>{publishedDate}</Mono>
+      <SectionHeader icon="⊚" label="TASTE PROFILE" />
+      
+      {total === 0 ? (
+        <Box sx={{ textAlign: "center", mt: 4 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
+            {"// Swipe right to build your profile"}
+          </Typography>
         </Box>
-      )}
+      ) : (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1, overflowY: "auto", pr: 1 }}>
+          {profile.slice(0, 5).map((p, i) => {
+            const radius = 22;
+            const circumference = 2 * Math.PI * radius;
+            const offset = circumference - (p.percentage / 100) * circumference;
+            const color = colors[i % colors.length];
 
-      {/* HN Discussion link — only when we have the actual ID */}
-      {article.hn_id && (
-        <Box>
-          <Label>DISCUSS ON HN</Label>
-          <Link
-            href={`https://news.ycombinator.com/item?id=${article.hn_id}`}
-            target="_blank" rel="noopener noreferrer"
-            sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.orange, "&:hover": { color: "#ff8533" } }}
-          >
-            Open discussion ↗
-          </Link>
+            return (
+              <Box key={p.category} sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+                <Box sx={{ position: "relative", width: 50, height: 50 }}>
+                  <svg width="50" height="50">
+                    <circle cx="25" cy="25" r={radius} stroke="rgba(255,255,255,0.05)" strokeWidth="4" fill="none" />
+                    <motion.circle 
+                      cx="25" cy="25" r={radius} 
+                      stroke={color} strokeWidth="4" fill="none" strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      initial={{ strokeDashoffset: circumference }}
+                      animate={{ strokeDashoffset: offset }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
+                    />
+                  </svg>
+                  <Typography sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.fontMono, fontSize: "0.6rem", color: "#fff" }}>
+                    {p.percentage}%
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", fontWeight: 600 }}>{p.category.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '')}</Typography>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>{p.count} saved</Typography>
+                </Box>
+              </Box>
+            );
+          })}
         </Box>
       )}
 
       {/* Keyboard shortcuts */}
       <Box sx={{ mt: "auto", borderTop: `1px solid ${C.border}`, pt: 2 }}>
         <Label>KEYBOARD</Label>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 0.5 }}>
-          <ShortcutRow keys={["←"]} label="Dislike story" />
-          <ShortcutRow keys={["↑"]} label="Skip neutrally" />
-          <ShortcutRow keys={["→"]} label="Like story" />
-          <ShortcutRow keys={["C"]} label="Read comments" />
-          <ShortcutRow keys={["Enter"]} label="Open article" />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
+          <ShortcutRow keys={["←"]} label="Dislike story" code="ArrowLeft" />
+          <ShortcutRow keys={["↑"]} label="Skip neutrally" code="ArrowUp" />
+          <ShortcutRow keys={["→"]} label="Like story" code="ArrowRight" />
+          <ShortcutRow keys={["C"]} label="Read comments" code="KeyC" />
+          <ShortcutRow keys={["ENT"]} label="Open article" code="Enter" />
         </Box>
       </Box>
     </>
@@ -571,7 +582,10 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
   // Parse points/comments from description if stored there
 
   const [imageFailed, setImageFailed] = useState(false);
-  const showImageSide = !!article.image_url && !imageFailed;
+  const fallbackBgIndex = article.id ? (article.id % 5) : 0;
+  const isFallback = !article.image_url || imageFailed;
+  const imageUrl = isFallback ? `/hacker_bgs/bg_${fallbackBgIndex}.png` : article.image_url;
+  const showImageSide = true; // We always show the image side now to standardize the cards
 
   return (
     <Box
@@ -600,8 +614,11 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
     >
       <Box className="card-glow" sx={{
         width: "100%", height: { xs: "75vh", sm: 600, md: 480 },
-        background: C.card,
-        border: `1px solid ${C.border}`,
+        background: "rgba(16, 16, 16, 0.65)", // Increased opacity slightly for better contrast
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        border: `1px solid rgba(255,255,255,0.08)`,
+        boxShadow: isTop ? "0 24px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,102,0,0.05)" : "none",
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
@@ -609,28 +626,34 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
         gridTemplateRows: { xs: showImageSide ? "200px 1fr" : "1fr", md: "1fr" },
         position: "relative",
       }}>
-        {/* Decorative Background for No-Image mode */}
-        {!showImageSide && (
-          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-            <Box sx={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`, backgroundSize: "30px 30px" }} />
-            <Typography sx={{ position: "absolute", right: "-2%", top: "8%", fontFamily: C.fontPixel, fontSize: "28rem", color: "rgba(255,102,0,0.02)", lineHeight: 1, userSelect: "none" }}>Y</Typography>
-            <Box sx={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "4px", background: "linear-gradient(180deg, #ff6600, transparent)" }} />
-          </Box>
-        )}
+        {/* Content panel background overlay for readability if needed */}
 
         {/* Image OR decorative left panel */}
         {showImageSide && (
           <Box sx={{ position: "relative", overflow: "hidden" }}>
-            <Box component="img" src={article.image_url} alt={article.title}
+            <Box component="img" src={imageUrl} alt={article.title}
               onError={() => setImageFailed(true)}
-              sx={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
+              sx={{ 
+                width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
+                ...(isFallback && article.id && {
+                  filter: `hue-rotate(${(article.id * 37) % 360}deg) saturate(${(article.id % 2) ? 1.5 : 1})`,
+                  transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
+                  objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
+                })
+              }} />
             <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
             <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
           </Box>
         )}
 
         {/* Content panel */}
-        <Box sx={{ p: { xs: "20px", md: "32px 36px" }, display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, zIndex: 1, pr: { xs: "20px", md: showImageSide ? "36px" : "64px" } }}>
+        <Box sx={{ 
+          p: { xs: "20px", md: "32px 36px" }, display: "flex", flexDirection: "column", 
+          justifyContent: "space-between", minWidth: 0, zIndex: 1, 
+          pr: { xs: "20px", md: showImageSide ? "36px" : "64px" },
+          opacity: isTop ? 1 : 0, // FIX: Hides text on background cards to prevent double-vision bleed
+          transition: "opacity 0.2s ease"
+        }}>
           <Box>
             {/* Header: source dot + label + algorithm badge */}
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
@@ -712,21 +735,64 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
 
             {/* Summary description — fades in only after title is done typing */}
             <Box sx={{ opacity: done ? 1 : 0, transition: "opacity 0.5s ease" }}>
-              <Typography sx={{
-                  fontFamily: C.fontMono,
-                  fontSize: showImageSide ? "0.78rem" : "0.82rem",
-                  color: "rgba(200,200,200,0.55)",
-                  lineHeight: 1.7,
-                  display: "-webkit-box",
-                  WebkitLineClamp: showImageSide ? 3 : 5,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  borderLeft: `2px solid rgba(255,102,0,0.25)`,
-                  pl: 2, ml: "1px",
-                  maxWidth: showImageSide ? "100%" : "90%",
-                }}>
-                  {article.description}
-                </Typography>
+              {(() => {
+                const lines = article.description 
+                  ? article.description.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+                  : [];
+                
+                const isBulleted = lines.length > 1 && lines.every(l => l.startsWith('-') || l.startsWith('*') || l.startsWith('•'));
+
+                if (isBulleted) {
+                  return (
+                    <Box sx={{ 
+                      display: "flex", flexDirection: "column", gap: 1,
+                      maxWidth: showImageSide ? "100%" : "90%"
+                    }}>
+                      {lines.map((line, idx) => {
+                        const cleanLine = line.replace(/^[-*•\s]+/, '');
+                        return (
+                          <Box key={idx} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                            <Typography sx={{ color: C.orange, fontSize: "0.7rem", mt: "2px" }}>▸</Typography>
+                            <Typography sx={{
+                              fontFamily: C.fontMono,
+                              fontSize: showImageSide ? "0.82rem" : "0.86rem",
+                              color: "rgba(220,220,220,0.9)",
+                              lineHeight: 1.4,
+                              letterSpacing: "0.2px",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}>
+                              {cleanLine}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  );
+                }
+
+                // Fallback for non-bulleted descriptions
+                return (
+                  <Typography sx={{
+                    fontFamily: C.fontMono,
+                    fontSize: showImageSide ? "0.78rem" : "0.82rem",
+                    color: "rgba(200,200,200,0.55)",
+                    lineHeight: 1.7,
+                    display: "-webkit-box",
+                    WebkitLineClamp: showImageSide ? 3 : 5,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    borderLeft: `2px solid rgba(255,102,0,0.25)`,
+                    pl: 2, ml: "1px",
+                    maxWidth: showImageSide ? "100%" : "90%",
+                  }}>
+                    {article.description}
+                  </Typography>
+                );
+              })()}
             </Box>
           </Box>
 
@@ -754,9 +820,12 @@ function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stac
                       endIcon={<QuestionAnswer sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
                       sx={{
                         fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
-                        background: C.orangeDim,
-                        border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
-                        "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.2)" },
+                        background: "rgba(255,102,0,0.05)",
+                        border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "8px", textTransform: "none", px: 1.5, py: 0.5,
+                        transition: "all 0.2s ease",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+                        "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.15)", transform: "scale(1.03)", boxShadow: "0 0 15px rgba(255,102,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)" },
+                        "&:active": { transform: "scale(0.97)" }
                       }}
                     >
                       COMMENTS
@@ -856,19 +925,35 @@ function StatBadge({ value, label, icon }) {
   );
 }
 
-function ShortcutRow({ keys, label }) {
+function ShortcutRow({ keys, label, code }) {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (!code) return;
+    const down = (e) => { if (e.code === code) setActive(true); };
+    const up = (e) => { if (e.code === code) setActive(false); };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, [code]);
+
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.5)" }}>{label}</Typography>
       <Box sx={{ display: "flex", gap: 0.5 }}>
         {keys.map((k) => (
           <Box key={k} sx={{
-            fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
-            border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "4px",
-            px: 0.75, py: 0.25, background: "rgba(255,102,0,0.06)",
+            fontFamily: C.fontUi, fontSize: "0.65rem", fontWeight: 700, color: active ? "#000" : "#d0d0d0",
+            background: active ? C.orange : "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
+            border: active ? `1px solid ${C.orange}` : `1px solid rgba(255,255,255,0.1)`, 
+            borderRadius: "6px",
+            minWidth: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", px: 1,
+            boxShadow: active ? "0 0 15px rgba(255,102,0,0.5), inset 0 1px 2px rgba(255,255,255,0.5)" : "0 4px 6px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)",
+            transform: active ? "translateY(2px)" : "translateY(0)",
+            transition: "all 0.1s cubic-bezier(0.4, 0, 0.2, 1)",
           }}>{k}</Box>
         ))}
       </Box>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim }}>{label}</Typography>
     </Box>
   );
 }
@@ -1091,13 +1176,17 @@ function TutorialOverlay({ onDismiss }) {
                 </Button>
               )}
               <Button onClick={next} variant="contained" disableElevation size="small"
-                sx={{
-                  fontFamily: C.fontUi, fontSize: "0.8rem", fontWeight: 700,
-                  background: C.orange, color: "#000", textTransform: "none",
-                  px: 2, borderRadius: "8px",
-                  "&:hover": { background: "#ff8533" },
-                }}>
-                {isLast ? "Done" : "Next"}
+                      sx={{
+                        fontFamily: C.fontUi, fontWeight: 700, fontSize: "0.75rem",
+                        background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%), #ff6600",
+                        color: "#000",
+                        textTransform: "none", borderRadius: "8px", px: 2, py: 0.5,
+                        boxShadow: "0 4px 14px rgba(255,102,0,0.4), inset 0 1px 1px rgba(255,255,255,0.4)",
+                        transition: "all 0.2s ease",
+                        "&:hover": { background: "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%), #ff7700", transform: "scale(1.03)", boxShadow: "0 6px 20px rgba(255,102,0,0.6), inset 0 1px 1px rgba(255,255,255,0.5)" },
+                        "&:active": { transform: "scale(0.97)" }
+                      }}
+                    >{isLast ? "Done" : "Next"}
               </Button>
             </Box>
           </Box>

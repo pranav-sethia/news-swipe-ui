@@ -1,73 +1,33 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Box, Typography, CircularProgress, Button, IconButton,
-  Chip, Dialog, DialogActions, DialogContent,
+  Box, Typography, Button, IconButton,
+  Dialog, DialogActions, DialogContent,
   DialogContentText, DialogTitle, Link, Tooltip,
 } from "@mui/material";
 import {
-  RotateLeft, Logout, OpenInNew, WarningAmber,
-  ThumbDown, ThumbUp, Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline, QuestionAnswer
+  Logout, OpenInNew, WarningAmber, Undo, AccessTime,
+  Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline, QuestionAnswer,
+  Psychology, Bookmark, Settings as SettingsIcon, Search
 } from "@mui/icons-material";
-import { motion, useMotionValue, useTransform, useAnimation, AnimatePresence } from "framer-motion";
+import { motion, useMotionValue, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
 import * as api from "./api.js";
+import { C } from "./theme.js";
+import { MagneticBox, SectionHeader, StatBadge, ShortcutRow, Label, Mono, ActionHint, KeyHint } from "./components/SharedComponents.jsx";
+import { NewsCard, TerminalLoader, ExhaustedCard } from "./components/NewsCard.jsx";
+import { ExpandableSidebar } from "./components/Sidebar.jsx";
+import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
-
-// ---------------------------------------------------------------------------
-// Design Tokens
-// ---------------------------------------------------------------------------
-const C = {
-  orange: "#ff6600",
-  orangeDim: "rgba(255,102,0,0.12)",
-  bg: "#080808",
-  card: "#0d0d0d",
-  panel: "rgba(10,10,10,0.88)",
-  border: "rgba(255,102,0,0.14)",
-  borderHot: "rgba(255,102,0,0.5)",
-  textDim: "rgba(232,232,232,0.5)",
-  fontPixel: "'Press Start 2P', monospace",
-  fontMono: "'Share Tech Mono', monospace",
-  fontUi: "'Inter', sans-serif",
-};
+import Particles, { initParticlesEngine } from "@tsparticles/react";
+import { loadSlim } from "@tsparticles/slim";
 
 // ---------------------------------------------------------------------------
 // Hook: Typewriter Effect (rAF-based, no stale closures)
 // ---------------------------------------------------------------------------
-function useTypewriter(text, speed = 28, active = true) {
-  const [displayed, setDisplayed] = useState("");
-  const [done, setDone] = useState(false);
-  const rafRef = useRef(null);
-  const lastTimeRef = useRef(null);
-  const indexRef = useRef(0);
 
-  useEffect(() => {
-    setDisplayed("");
-    indexRef.current = 0;
-    lastTimeRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    // If there's no text (null, undefined, empty string), mark complete immediately
-    // so the description block fades in and the card is never stuck blank.
-    if (!text) { setDone(true); return; }
-    setDone(false);
-    if (!active) return;
-
-    const tick = (timestamp) => {
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const elapsed = timestamp - lastTimeRef.current;
-      if (elapsed >= speed) {
-        lastTimeRef.current = timestamp;
-        indexRef.current += 1;
-        setDisplayed(text.slice(0, indexRef.current));
-        if (indexRef.current >= text.length) { setDone(true); return; }
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [text, active, speed]);
-
-  return { displayed: active ? displayed : "", done: active ? done : false };
-}
+// ---------------------------------------------------------------------------
+// Component: Magnetic Box (Micro-interaction)
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Main App
@@ -81,18 +41,56 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [lastSwiped, setLastSwiped] = useState(null);
+
+  const handleUndo = useCallback(async () => {
+    if (!lastSwiped) return;
+    const articleToUndo = lastSwiped.article;
+    setArticles(prev => [...prev, articleToUndo]);
+    setLastSwiped(null);
+    try {
+      await api.unlikeArticle(articleToUndo.id);
+      setSwipeCount(p => p + 1);
+    } catch (err) {
+      console.error("Undo failed", err);
+    }
+  }, [lastSwiped]);
+
+  const [particlesInit, setParticlesInit] = useState(false);
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+    }).then(() => {
+      setParticlesInit(true);
+    });
+  }, []);
+
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY]);
 
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "c" || e.key === "C") {
-        if (!isResetModalOpen && !showOnboarding) {
-          setIsCommentsOpen(prev => !prev);
-        }
+        if (!isResetModalOpen && !showOnboarding) setIsCommentsOpen(prev => !prev);
+      }
+      if (e.key === "z" || e.key === "Z") {
+        if (!isResetModalOpen && !showOnboarding) handleUndo();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isResetModalOpen, showOnboarding]);
+  }, [isResetModalOpen, showOnboarding, handleUndo]);
 
   useEffect(() => {
     if (!localStorage.getItem("hs_seen_onboarding") && !isLoading && articles.length > 0) {
@@ -154,7 +152,7 @@ export default function App() {
     }
   }, []); // No deps — uses refs and functional setState to avoid stale closures
 
-  useEffect(() => { fetchFeed(true); }, []); // eslint-disable-line
+  useEffect(() => { fetchFeed(true); }, [fetchFeed]);
 
   useEffect(() => {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
@@ -168,6 +166,7 @@ export default function App() {
 
   const handleSwipe = useCallback((direction, swipedArticle) => {
     setIsCommentsOpen(false); // Close comments on swipe
+    setLastSwiped({ article: swipedArticle, direction });
     // SYNCHRONOUS card removal — no async/await.
     // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
@@ -191,6 +190,7 @@ export default function App() {
       setIsLoading(true);
       if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
       setArticles([]); // Clear old articles immediately so loader shows
+      setLastSwiped(null); // Prevent undoing an article from the wiped profile
       await api.resetSwipes();
       setSwipeCount((p) => p + 1);
       
@@ -201,42 +201,78 @@ export default function App() {
   };
 
   return (
-    <Box sx={{
-      height: "100vh", width: "100vw",
-      display: "grid",
-      gridTemplateColumns: { xs: "1fr", md: "260px 1fr 260px" },
-      gridTemplateRows: "56px 1fr",
-      backgroundColor: C.bg,
-      backgroundImage: `linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`,
-      backgroundSize: "32px 32px",
-      overflow: "hidden",
-    }}>
+    <>
+      {particlesInit && (
+        <Particles
+          id="tsparticles"
+          options={{
+            background: { color: { value: "transparent" } },
+            fpsLimit: 60,
+            interactivity: {
+              events: { onHover: { enable: true, mode: "repulse" }, resize: true },
+              modes: { repulse: { distance: 100, duration: 0.4 } },
+            },
+            particles: {
+              color: { value: ["#ff6600", "#00ffcc"] },
+              links: { color: "rgba(255, 102, 0, 0.2)", distance: 150, enable: true, opacity: 0.3, width: 1 },
+              move: { enable: true, speed: 0.4, random: true, outModes: { default: "out" } },
+              number: { density: { enable: true, area: 800 }, value: 50 },
+              opacity: { value: { min: 0.1, max: 0.5 } },
+              shape: { type: "circle" },
+              size: { value: { min: 1, max: 2 } },
+            },
+            detectRetina: true,
+          }}
+          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }}
+        />
+      )}
+      <Box sx={{
+        height: "100vh", width: "100vw", position: "relative", zIndex: 1,
+        display: "flex", flexDirection: "column",
+        backgroundColor: "transparent",
+        backgroundImage: `radial-gradient(800px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.04), transparent 40%), linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`,
+        backgroundSize: "100% 100%, 32px 32px, 32px 32px",
+        overflow: "hidden",
+      }}>
       {/* Nav */}
       <Box sx={{
-        gridColumn: "1 / -1", display: "flex", alignItems: "center",
-        justifyContent: "space-between", px: 3,
-        borderBottom: `1px solid ${C.border}`, background: "rgba(8,8,8,0.95)",
-        backdropFilter: "blur(12px)", zIndex: 100,
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between", px: 4, height: "64px", flexShrink: 0,
+        background: "linear-gradient(90deg, rgba(12,12,12,0.95) 0%, rgba(18,18,18,0.85) 50%, rgba(12,12,12,0.95) 100%)",
+        backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", zIndex: 100,
+        borderBottom: `1px solid rgba(255, 102, 0, 0.15)`,
+        boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}` }} />
-          <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange }}>HACKERSWIPE</Typography>
+          <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 12px ${C.orange}` }} />
+          <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.05em" }}>HACKERSWIPE</Typography>
         </Box>
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>AI-POWERED HACKER NEWS READER</Typography>
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, letterSpacing: "0.15em", fontWeight: 700, display: { xs: "none", sm: "block" } }}>
+          AI-POWERED HACKER NEWS DISCOVERY
+        </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Tutorial"><IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Reset taste profile"><IconButton data-tour="reset" onClick={() => setIsResetModalOpen(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><RotateLeft fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Logout"><IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Tutorial">
+            <MagneticBox>
+              <IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton>
+            </MagneticBox>
+          </Tooltip>
+          <Tooltip title="Logout">
+            <MagneticBox>
+              <IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton>
+            </MagneticBox>
+          </Tooltip>
         </Box>
       </Box>
 
-      {/* Left panel: Taste Profile & Keyboard Shortcuts */}
-      <SidePanel>
-        <TasteProfilePanel swipeCount={swipeCount} />
-      </SidePanel>
+      <ExpandableSidebar 
+        swipeCount={swipeCount} 
+        onUnliked={() => setSwipeCount((p) => p + 1)} 
+        handleReset={handleReset} 
+        setShowOnboarding={setShowOnboarding} 
+      />
 
       {/* Center */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
+      <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
         {/* Only show loader when the stack is truly empty. Background fetches are invisible — no glitch. */}
         {hasError ? (
           <Box sx={{ textAlign: "center", maxWidth: 400 }}>
@@ -278,23 +314,47 @@ export default function App() {
         hnId={topCard?.hn_id} 
       />
 
-      {/* Right panel: Liked articles */}
-      <SidePanel align="right">
-        <LikedPanel swipeCount={swipeCount} onUnliked={() => setSwipeCount((p) => p + 1)} />
-      </SidePanel>
+      {/* Undo button */}
+      <AnimatePresence>
+        {lastSwiped && (
+          <Box component={motion.div}
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            style={{ position: "fixed", bottom: 20, right: 32, zIndex: 50 }}
+          >
+            <Tooltip title="Undo Last Swipe (Z)" placement="top">
+              <IconButton 
+                onClick={handleUndo}
+                sx={{
+                  background: C.card,
+                  border: `1px solid ${C.borderHot}`,
+                  color: C.orange,
+                  boxShadow: `0 0 20px ${C.orangeDim}`,
+                  "&:hover": { background: C.orangeDim, transform: "scale(1.05)" }
+                }}
+              >
+                <Undo />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+      </AnimatePresence>
 
       {/* Keyboard hint */}
       <Box sx={{
-        display: { xs: "none", md: "flex" },
+        display: { xs: "none", md: "flex" }, flexDirection: "column",
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
-        alignItems: "center", gap: 2, zIndex: 50,
+        alignItems: "center", gap: 1.5, zIndex: 50,
       }}>
-        <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-        <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-        <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} right />
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)", ml: 2 }}>or drag the card</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
+          <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
+          <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} />
+        </Box>
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>or drag the card</Typography>
       </Box>
 
       {/* Reset modal */}
@@ -322,876 +382,37 @@ export default function App() {
         {showOnboarding && <TutorialOverlay onDismiss={dismissOnboarding} />}
       </AnimatePresence>
     </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Side Panel Wrapper
-// ---------------------------------------------------------------------------
-function SidePanel({ children, align = "left" }) {
-  return (
-    <Box sx={{
-      display: { xs: "none", md: "flex" },
-      borderRight: align === "left" ? `1px solid ${C.border}` : "none",
-      borderLeft: align === "right" ? `1px solid ${C.border}` : "none",
-      height: "100%", overflowY: "auto",
-      background: C.panel, backdropFilter: "blur(10px)",
-      p: 2.5, flexDirection: "column", gap: 2,
-    }}>
-      {children}
-    </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Left Panel: Taste Profile & Keyboard Shortcuts
-// ---------------------------------------------------------------------------
-function TasteProfilePanel({ swipeCount }) {
-  const [profile, setProfile] = useState([]);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    api.getTasteProfile().then(data => {
-      setProfile(data.profile || []);
-      setTotal(data.totalLiked || 0);
-    }).catch(console.error);
-  }, [swipeCount]);
-
-  const colors = ["#00ffcc", "#ff6600", "#9b59b6", "#3498db", "#e74c3c"];
-
-  return (
-    <>
-      <SectionHeader icon="⊚" label="TASTE PROFILE" />
-      
-      {total === 0 ? (
-        <Box sx={{ textAlign: "center", mt: 4 }}>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
-            {"// Swipe right to build your profile"}
-          </Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1, overflowY: "auto", pr: 1 }}>
-          {profile.slice(0, 5).map((p, i) => {
-            const radius = 22;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (p.percentage / 100) * circumference;
-            const color = colors[i % colors.length];
-
-            return (
-              <Box key={p.category} sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                <Box sx={{ position: "relative", width: 50, height: 50 }}>
-                  <svg width="50" height="50">
-                    <circle cx="25" cy="25" r={radius} stroke="rgba(255,255,255,0.05)" strokeWidth="4" fill="none" />
-                    <motion.circle 
-                      cx="25" cy="25" r={radius} 
-                      stroke={color} strokeWidth="4" fill="none" strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      initial={{ strokeDashoffset: circumference }}
-                      animate={{ strokeDashoffset: offset }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
-                    />
-                  </svg>
-                  <Typography sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.fontMono, fontSize: "0.6rem", color: "#fff" }}>
-                    {p.percentage}%
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", fontWeight: 600 }}>{p.category.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '')}</Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>{p.count} saved</Typography>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-
-      {/* Keyboard shortcuts */}
-      <Box sx={{ mt: "auto", borderTop: `1px solid ${C.border}`, pt: 2 }}>
-        <Label>KEYBOARD</Label>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
-          <ShortcutRow keys={["←"]} label="Dislike story" code="ArrowLeft" />
-          <ShortcutRow keys={["↑"]} label="Skip neutrally" code="ArrowUp" />
-          <ShortcutRow keys={["→"]} label="Like story" code="ArrowRight" />
-          <ShortcutRow keys={["C"]} label="Read comments" code="KeyC" />
-          <ShortcutRow keys={["ENT"]} label="Open article" code="Enter" />
-        </Box>
-      </Box>
     </>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Right Panel: Liked Articles with unlike + viewed tracking
+// Expandable Sidebar (Dock)
 // ---------------------------------------------------------------------------
-function LikedPanel({ swipeCount, onUnliked }) {
-  const [liked, setLiked] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [viewed, setViewed] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("hs_viewed") || "[]")); }
-    catch { return new Set(); }
-  });
-  const isFirst = useRef(true);
 
-  useEffect(() => {
-    const fetch = async () => {
-      if (isFirst.current) { setLoading(true); isFirst.current = false; }
-      try { const d = await api.getLikedArticles(); setLiked(d); }
-      catch { /* ignore */ }
-      setLoading(false);
-    };
-    fetch();
-  }, [swipeCount]);
+// ---------------------------------------------------------------------------
+// Taste Profile Panel
+// ---------------------------------------------------------------------------
 
-  const markViewed = (id) => {
-    setViewed((prev) => {
-      const next = new Set(prev).add(String(id));
-      localStorage.setItem("hs_viewed", JSON.stringify([...next]));
-      return next;
-    });
-  };
-
-  const handleUnlike = async (articleId) => {
-    try {
-      await api.unlikeArticle(articleId);
-      setLiked((prev) => prev.filter((a) => a.id !== articleId));
-      onUnliked();
-    } catch { /* ignore */ }
-  };
-
-  return (
-    <>
-      <SectionHeader icon="♥" label={`MY LIKES (${liked.length})`} color="#ff4757" />
-      {loading ? <Mono dim>loading...</Mono> : liked.length > 0 ? (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {liked.map((a) => {
-            const isViewed = viewed.has(String(a.id));
-            return (
-              <Box key={a.id} sx={{
-                p: 1.5, borderRadius: "8px", position: "relative",
-                background: isViewed ? "rgba(255,255,255,0.01)" : "rgba(255,102,0,0.04)",
-                border: `1px solid ${isViewed ? "rgba(255,255,255,0.05)" : "rgba(255,102,0,0.2)"}`,
-                borderLeft: isViewed ? `1px solid rgba(255,255,255,0.05)` : `3px solid ${C.orange}`,
-                transition: "all 0.2s ease",
-                "&:hover": { background: "rgba(255,102,0,0.08)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }
-              }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
-                  <Link
-                    href={a.article_url} target="_blank" rel="noopener noreferrer"
-                    underline="none"
-                    onClick={() => markViewed(a.id)}
-                    sx={{
-                      color: isViewed ? C.textDim : "#ffffff",
-                      fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: isViewed ? 500 : 700, lineHeight: 1.4,
-                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-                      transition: "color 0.2s", flexGrow: 1, pr: 1,
-                      "&:hover": { color: C.orange }
-                    }}
-                  >
-                    {a.title}
-                  </Link>
-                  <Tooltip title="Unlike" placement="left">
-                    <IconButton onClick={() => handleUnlike(a.id)} size="small"
-                      sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
-                      <Delete sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-
-                {isViewed && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>
-                    <Visibility sx={{ fontSize: 10, color: C.textDim }} />
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>VIEWED</Typography>
-                  </Box>
-                )}
-              </Box>
-            );
-          })}
-        </Box>
-      ) : <Mono dim>swipe right to save stories here</Mono>}
-    </>
-  );
-}
+// ---------------------------------------------------------------------------
+// Liked Panel (with search)
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // News Card (with keyboard support + richer no-image fallback)
 // ---------------------------------------------------------------------------
-function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards }) {
-  const [isExiting, setIsExiting] = useState(false);
-  const controls = useAnimation();
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotate = useTransform(x, [-250, 250], [-15, 15]);
-  const likeOpacity = useTransform(x, [50, 140], [0, 1]);
-  const skipOpacity = useTransform(x, [-50, -140], [0, 1]);
-  const neutralOpacity = useTransform(y, [-50, -140], [0, 1]);
-  const cardsFromTop = totalCards - 1 - stackIndex;
-
-  // Typewriter only runs on the top card — background cards stay blank to avoid flash
-  const { displayed, done } = useTypewriter(article.title, 28, isTop && !isExiting);
-
-  // Keyboard arrow support
-  useEffect(() => {
-    if (!isTop || !isInteractive) return;
-    const handler = async (e) => {
-      if (isExiting) return;
-      if (e.key === "ArrowRight") triggerSwipe("right");
-      if (e.key === "ArrowLeft") triggerSwipe("left");
-      if (e.key === "ArrowUp") triggerSwipe("up");
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (document.activeElement) document.activeElement.blur();
-        const a = document.createElement("a");
-        a.href = article.article_url; a.target = "_blank"; a.rel = "noopener noreferrer";
-        a.click();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isTop, isExiting, article]); // eslint-disable-line
-
-  const triggerSwipe = useCallback(async (dir) => {
-    // Guard: if already animating out, ignore
-    if (isExiting) return;
-    setIsExiting(true);
-    try {
-      await controls.start({
-        x: dir === "right" ? window.innerWidth : (dir === "left" ? -window.innerWidth : 0),
-        y: dir === "up" ? -window.innerHeight : 0,
-        rotate: dir === "right" ? 25 : (dir === "left" ? -25 : 0),
-        opacity: 0,
-        transition: { duration: 0.25, ease: "easeOut" },
-      });
-    } catch {
-      // Animation was interrupted (e.g. component unmounted mid-flight) — still complete the swipe
-    }
-    onSwipe(dir);
-  }, [controls, onSwipe, isExiting]);
-
-  const handleDragEnd = async (_, info) => {
-    if (isExiting || !isTop || !isInteractive) return;
-    const liked = info.offset.x > 100 || info.velocity.x > 500;
-    const disliked = info.offset.x < -100 || info.velocity.x < -500;
-    const skipped = info.offset.y < -100 || info.velocity.y < -500;
-    if (liked) triggerSwipe("right");
-    else if (disliked) triggerSwipe("left");
-    else if (skipped) triggerSwipe("up");
-    else controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
-  };
-
-  // Parse points/comments from description if stored there
-
-  const [imageFailed, setImageFailed] = useState(false);
-  const fallbackBgIndex = article.id ? (article.id % 5) : 0;
-  const isFallback = !article.image_url || imageFailed;
-  const imageUrl = isFallback ? `/hacker_bgs/bg_${fallbackBgIndex}.png` : article.image_url;
-  const showImageSide = true; // We always show the image side now to standardize the cards
-
-  return (
-    <Box
-      component={motion.div}
-      initial={{ scale: 0.96, y: 12, opacity: 0.85 }}
-      animate={controls}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      style={{
-        x, y, rotate,
-        position: "absolute",
-        cursor: !isTop || isExiting ? "default" : "grab",
-        zIndex: isTop ? 100 : stackIndex,
-        // Only the card directly below the top is slightly visible as a peek card;
-        // any card beyond that is invisible to avoid the glitch.
-        scale: isTop ? 1 : (cardsFromTop === 1 ? 0.96 : 0.93),
-        y: isTop ? y : (cardsFromTop === 1 ? 10 : 20),
-        opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.4 : 0),
-        pointerEvents: isTop ? "auto" : "none",
-      }}
-      sx={{ width: { xs: "90vw", sm: 500, md: 720 }, touchAction: "none" }}
-      drag={isTop && !isExiting ? true : false}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.65}
-      onDragEnd={handleDragEnd}
-      whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
-    >
-      <Box className="card-glow" sx={{
-        width: "100%", height: { xs: "75vh", sm: 600, md: 480 },
-        background: "rgba(16, 16, 16, 0.65)", // Increased opacity slightly for better contrast
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        border: `1px solid rgba(255,255,255,0.08)`,
-        boxShadow: isTop ? "0 24px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,102,0,0.05)" : "none",
-        borderRadius: "20px",
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: showImageSide ? "1fr 1fr" : "1fr" },
-        gridTemplateRows: { xs: showImageSide ? "200px 1fr" : "1fr", md: "1fr" },
-        position: "relative",
-      }}>
-        {/* Content panel background overlay for readability if needed */}
-
-        {/* Image OR decorative left panel */}
-        {showImageSide && (
-          <Box sx={{ position: "relative", overflow: "hidden" }}>
-            <Box component="img" src={imageUrl} alt={article.title}
-              onError={() => setImageFailed(true)}
-              sx={{ 
-                width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
-                ...(isFallback && article.id && {
-                  filter: `hue-rotate(${(article.id * 37) % 360}deg) saturate(${(article.id % 2) ? 1.5 : 1})`,
-                  transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
-                  objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
-                })
-              }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
-          </Box>
-        )}
-
-        {/* Content panel */}
-        <Box sx={{ 
-          p: { xs: "20px", md: "32px 36px" }, display: "flex", flexDirection: "column", 
-          justifyContent: "space-between", minWidth: 0, zIndex: 1, 
-          pr: { xs: "20px", md: showImageSide ? "36px" : "64px" },
-          opacity: isTop ? 1 : 0, // FIX: Hides text on background cards to prevent double-vision bleed
-          transition: "opacity 0.2s ease"
-        }}>
-          <Box>
-            {/* Header: source dot + label + algorithm badge */}
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
-              </Box>
-              
-              {article.match_pct ? (
-                <Tooltip 
-                  title={
-                    article.match_reason ? (
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.7rem", color: "rgba(255,255,255,0.6)" }}>
-                          Recommended because you liked:
-                        </Typography>
-                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#00ffcc", fontWeight: 500, lineHeight: 1.3, fontStyle: "italic" }}>
-                          "{article.match_reason}"
-                        </Typography>
-                      </Box>
-                    ) : (
-                      "Personalized for you based on your taste"
-                    )
-                  } 
-                  placement="top"
-                  arrow
-                  componentsProps={{
-                    tooltip: {
-                      sx: {
-                        background: "rgba(13,13,13,0.95)",
-                        backdropFilter: "blur(10px)",
-                        border: "1px solid rgba(0,255,204,0.3)",
-                        color: "#e8e8e8",
-                        fontFamily: C.fontUi,
-                        fontSize: "0.75rem",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                        p: 1.5,
-                        borderRadius: "8px",
-                        maxWidth: 250
-                      }
-                    },
-                    arrow: {
-                      sx: { color: "rgba(13,13,13,0.95)" }
-                    }
-                  }}
-                >
-                  <Typography sx={{ 
-                    fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", 
-                    background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", 
-                    border: "1px solid rgba(0,255,204,0.3)",
-                    cursor: "help",
-                    textDecoration: "underline",
-                    textDecorationStyle: "dashed",
-                    textUnderlineOffset: "3px",
-                    textDecorationColor: "rgba(0,255,204,0.5)",
-                    "&:hover": { background: "rgba(0,255,204,0.2)", textDecorationColor: "#00ffcc" }
-                  }}>
-                    {article.match_pct}% MATCH
-                  </Typography>
-                </Tooltip>
-              ) : (
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  DISCOVERY
-                </Typography>
-              )}
-            </Box>
-
-            {/* Title — typewriter runs only on top card; others are blank */}
-            <Typography sx={{
-              fontFamily: C.fontPixel,
-              fontSize: showImageSide ? "0.72rem" : "0.85rem",
-              color: "#f5f5f5", lineHeight: 1.8, mb: 2,
-              minHeight: showImageSide ? "5rem" : "5.5rem",
-              maxWidth: showImageSide ? "100%" : "95%",
-            }}>
-              {displayed}
-              {isTop && !done && <span className="cursor-blink" />}
-            </Typography>
-
-            {/* Summary description — fades in only after title is done typing */}
-            <Box sx={{ opacity: done ? 1 : 0, transition: "opacity 0.5s ease" }}>
-              {(() => {
-                const lines = article.description 
-                  ? article.description.split('\n').map(l => l.trim()).filter(l => l.length > 0)
-                  : [];
-                
-                const isBulleted = lines.length > 1 && lines.every(l => l.startsWith('-') || l.startsWith('*') || l.startsWith('•'));
-
-                if (isBulleted) {
-                  return (
-                    <Box sx={{ 
-                      display: "flex", flexDirection: "column", gap: 1,
-                      maxWidth: showImageSide ? "100%" : "90%"
-                    }}>
-                      {lines.map((line, idx) => {
-                        const cleanLine = line.replace(/^[-*•\s]+/, '');
-                        return (
-                          <Box key={idx} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                            <Typography sx={{ color: C.orange, fontSize: "0.7rem", mt: "2px" }}>▸</Typography>
-                            <Typography sx={{
-                              fontFamily: C.fontMono,
-                              fontSize: showImageSide ? "0.82rem" : "0.86rem",
-                              color: "rgba(220,220,220,0.9)",
-                              lineHeight: 1.4,
-                              letterSpacing: "0.2px",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}>
-                              {cleanLine}
-                            </Typography>
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  );
-                }
-
-                // Fallback for non-bulleted descriptions
-                return (
-                  <Typography sx={{
-                    fontFamily: C.fontMono,
-                    fontSize: showImageSide ? "0.78rem" : "0.82rem",
-                    color: "rgba(200,200,200,0.55)",
-                    lineHeight: 1.7,
-                    display: "-webkit-box",
-                    WebkitLineClamp: showImageSide ? 3 : 5,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    borderLeft: `2px solid rgba(255,102,0,0.25)`,
-                    pl: 2, ml: "1px",
-                    maxWidth: showImageSide ? "100%" : "90%",
-                  }}>
-                    {article.description}
-                  </Typography>
-                );
-              })()}
-            </Box>
-          </Box>
-
-          <Box sx={{ 
-            display: "flex", alignItems: "center", justifyContent: "space-between", 
-            mt: 3, pt: 2, borderTop: `1px solid rgba(255,255,255,0.05)`, gap: 2, flexWrap: "wrap" 
-          }}>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button
-                    component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
-                    endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
-                    onClick={(e) => e.stopPropagation()}
-                    sx={{
-                      fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
-                      background: C.orangeDim,
-                      border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "4px", textTransform: "none", px: 1.5, py: 0.5,
-                      "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.2)" },
-                    }}
-                  >
-                    READ ARTICLE
-                  </Button>
-                  {article.hn_id && (
-                    <Button
-                      onClick={(e) => { e.stopPropagation(); if (onOpenComments) onOpenComments(); }}
-                      endIcon={<QuestionAnswer sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
-                      sx={{
-                        fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
-                        background: "rgba(255,102,0,0.05)",
-                        border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "8px", textTransform: "none", px: 1.5, py: 0.5,
-                        transition: "all 0.2s ease",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
-                        "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.15)", transform: "scale(1.03)", boxShadow: "0 0 15px rgba(255,102,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)" },
-                        "&:active": { transform: "scale(0.97)" }
-                      }}
-                    >
-                      COMMENTS
-                    </Button>
-                  )}
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  {/* Points + comments subtle badge */}
-                  {(article.score != null || article.num_comments != null) && (
-                    <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", mr: 1 }}>
-                      {article.score != null && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.85rem", color: C.orange, fontWeight: 700 }}>{article.score}</Typography>
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>pts</Typography>
-                        </Box>
-                      )}
-                      {article.num_comments != null && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <ChatBubbleOutline sx={{ fontSize: 13, color: C.textDim, mb: "1px" }} />
-                          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.80rem", color: "rgba(255,255,255,0.45)" }}>{article.num_comments}</Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  )}
-                  <ActionHint icon={<ArrowBack sx={{ fontSize: 16 }} />} label="DISLIKE" color="rgba(255,100,100,0.8)" />
-                  <ActionHint icon={<ArrowUpward sx={{ fontSize: 16 }} />} label="SKIP" color="rgba(200,200,200,0.8)" />
-                  <ActionHint icon={<ArrowForward sx={{ fontSize: 16 }} />} label="LIKE" color="rgba(100,220,100,0.8)" />
-                </Box>
-              </Box>
-        </Box>
-
-        {/* Swipe feedback overlays */}
-        <motion.div style={{ opacity: likeOpacity, position: "absolute", top: 24, right: 24, pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #4ade80", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#4ade80", transform: "rotate(12deg)" }}>LIKE</Box>
-        </motion.div>
-        <motion.div style={{ opacity: skipOpacity, position: "absolute", top: 24, left: 24, pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #f87171", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#f87171", transform: "rotate(-12deg)" }}>DISLIKE</Box>
-        </motion.div>
-        <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>
-        </motion.div>
-
-        <Box sx={{ position: "absolute", bottom: 16, right: 20, fontFamily: C.fontMono, fontSize: "0.6rem", color: C.border }}>{`[${stackIndex + 1}]`}</Box>
-      </Box>
-    </Box>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Loading / Exhausted States
 // ---------------------------------------------------------------------------
-function TerminalLoader() {
-  const [dots, setDots] = useState("_");
-  useEffect(() => { const id = setInterval(() => setDots((d) => d.length >= 3 ? "_" : d + "_"), 400); return () => clearInterval(id); }, []);
-  return (
-    <Box sx={{ textAlign: "center" }}>
-      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, mb: 2 }}>LOADING FEED</Typography>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "1rem", color: C.textDim }}>{`> fetching top stories${dots}`}</Typography>
-    </Box>
-  );
-}
 
-function ExhaustedCard({ onReset }) {
-  return (
-    <Box sx={{ textAlign: "center", maxWidth: 400 }}>
-      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.textDim, mb: 3, lineHeight: 2 }}>FEED EXHAUSTED</Typography>
-      <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, mb: 4, fontSize: "0.9rem" }}>{">"} You've seen all available stories.</Typography>
-      <Button variant="outlined" onClick={onReset}
-        sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}>
-        RESET &amp; RELOAD
-      </Button>
-    </Box>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Reusable Small Components
 // ---------------------------------------------------------------------------
-function SectionHeader({ icon, label, color = C.orange }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, borderBottom: `1px solid ${C.border}`, pb: 1.5 }}>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color }}>{icon}</Typography>
-      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.5rem", color, letterSpacing: "0.08em" }}>{label}</Typography>
-    </Box>
-  );
-}
 
-function StatBadge({ value, label, icon }) {
-  return (
-    <Box sx={{ flex: 1, background: "rgba(255,102,0,0.06)", border: `1px solid rgba(255,102,0,0.12)`, borderRadius: "10px", p: 1.5, textAlign: "center" }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, mb: 0.5 }}>
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>{icon}</Typography>
-        <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.9rem", color: C.orange }}>{value}</Typography>
-      </Box>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.55rem", color: C.textDim, letterSpacing: "0.1em" }}>{label}</Typography>
-    </Box>
-  );
-}
 
-function ShortcutRow({ keys, label, code }) {
-  const [active, setActive] = useState(false);
 
-  useEffect(() => {
-    if (!code) return;
-    const down = (e) => { if (e.code === code) setActive(true); };
-    const up = (e) => { if (e.code === code) setActive(false); };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [code]);
 
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.5)" }}>{label}</Typography>
-      <Box sx={{ display: "flex", gap: 0.5 }}>
-        {keys.map((k) => (
-          <Box key={k} sx={{
-            fontFamily: C.fontUi, fontSize: "0.65rem", fontWeight: 700, color: active ? "#000" : "#d0d0d0",
-            background: active ? C.orange : "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
-            border: active ? `1px solid ${C.orange}` : `1px solid rgba(255,255,255,0.1)`, 
-            borderRadius: "6px",
-            minWidth: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", px: 1,
-            boxShadow: active ? "0 0 15px rgba(255,102,0,0.5), inset 0 1px 2px rgba(255,255,255,0.5)" : "0 4px 6px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)",
-            transform: active ? "translateY(2px)" : "translateY(0)",
-            transition: "all 0.1s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}>{k}</Box>
-        ))}
-      </Box>
-    </Box>
-  );
-}
 
-function Label({ children }) {
-  return <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.5 }}>{children}</Typography>;
-}
 
-function Mono({ children, dim, style }) {
-  return <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: dim ? C.textDim : "#e8e8e8", lineHeight: 1.6, ...style }}>{children}</Typography>;
-}
-
-function ActionHint({ icon, label, color }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color, fontFamily: C.fontMono, fontSize: "0.6rem" }}>
-      {icon}<span>{label}</span>
-    </Box>
-  );
-}
-
-function KeyHint({ icon, label, right }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexDirection: right ? "row-reverse" : "row" }}>
-      <Box sx={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: 22, height: 22, border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: "5px", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)",
-      }}>{icon}</Box>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)" }}>{label}</Typography>
-    </Box>
-  );
-}
-
-const TOUR_STEPS = [
-  {
-    // Intro: product value prop — centred, no specific element
-    title: "Hacker News, ranked for you",
-    body: "HackerSwipe shows you the best tech stories from Hacker News. The more you swipe, the smarter it gets - it learns your taste and moves relevant stories to the top.",
-    position: { top: "40%", left: "50%", transform: "translate(-50%, -50%)" },
-    arrow: null,
-    arrowBorder: null,
-  },
-  {
-    title: "Right to save. Left to dislike. Up to skip.",
-    body: "Each swipe trains the AI instantly. Swiping right moves similar stories to the top. Swiping left teaches it to avoid those topics. Swiping up skips the story neutrally.",
-    position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
-    arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    highlight: { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 740, height: 500, borderRadius: "22px" },
-  },
-  {
-    title: "Community discussions",
-    body: "Press 'C' or tap the Comments button to read what the Hacker News community is saying without leaving the app.",
-    position: { top: "50%", left: "50%", transform: "translate(-50%, -50%)" },
-    arrow: null,
-    arrowBorder: null,
-  },
-  {
-    title: "Story details",
-    body: "Title, score, comments and a link to the HN thread for the card on top.",
-    position: { top: "50%", left: 280, transform: "translateY(-50%)" },
-    arrow: { top: "50%", left: -10, transform: "translateY(-50%)", borderRight: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
-    highlight: { top: 56, left: 0, width: 260, bottom: 0, borderRadius: "0" },
-    desktopOnly: true,
-  },
-  {
-    title: "Saved articles",
-    body: "Stories you swiped right on live here. Click any title to read it.",
-    position: { top: "50%", right: 280, transform: "translateY(-50%)" },
-    arrow: { top: "50%", right: -10, transform: "translateY(-50%)", borderLeft: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", right: -12, transform: "translateY(-50%)", borderLeft: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
-    highlight: { top: 56, right: 0, width: 260, bottom: 0, borderRadius: "0" },
-    desktopOnly: true,
-  },
-  {
-    title: "Reset profile",
-    body: "Clears your swipe history and starts the AI fresh.",
-    position: { top: 66, right: 48 },
-    arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    targetSelector: "[data-tour='reset']",
-  },
-  {
-    title: "Need a reminder?",
-    body: "Tap this icon any time to replay the tour.",
-    position: { top: 66, right: 80 },
-    arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    targetSelector: "[data-tour='help']",
-  },
-];
-
-function TutorialOverlay({ onDismiss }) {
-  const [step, setStep] = useState(0);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
-  const visibleSteps = TOUR_STEPS.filter(s => !s.desktopOnly || !isMobile);
-  const current = visibleSteps[step];
-  const isLast = step === visibleSteps.length - 1;
-  const next = () => isLast ? onDismiss() : setStep(s => s + 1);
-
-  // Resolve DOM-based highlight rect for steps that use targetSelector
-  const getHighlightStyle = (step) => {
-    if (step.targetSelector) {
-      const el = document.querySelector(step.targetSelector);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        const pad = 8; // padding around the button
-        return {
-          top: r.top - pad,
-          left: r.left - pad,
-          width: r.width + pad * 2,
-          height: r.height + pad * 2,
-          borderRadius: "50%",
-        };
-      }
-    }
-    return step.highlight || null;
-  };
-
-  const highlightStyle = getHighlightStyle(current);
-
-  return (
-    <Box
-      component={motion.div}
-      key="tour-bg"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      sx={{
-        position: "fixed", inset: 0, zIndex: 9998,
-        // Light dim so the UI beneath is readable, but all clicks/drags are captured
-        background: "rgba(0,0,0,0.25)",
-        cursor: "default",
-        userSelect: "none",
-        // Block all pointer events from passing through
-        "& *": { },
-      }}
-      // Stop any click from reaching the app underneath
-      onPointerDown={e => e.stopPropagation()}
-      onClick={e => e.stopPropagation()}
-    >
-      {/* Pulsing spotlight highlight around the current feature */}
-      <AnimatePresence mode="wait">
-        {highlightStyle && (
-          <Box
-            key={`highlight-${step}`}
-            component={motion.div}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            sx={{
-              position: "fixed",
-              ...highlightStyle,
-              border: "2px solid rgba(0,255,204,0.8)",
-              boxShadow: "0 0 0 0 rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.05)",
-              animation: "tourGlow 1.8s ease-in-out infinite",
-              pointerEvents: "none",
-              zIndex: 9998,
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Tooltip card */}
-      <AnimatePresence mode="wait">
-        <Box
-          key={step}
-          component={motion.div}
-          initial={{ opacity: 0, scale: 0.93, y: -6 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.93 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          onClick={e => e.stopPropagation()}
-          sx={{
-            position: "fixed",
-            ...Object.fromEntries(Object.entries(current.position).map(([k, v]) => [k, v])),
-            zIndex: 9999,
-            width: { xs: 260, sm: 300 },
-            background: C.card,
-            border: "1px solid rgba(255,102,0,0.55)",
-            borderRadius: "14px",
-            p: "18px 20px 16px",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,102,0,0.15)",
-          }}
-        >
-          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrowBorder }} />
-          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrow }} />
-
-          {/* Progress dots */}
-          <Box sx={{ display: "flex", gap: 0.75, mb: 1.5 }}>
-            {visibleSteps.map((_, i) => (
-              <Box key={i} sx={{
-                height: 4, borderRadius: 2,
-                width: i === step ? 16 : 4,
-                background: i === step ? C.orange : "rgba(255,102,0,0.2)",
-                transition: "all 0.25s ease",
-              }} />
-            ))}
-          </Box>
-
-          <Typography sx={{ fontFamily: C.fontUi, fontWeight: 700, fontSize: "0.95rem", color: "#fff", mb: 0.75 }}>
-            {current.title}
-          </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.55, mb: 2 }}>
-            {current.body}
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Button onClick={onDismiss} size="small"
-              sx={{ fontFamily: C.fontUi, fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", textTransform: "none", p: 0, minWidth: "auto", "&:hover": { color: "rgba(255,255,255,0.6)", background: "none" } }}>
-              Skip
-            </Button>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              {step > 0 && (
-                <Button onClick={() => setStep(s => s - 1)} size="small"
-                  sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: C.textDim, textTransform: "none", px: 1.5, "&:hover": { background: "rgba(255,255,255,0.05)" } }}>
-                  Back
-                </Button>
-              )}
-              <Button onClick={next} variant="contained" disableElevation size="small"
-                      sx={{
-                        fontFamily: C.fontUi, fontWeight: 700, fontSize: "0.75rem",
-                        background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%), #ff6600",
-                        color: "#000",
-                        textTransform: "none", borderRadius: "8px", px: 2, py: 0.5,
-                        boxShadow: "0 4px 14px rgba(255,102,0,0.4), inset 0 1px 1px rgba(255,255,255,0.4)",
-                        transition: "all 0.2s ease",
-                        "&:hover": { background: "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%), #ff7700", transform: "scale(1.03)", boxShadow: "0 6px 20px rgba(255,102,0,0.6), inset 0 1px 1px rgba(255,255,255,0.5)" },
-                        "&:active": { transform: "scale(0.97)" }
-                      }}
-                    >{isLast ? "Done" : "Next"}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </AnimatePresence>
-    </Box>
-  );
-}

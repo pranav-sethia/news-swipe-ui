@@ -141,7 +141,7 @@ export default function Login() {
             shape="rectangular"
             size="large"
             text="continue_with"
-            width="100%"
+            width="350"
           />
         </Box>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { Drawer, Box, Typography, CircularProgress, Button } from "@mui/material";
 import { QuestionAnswer } from "@mui/icons-material";
 
@@ -114,7 +115,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                   "& pre": { background: "rgba(0,0,0,0.5)", p: 1, borderRadius: 1, overflowX: "auto" },
                   "& code": { fontFamily: C.fontMono, fontSize: "0.75rem" }
                 }}
-                dangerouslySetInnerHTML={{ __html: c.text }} 
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(c.text) }} 
               />
             </Box>
           ))}

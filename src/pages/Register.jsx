@@ -18,20 +18,24 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
     setIsLoading(true);
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await api.register(email, password);
-      setSuccess('Registration successful! Redirecting...');
-      setTimeout(() => navigate('/login'), 1500);
+      const res = await api.register(email, password);
+      localStorage.setItem('token', res.data.token);
+      navigate('/');
     } catch (err) {
       if (err.response?.data?.error) {
         setError(err.response.data.error);
@@ -102,11 +106,6 @@ export default function Register() {
         {error && (
           <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.8rem', color: '#f87171', mt: 1.5, textAlign: 'center', fontWeight: 600 }}>
             {error}
-          </Typography>
-        )}
-        {success && (
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.8rem', color: '#4ade80', mt: 1.5, textAlign: 'center', fontWeight: 600 }}>
-            {success}
           </Typography>
         )}
 

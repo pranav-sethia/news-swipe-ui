@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Chip, Link, Tooltip } from "@mui/material";
-import { WarningAmber, OpenInNew, ArrowForward, ArrowBack, Search, Visibility, Settings as SettingsIcon, Bookmark, Psychology, Undo, Delete } from "@mui/icons-material";
+import { WarningAmber, OpenInNew, ArrowForward, ArrowBack, Search, Visibility, Settings as SettingsIcon, Bookmark, Psychology, Undo, Delete, PersonOutline, Person, HowToReg, LocalFireDepartment, ThumbUpAlt, ThumbDownAlt, SkipNext } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import * as api from "../api.js";
 import { C } from "../theme.js";
 import { MagneticBox, SectionHeader, ShortcutRow, Label, Mono } from "./SharedComponents.jsx";
 
-export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowOnboarding }) {
+export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowOnboarding, onLogout }) {
   const [activeTab, setActiveTab] = useState(null);
   const sidebarRef = useRef(null);
+  const navigate = useNavigate();
+
+  const token = localStorage.getItem("token");
+  let user = null;
+  try { user = JSON.parse(atob(token.split('.')[1])).user; } catch {}
+  const isGuest = user?.isGuest;
+  const initial = user?.email ? user.email.charAt(0).toUpperCase() : "?";
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -28,6 +36,8 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
   const navItems = [
     { id: 'taste', icon: <Psychology />, label: 'Taste Profile' },
     { id: 'saved', icon: <Bookmark />, label: 'Saved Library' },
+    { id: 'identity', icon: isGuest ? <PersonOutline /> : <Person />, label: isGuest ? 'Guest Mode' : 'Profile' },
+    { id: 'settings', icon: <SettingsIcon />, label: 'Settings' }
   ];
 
   return (
@@ -67,72 +77,48 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
         </motion.div>
 
         {/* Top Nav Items */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", alignItems: "center" }}>
-          {navItems.map(item => (
-            <Tooltip key={item.id} title={item.label} placement="right">
-              <Box sx={{ position: "relative" }}>
-                {activeTab === item.id && (
-                  <motion.div
-                    layoutId="activeTabIndicator"
-                    style={{
-                      position: "absolute",
-                      inset: -4,
-                      background: "rgba(255,102,0,0.15)",
-                      borderRadius: "16px",
-                      border: `1px solid rgba(255,102,0,0.3)`,
-                      boxShadow: `0 0 20px rgba(255,102,0,0.1)`,
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <MagneticBox onClick={() => toggleTab(item.id)}>
-                  <IconButton sx={{ 
-                    position: "relative", zIndex: 1,
-                    color: activeTab === item.id ? C.orange : C.textDim, 
-                    transition: "all 0.3s ease",
-                    "&:hover": { color: activeTab === item.id ? C.orange : "#fff" }
-                  }}>
-                    {item.icon}
-                  </IconButton>
-                </MagneticBox>
-              </Box>
-            </Tooltip>
+        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center", flexGrow: 1 }}>
+          {navItems.map((item, index) => (
+            <React.Fragment key={item.id}>
+              {item.id === 'identity' && (
+                <Box sx={{ 
+                  flexGrow: activeTab ? 1 : 0, 
+                  transition: "flex-grow 0.3s cubic-bezier(0.4, 0, 0.2, 1)", 
+                  width: "100%" 
+                }} />
+              )}
+              <Tooltip title={item.label} placement="right">
+                <Box sx={{ position: "relative", mb: index !== navItems.length - 1 ? 2 : 0 }}>
+                  {activeTab === item.id && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      style={{
+                        position: "absolute",
+                        inset: -4,
+                        background: "rgba(255,102,0,0.15)",
+                        borderRadius: "16px",
+                        border: `1px solid rgba(255,102,0,0.3)`,
+                        boxShadow: `0 0 20px rgba(255,102,0,0.1)`,
+                      }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <MagneticBox onClick={() => toggleTab(item.id)}>
+                    <IconButton sx={{ 
+                      position: "relative", zIndex: 1,
+                      color: activeTab === item.id ? C.orange : C.textDim, 
+                      transition: "all 0.3s ease",
+                      "&:hover": { color: activeTab === item.id ? C.orange : "#fff" }
+                    }}>
+                      {item.icon}
+                    </IconButton>
+                  </MagneticBox>
+                </Box>
+              </Tooltip>
+            </React.Fragment>
           ))}
         </Box>
-
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* Settings Icon (Bottom) */}
-        <Tooltip title="Settings" placement="right">
-          <Box sx={{ position: "relative", mt: activeTab ? 0 : 3 }}>
-            {activeTab === 'settings' && (
-              <motion.div
-                layoutId="activeTabIndicator"
-                style={{
-                  position: "absolute",
-                  inset: -4,
-                  background: "rgba(255,102,0,0.15)",
-                  borderRadius: "16px",
-                  border: `1px solid rgba(255,102,0,0.3)`,
-                  boxShadow: `0 0 20px rgba(255,102,0,0.1)`,
-                }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              />
-            )}
-            <MagneticBox onClick={() => toggleTab('settings')}>
-              <IconButton sx={{ 
-                position: "relative", zIndex: 1,
-                color: activeTab === 'settings' ? C.orange : C.textDim, 
-                transition: "all 0.3s ease",
-                "&:hover": { color: activeTab === 'settings' ? C.orange : "#fff" }
-              }}>
-                <SettingsIcon />
-              </IconButton>
-            </MagneticBox>
-          </Box>
-        </Tooltip>
       </Box>
-
       {/* Smooth Fade Divider */}
       <AnimatePresence>
         {activeTab && (
@@ -166,6 +152,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
 
             {activeTab === 'taste' && <TasteProfilePanel swipeCount={swipeCount} />}
             {activeTab === 'saved' && <LikedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
+            {activeTab === 'identity' && <IdentityPanel swipeCount={swipeCount} user={user} isGuest={isGuest} navigate={navigate} onLogout={onLogout} />}
             {activeTab === 'settings' && (
               <Box>
                 <SectionHeader icon={<SettingsIcon sx={{ fontSize: 16 }} />} label="SETTINGS" />
@@ -365,6 +352,98 @@ export function LikedPanel({ swipeCount, onUnliked }) {
         </Box>
       ) : <Mono dim>{liked.length === 0 ? "swipe right to save stories here" : "no results match your search"}</Mono>}
     </>
+  );
+}
+
+export function IdentityPanel({ swipeCount, user, isGuest, navigate, onLogout }) {
+  const [stats, setStats] = useState({ total: 0, likes: 0, dislikes: 0, skips: 0, streak: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getDetailedStats().then(data => {
+      setStats(data);
+      setLoading(false);
+    }).catch(console.error);
+  }, [swipeCount]);
+
+  if (loading) return <Mono dim>Loading stats...</Mono>;
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <SectionHeader icon={isGuest ? <PersonOutline sx={{ fontSize: 16 }} /> : <HowToReg sx={{ fontSize: 16 }} />} label={isGuest ? "GUEST ACCOUNT" : "HACKERSWIPE PRO"} />
+      
+      {isGuest ? (
+        <Box sx={{ mt: 3, mb: 4, p: 2, borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#e8e8e8", mb: 1.5, lineHeight: 1.5 }}>
+            You are swiping as a guest. Your AI taste vector and saved articles are temporary and will be deleted after 30 days of inactivity.
+          </Typography>
+          <Button 
+            fullWidth variant="contained" 
+            onClick={() => navigate('/register')}
+            sx={{ 
+              mt: 1, background: `linear-gradient(45deg, ${C.orange} 0%, #ff8c00 100%)`, 
+              color: "#000", fontFamily: C.fontMono, fontWeight: 700,
+              boxShadow: `0 4px 15px rgba(255,102,0,0.15)`,
+              "&:hover": { filter: "brightness(1.1)", boxShadow: `0 6px 20px rgba(255,102,0,0.4)` }
+            }}>
+            CLAIM ACCOUNT
+          </Button>
+        </Box>
+      ) : (
+        <Box sx={{ mt: 3, mb: 4 }}>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1rem", color: "#fff", fontWeight: 700 }}>{user?.email}</Typography>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, mt: 0.5 }}>SYNCHRONIZED</Typography>
+        </Box>
+      )}
+
+      <Label sx={{ mt: 4, mb: 2 }}>SWIPE STATISTICS</Label>
+      
+      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+        {/* Streak */}
+        <Box sx={{ background: "rgba(255,102,0,0.05)", border: `1px solid rgba(255,102,0,0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <LocalFireDepartment sx={{ fontSize: 14, color: C.orange }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.orange }}>STREAK</Typography>
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.2rem", color: "#fff", fontWeight: 700 }}>{stats.streak} <span style={{ fontSize: "0.7rem", color: C.textDim, fontWeight: 400 }}>days</span></Typography>
+        </Box>
+        
+        {/* Total */}
+        <Box sx={{ background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.1)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>TOTAL SWIPES</Typography>
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.2rem", color: "#fff", fontWeight: 700 }}>{stats.total}</Typography>
+        </Box>
+
+        <Box sx={{ background: "rgba(74, 222, 128, 0.05)", border: `1px solid rgba(74, 222, 128, 0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <ThumbUpAlt sx={{ fontSize: 12, color: "#4ade80" }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "#4ade80" }}>LIKED</Typography>
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff" }}>{stats.likes}</Typography>
+        </Box>
+
+        <Box sx={{ background: "rgba(248, 113, 113, 0.05)", border: `1px solid rgba(248, 113, 113, 0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <ThumbDownAlt sx={{ fontSize: 12, color: "#f87171" }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "#f87171" }}>DISLIKED</Typography>
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff" }}>{stats.dislikes}</Typography>
+        </Box>
+      </Box>
+
+      {!isGuest && (
+        <Box sx={{ mt: "auto", pt: 4 }}>
+          <Button 
+            fullWidth variant="outlined" 
+            onClick={onLogout}
+            sx={{ borderColor: "rgba(255,255,255,0.1)", color: C.textDim, fontFamily: C.fontMono, "&:hover": { borderColor: "#f87171", color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
+            SIGN OUT
+          </Button>
+        </Box>
+      )}
+    </Box>
   );
 }
 

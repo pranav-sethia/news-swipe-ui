@@ -265,11 +265,6 @@ export default function App() {
               <IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton>
             </MagneticBox>
           </Tooltip>
-          <Tooltip title="Logout">
-            <MagneticBox>
-              <IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton>
-            </MagneticBox>
-          </Tooltip>
         </Box>
       </Box>
 

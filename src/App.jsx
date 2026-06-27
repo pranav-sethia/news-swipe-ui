@@ -35,6 +35,7 @@ import { loadSlim } from "@tsparticles/slim";
 export default function App() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExhausted, setIsExhausted] = useState(false);
   const { logout } = useOutletContext();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -117,7 +118,9 @@ export default function App() {
       const data = await api.getFeed();
       if (isReset) {
         setArticles(data);
+        setIsExhausted(data.length === 0);
       } else {
+        if (data.length === 0) setIsExhausted(true);
         // Prepend new articles. Filter out any IDs already in the current stack
         // to prevent duplicates caused by race conditions between swipe DB writes and feed fetches.
         setArticles((prev) => {
@@ -158,11 +161,11 @@ export default function App() {
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     // Pre-fetch next batch when only 3 cards remain.
     // Use !isLoading guard so this doesn't fire when we manually setArticles([]) during a reset.
-    if (articles.length <= 3 && !isLoading && !isFetchingRef.current && !isInitialMount.current) {
+    if (articles.length <= 3 && !isLoading && !isFetchingRef.current && !isInitialMount.current && !isExhausted) {
       fetchTimeoutRef.current = setTimeout(() => fetchFeed(), 300);
     }
     return () => { if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current); };
-  }, [articles.length, isLoading, fetchFeed]);
+  }, [articles.length, isLoading, fetchFeed, isExhausted]);
 
   const handleSwipe = useCallback((direction, swipedArticle) => {
     setIsCommentsOpen(false); // Close comments on swipe
@@ -182,12 +185,18 @@ export default function App() {
           fetchFeed(false, true);
         }
       })
-      .catch(() => {}); // silently ignore network errors
+      .catch(() => {
+        // If the swipe fails to save, revert the UI state
+        setArticles((prev) => [...prev, swipedArticle]);
+        setLastSwiped(null); // Clear undo state for this failed swipe
+        console.error("Failed to save swipe, reverting card.");
+      });
   }, [fetchFeed]);
 
   const handleReset = async () => {
     try {
       setIsLoading(true);
+      setIsExhausted(false);
       if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
       setArticles([]); // Clear old articles immediately so loader shows
       setLastSwiped(null); // Prevent undoing an article from the wiped profile
@@ -256,11 +265,6 @@ export default function App() {
               <IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton>
             </MagneticBox>
           </Tooltip>
-          <Tooltip title="Logout">
-            <MagneticBox>
-              <IconButton onClick={logout} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><Logout fontSize="small" /></IconButton>
-            </MagneticBox>
-          </Tooltip>
         </Box>
       </Box>
 
@@ -269,6 +273,7 @@ export default function App() {
         onUnliked={() => setSwipeCount((p) => p + 1)} 
         handleReset={handleReset} 
         setShowOnboarding={setShowOnboarding} 
+        onLogout={logout}
       />
 
       {/* Center */}

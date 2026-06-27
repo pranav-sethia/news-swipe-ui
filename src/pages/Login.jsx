@@ -43,7 +43,7 @@ export default function Login() {
   const handleGoogleLogin = () => {
     // 100% foolproof redirect flow (bypasses all popup/ad blockers)
     const clientId = '1074955057997-1t711kuk94bjvn1rec5oq88c3uckg1at.apps.googleusercontent.com';
-    const redirectUri = window.location.origin + '/login';
+    const redirectUri = encodeURIComponent(window.location.origin + '/login');
     const scope = encodeURIComponent('openid email profile');
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
     window.location.href = url; // Hard redirect

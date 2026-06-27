@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, TextField, Button, Typography, Paper, Link, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
 import * as api from '../api.js';
 import { C } from '../theme.js';
 
@@ -41,7 +40,37 @@ export default function Login() {
     }
   };
 
-  // Using official GoogleLogin to bypass popup blockers
+  const handleGoogleLogin = () => {
+    // 100% foolproof redirect flow (bypasses all popup/ad blockers)
+    const clientId = '1074955057997-1t711kuk94bjvn1rec5oq88c3uckg1at.apps.googleusercontent.com';
+    const redirectUri = window.location.origin + '/login';
+    const scope = encodeURIComponent('openid email profile');
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+    window.location.href = url; // Hard redirect
+  };
+
+  // Catch the Google redirect token when the page reloads
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token=')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        // Clear the token from the URL immediately for security
+        window.history.replaceState(null, null, window.location.pathname);
+        setLoginLoading(true);
+        api.loginWithGoogle(accessToken)
+          .then(res => {
+            localStorage.setItem('token', res.data.token);
+            navigate('/');
+          })
+          .catch(() => {
+            setError('Google Sign-In failed on the server. Please try again.');
+            setLoginLoading(false);
+          });
+      }
+    }
+  }, [navigate]);
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -114,36 +143,25 @@ export default function Login() {
           {guestLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : '▶ EXPLORE AS GUEST'}
         </Button>
 
-        {/* Sleek wrapper to blend the official Google button into the dark theme */}
-        <Box sx={{
-          display: 'flex', justifyContent: 'center', width: '100%', mb: 3,
-          borderRadius: '10px', overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(255,255,255,0.02)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          transition: 'all 0.2s ease',
-          '& > div': { width: '100%' },
-          '&:hover': { borderColor: 'rgba(255,255,255,0.4)', transform: 'translateY(-1px)' }
-        }}>
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-              setError('');
-              try {
-                const res = await api.loginWithGoogle(credentialResponse.credential);
-                localStorage.setItem('token', res.data.token);
-                navigate('/');
-              } catch {
-                setError('Google Sign-In failed on the server. Please try again.');
-              }
-            }}
-            onError={() => setError('Google Sign-In was cancelled or failed.')}
-            theme="filled_black"
-            shape="rectangular"
-            size="large"
-            text="continue_with"
-            width="350"
-          />
-        </Box>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={handleGoogleLogin}
+          sx={{
+            mb: 3, py: 1.4,
+            color: '#fff', borderColor: 'rgba(255,255,255,0.2)',
+            fontFamily: C.fontUi, fontSize: '0.85rem', fontWeight: 600,
+            borderRadius: '10px', textTransform: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
+            background: 'rgba(255,255,255,0.02)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            '&:hover': { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.4)', transform: 'translateY(-1px)' },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo" style={{ width: 18, height: 18 }} />
+          Continue with Google
+        </Button>
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mb: 3 }}>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, px: 1 }}>

@@ -6,7 +6,7 @@ import { C } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
 import { StatBadge } from "./SharedComponents.jsx";
 
-export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards }) {
+export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards, dataTour }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
@@ -78,6 +78,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
   return (
     <Box
       component={motion.div}
+      data-tour={dataTour}
       initial={{ scale: 0.96, y: 12, opacity: 0.85 }}
       animate={controls}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}

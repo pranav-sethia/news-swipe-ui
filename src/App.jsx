@@ -218,17 +218,17 @@ export default function App() {
             background: { color: { value: "transparent" } },
             fpsLimit: 60,
             interactivity: {
-              events: { onHover: { enable: true, mode: "repulse" }, resize: true },
-              modes: { repulse: { distance: 100, duration: 0.4 } },
+              events: { onHover: { enable: true, mode: "grab" }, resize: true },
+              modes: { grab: { distance: 250, links: { opacity: 0.7 } } },
             },
             particles: {
               color: { value: ["#ff6600", "#00ffcc"] },
-              links: { color: "rgba(255, 102, 0, 0.2)", distance: 150, enable: true, opacity: 0.3, width: 1 },
-              move: { enable: true, speed: 0.4, random: true, outModes: { default: "out" } },
-              number: { density: { enable: true, area: 800 }, value: 50 },
-              opacity: { value: { min: 0.1, max: 0.5 } },
+              links: { color: "rgba(255, 102, 0, 0.6)", distance: 180, enable: true, opacity: 0.4, width: 1.2 },
+              move: { enable: true, speed: 0.7, random: true, outModes: { default: "out" } },
+              number: { density: { enable: true, area: 800 }, value: 75 },
+              opacity: { value: { min: 0.2, max: 0.7 } },
               shape: { type: "circle" },
-              size: { value: { min: 1, max: 2 } },
+              size: { value: { min: 1.5, max: 3 } },
             },
             detectRetina: true,
           }}
@@ -239,7 +239,7 @@ export default function App() {
         height: "100vh", width: "100vw", position: "relative", zIndex: 1,
         display: "flex", flexDirection: "column",
         backgroundColor: "transparent",
-        backgroundImage: `radial-gradient(800px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.04), transparent 40%), linear-gradient(rgba(255,102,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.03) 1px,transparent 1px)`,
+        backgroundImage: `radial-gradient(1000px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.08), transparent 45%), linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`,
         backgroundSize: "100% 100%, 32px 32px, 32px 32px",
         overflow: "hidden",
       }}>
@@ -305,11 +305,28 @@ export default function App() {
                   isInteractive={!isResetModalOpen && !showOnboarding}
                   stackIndex={globalIndex}
                   totalCards={articles.length}
+                  dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
                 />
               );
             })}
           </AnimatePresence>
         )}
+
+        {/* Keyboard hint inside Center Box for alignment */}
+        <Box sx={{
+          display: { xs: "none", md: "flex" }, flexDirection: "column",
+          position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          alignItems: "center", gap: 1.5, zIndex: 50,
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
+            <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
+            <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} />
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>or drag the card</Typography>
+        </Box>
       </Box>
 
       {/* Comments Drawer */}
@@ -321,8 +338,9 @@ export default function App() {
 
       {/* Undo button */}
       <AnimatePresence>
-        {lastSwiped && (
+        {(lastSwiped || showOnboarding) && (
           <Box component={motion.div}
+            data-tour="undo"
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
@@ -346,21 +364,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Keyboard hint */}
-      <Box sx={{
-        display: { xs: "none", md: "flex" }, flexDirection: "column",
-        position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
-        alignItems: "center", gap: 1.5, zIndex: 50,
-      }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-          <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-          <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} />
-        </Box>
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>or drag the card</Typography>
-      </Box>
+
 
       {/* Reset modal */}
       <Dialog open={isResetModalOpen} onClose={() => setIsResetModalOpen(false)}

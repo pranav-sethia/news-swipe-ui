@@ -63,10 +63,13 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
     >
       {/* Icon Column */}
-      <Box sx={{ 
-        width: 72, minWidth: 72, display: "flex", flexDirection: "column", 
-        alignItems: "center", py: 3, position: "relative"
-      }}>
+      <Box 
+        data-tour="sidebar"
+        sx={{ 
+          width: 72, minWidth: 72, display: "flex", flexDirection: "column", 
+          alignItems: "center", py: 3, position: "relative"
+        }}
+      >
         
         {/* Animated Brand Dot */}
         <motion.div 

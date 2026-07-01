@@ -4,83 +4,141 @@ import { AnimatePresence, motion } from "framer-motion";
 import { C } from "../theme.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components
 export const TOUR_STEPS = [
   {
     title: "Welcome to HackerSwipe",
     body: "HackerSwipe brings you the best of Hacker News. We learn your preferences as you swipe to build a personalized feed.",
-    position: { top: "40%", left: "50%", transform: "translate(-50%, -50%)" },
-    arrow: null,
-    arrowBorder: null,
+    placement: "center",
   },
   {
     title: "Swipe to train your AI",
     body: "Right to save a story and see more like it. Left to dislike and see less. Up to skip neutrally.",
-    position: { bottom: "calc(50vh - 80px)", left: "50%", transform: "translateX(-50%)" },
-    arrow: { bottom: -10, left: "50%", transform: "translateX(-50%)", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { bottom: -12, left: "50%", transform: "translateX(-50%)", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
-    highlight: { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 740, height: 500, borderRadius: "22px" },
+    targetSelector: "[data-tour='card']",
+    placement: "bottom",
   },
   {
     title: "Undo and Discuss",
     body: "Press 'Z' to undo your last swipe. Press 'C' or tap the comments button to read community discussions.",
-    position: { bottom: "100px", right: "80px" },
-    arrow: { bottom: -10, right: "20px", borderTop: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { bottom: -12, right: "18px", borderTop: `12px solid rgba(255,102,0,0.6)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
+    targetSelector: "[data-tour='undo']",
+    placement: "top",
   },
   {
     title: "Your AI Hub",
     body: "Access your evolving Taste Profile and saved stories from the dock on the left.",
-    position: { top: "calc(50% - 30px)", left: "130px", transform: "translateY(-50%)" },
-    arrow: { top: "50%", left: -10, transform: "translateY(-50%)", borderRight: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
-    desktopOnly: true,
-  },
-  {
-    title: "Settings and Reset",
-    body: "View shortcuts or clear your swipe history completely from the settings gear below.",
-    position: { top: "calc(50% + 80px)", left: "130px", transform: "translateY(-50%)" },
-    arrow: { top: "50%", left: -10, transform: "translateY(-50%)", borderRight: `10px solid ${C.card}`, borderTop: "10px solid transparent", borderBottom: "10px solid transparent" },
-    arrowBorder: { top: "50%", left: -12, transform: "translateY(-50%)", borderRight: `12px solid rgba(255,102,0,0.6)`, borderTop: "12px solid transparent", borderBottom: "12px solid transparent" },
+    targetSelector: "[data-tour='sidebar']",
+    placement: "right",
     desktopOnly: true,
   },
   {
     title: "Need a reminder?",
     body: "Tap the question mark icon here to replay this tour at any time.",
-    position: { top: 66, right: 80 },
-    arrow: { top: -10, right: 14, borderBottom: `10px solid ${C.card}`, borderLeft: "10px solid transparent", borderRight: "10px solid transparent" },
-    arrowBorder: { top: -12, right: 12, borderBottom: `12px solid rgba(0,255,204,0.7)`, borderLeft: "12px solid transparent", borderRight: "12px solid transparent" },
     targetSelector: "[data-tour='help']",
+    placement: "bottom-end",
   },
 ];
 
 export function TutorialOverlay({ onDismiss }) {
   const [step, setStep] = useState(0);
+  const [rect, setRect] = useState(null);
+  
   const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
   const visibleSteps = TOUR_STEPS.filter(s => !s.desktopOnly || !isMobile);
   const current = visibleSteps[step];
   const isLast = step === visibleSteps.length - 1;
   const next = () => isLast ? onDismiss() : setStep(s => s + 1);
 
-  // Resolve DOM-based highlight rect for steps that use targetSelector
-  const getHighlightStyle = (step) => {
-    if (step.targetSelector) {
-      const el = document.querySelector(step.targetSelector);
+  // Continually track the element's bounding box
+  useEffect(() => {
+    if (!current.targetSelector) {
+      setRect(null);
+      return;
+    }
+    
+    let animationFrameId;
+    const updateRect = () => {
+      const el = document.querySelector(current.targetSelector);
       if (el) {
         const r = el.getBoundingClientRect();
-        const pad = 8; // padding around the button
-        return {
+        // Add a slight padding to the highlight ring
+        const pad = current.targetSelector.includes("card") ? -8 : 12;
+        setRect({
           top: r.top - pad,
           left: r.left - pad,
           width: r.width + pad * 2,
           height: r.height + pad * 2,
-          borderRadius: "50%",
-        };
+          bottom: r.bottom + pad,
+          right: r.right + pad,
+        });
       }
+      animationFrameId = requestAnimationFrame(updateRect);
+    };
+    
+    updateRect();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [current]);
+
+  // Calculate Tooltip position based on rect and placement
+  const getTooltipStyle = () => {
+    const w = isMobile ? 260 : 300;
+    
+    if (current.placement === "center" || !rect) {
+      return { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
     }
-    return step.highlight || null;
+    
+    const margin = 20; // Distance from highlight to tooltip
+    
+    if (current.placement === "bottom") {
+      return { top: rect.bottom + margin, left: rect.left + (rect.width / 2) - (w / 2) };
+    }
+    if (current.placement === "top") {
+      return { bottom: window.innerHeight - rect.top + margin, left: rect.left + (rect.width / 2) - (w / 2) };
+    }
+    if (current.placement === "right") {
+      return { top: rect.top + (rect.height / 2) - 80, left: rect.right + margin };
+    }
+    if (current.placement === "bottom-end") {
+      return { top: rect.bottom + margin, right: window.innerWidth - rect.right };
+    }
+    
+    return { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
   };
 
-  const highlightStyle = getHighlightStyle(current);
+  // Calculate Arrow position
+  const getArrowStyle = () => {
+    if (current.placement === "center" || !rect) return { border: null, arrow: null };
+    
+    const size = 10;
+    if (current.placement === "bottom") {
+      return {
+        arrow: { top: -size, left: "50%", transform: "translateX(-50%)", borderBottom: `${size}px solid ${C.card}`, borderLeft: `${size}px solid transparent`, borderRight: `${size}px solid transparent` },
+        border: { top: -(size + 2), left: "50%", transform: "translateX(-50%)", borderBottom: `${size + 2}px solid rgba(255,102,0,0.55)`, borderLeft: `${size + 2}px solid transparent`, borderRight: `${size + 2}px solid transparent` }
+      };
+    }
+    if (current.placement === "top") {
+      return {
+        arrow: { bottom: -size, left: "50%", transform: "translateX(-50%)", borderTop: `${size}px solid ${C.card}`, borderLeft: `${size}px solid transparent`, borderRight: `${size}px solid transparent` },
+        border: { bottom: -(size + 2), left: "50%", transform: "translateX(-50%)", borderTop: `${size + 2}px solid rgba(255,102,0,0.55)`, borderLeft: `${size + 2}px solid transparent`, borderRight: `${size + 2}px solid transparent` }
+      };
+    }
+    if (current.placement === "right") {
+      return {
+        arrow: { top: 80 - size, left: -size, borderRight: `${size}px solid ${C.card}`, borderTop: `${size}px solid transparent`, borderBottom: `${size}px solid transparent` },
+        border: { top: 80 - (size + 2), left: -(size + 2), borderRight: `${size + 2}px solid rgba(255,102,0,0.55)`, borderTop: `${size + 2}px solid transparent`, borderBottom: `${size + 2}px solid transparent` }
+      };
+    }
+    if (current.placement === "bottom-end") {
+      return {
+        arrow: { top: -size, right: 24, borderBottom: `${size}px solid ${C.card}`, borderLeft: `${size}px solid transparent`, borderRight: `${size}px solid transparent` },
+        border: { top: -(size + 2), right: 22, borderBottom: `${size + 2}px solid rgba(255,102,0,0.55)`, borderLeft: `${size + 2}px solid transparent`, borderRight: `${size + 2}px solid transparent` }
+      };
+    }
+    return { border: null, arrow: null };
+  };
+
+  const tooltipStyle = getTooltipStyle();
+  const arrowStyle = getArrowStyle();
+  const isCircle = current.targetSelector && !current.targetSelector.includes("card");
 
   return (
     <Box
@@ -91,32 +149,28 @@ export function TutorialOverlay({ onDismiss }) {
       exit={{ opacity: 0 }}
       sx={{
         position: "fixed", inset: 0, zIndex: 9998,
-        // Light dim so the UI beneath is readable, but all clicks/drags are captured
-        background: "rgba(0,0,0,0.25)",
-        cursor: "default",
-        userSelect: "none",
-        // Block all pointer events from passing through
+        background: "rgba(0,0,0,0.4)",
+        cursor: "default", userSelect: "none",
         "& *": { },
       }}
-      // Stop any click from reaching the app underneath
       onPointerDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
     >
-      {/* Pulsing spotlight highlight around the current feature */}
       <AnimatePresence mode="wait">
-        {highlightStyle && (
+        {rect && (
           <Box
             key={`highlight-${step}`}
             component={motion.div}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.2 }}
             sx={{
               position: "fixed",
-              ...highlightStyle,
+              top: rect.top, left: rect.left, width: rect.width, height: rect.height,
+              borderRadius: isCircle ? "50px" : "24px",
               border: "2px solid rgba(0,255,204,0.8)",
-              boxShadow: "0 0 0 0 rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.05)",
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.1)",
               animation: "tourGlow 1.8s ease-in-out infinite",
               pointerEvents: "none",
               zIndex: 9998,
@@ -125,7 +179,6 @@ export function TutorialOverlay({ onDismiss }) {
         )}
       </AnimatePresence>
 
-      {/* Tooltip card */}
       <AnimatePresence mode="wait">
         <Box
           key={step}
@@ -137,7 +190,7 @@ export function TutorialOverlay({ onDismiss }) {
           onClick={e => e.stopPropagation()}
           sx={{
             position: "fixed",
-            ...Object.fromEntries(Object.entries(current.position).map(([k, v]) => [k, v])),
+            ...tooltipStyle,
             zIndex: 9999,
             width: { xs: 260, sm: 300 },
             background: C.card,
@@ -147,10 +200,9 @@ export function TutorialOverlay({ onDismiss }) {
             boxShadow: "0 12px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,102,0,0.15)",
           }}
         >
-          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrowBorder }} />
-          <Box sx={{ position: "absolute", width: 0, height: 0, ...current.arrow }} />
+          {arrowStyle.border && <Box sx={{ position: "absolute", width: 0, height: 0, ...arrowStyle.border }} />}
+          {arrowStyle.arrow && <Box sx={{ position: "absolute", width: 0, height: 0, ...arrowStyle.arrow }} />}
 
-          {/* Progress dots */}
           <Box sx={{ display: "flex", gap: 0.75, mb: 1.5 }}>
             {visibleSteps.map((_, i) => (
               <Box key={i} sx={{

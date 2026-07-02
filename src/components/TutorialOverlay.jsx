@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import { C } from "../theme.js";
@@ -15,13 +15,13 @@ export const TOUR_STEPS = [
     title: "Swipe to train your AI",
     body: "Right to save a story and see more like it. Left to dislike and see less. Up to skip neutrally.",
     targetSelector: "[data-tour='card']",
-    placement: "bottom",
+    placement: "center",
   },
   {
     title: "Undo and Discuss",
     body: "Press 'Z' to undo your last swipe. Press 'C' or tap the comments button to read community discussions.",
     targetSelector: "[data-tour='undo']",
-    placement: "top",
+    placement: "top-end",
   },
   {
     title: "Your AI Hub",
@@ -100,6 +100,9 @@ export function TutorialOverlay({ onDismiss }) {
     if (current.placement === "bottom-end") {
       return { top: rect.bottom + margin, right: window.innerWidth - rect.right };
     }
+    if (current.placement === "top-end") {
+      return { bottom: window.innerHeight - rect.top + margin, right: window.innerWidth - rect.right };
+    }
     
     return { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
   };
@@ -133,6 +136,12 @@ export function TutorialOverlay({ onDismiss }) {
         border: { top: -(size + 2), right: 22, borderBottom: `${size + 2}px solid rgba(255,102,0,0.55)`, borderLeft: `${size + 2}px solid transparent`, borderRight: `${size + 2}px solid transparent` }
       };
     }
+    if (current.placement === "top-end") {
+      return {
+        arrow: { bottom: -size, right: 24, borderTop: `${size}px solid ${C.card}`, borderLeft: `${size}px solid transparent`, borderRight: `${size}px solid transparent` },
+        border: { bottom: -(size + 2), right: 22, borderTop: `${size + 2}px solid rgba(255,102,0,0.55)`, borderLeft: `${size + 2}px solid transparent`, borderRight: `${size + 2}px solid transparent` }
+      };
+    }
     return { border: null, arrow: null };
   };
 
@@ -148,7 +157,7 @@ export function TutorialOverlay({ onDismiss }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       sx={{
-        position: "fixed", inset: 0, zIndex: 9998,
+        position: "fixed", inset: 0, zIndex: 10000,
         background: "rgba(0,0,0,0.4)",
         cursor: "default", userSelect: "none",
         "& *": { },
@@ -173,7 +182,7 @@ export function TutorialOverlay({ onDismiss }) {
               boxShadow: "0 0 0 9999px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,204,0.4), inset 0 0 30px rgba(0,255,204,0.1)",
               animation: "tourGlow 1.8s ease-in-out infinite",
               pointerEvents: "none",
-              zIndex: 9998,
+              zIndex: 10000,
             }}
           />
         )}
@@ -191,7 +200,7 @@ export function TutorialOverlay({ onDismiss }) {
           sx={{
             position: "fixed",
             ...tooltipStyle,
-            zIndex: 9999,
+            zIndex: 10001,
             width: { xs: 260, sm: 300 },
             background: C.card,
             border: "1px solid rgba(255,102,0,0.55)",

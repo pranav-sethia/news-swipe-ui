@@ -62,7 +62,8 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       } else if (err.response && err.response.status === 429) {
         setSummaryError(err.response.data.message || 'The AI is currently resting due to high demand.');
       } else {
-        setSummaryError("Failed to generate summary. The discussion might be too long or unavailable.");
+        const errorMsg = err.response?.data?.message || "Failed to generate summary. The discussion might be too long or unavailable.";
+        setSummaryError(errorMsg);
       }
     } finally {
       setSummarizing(false);

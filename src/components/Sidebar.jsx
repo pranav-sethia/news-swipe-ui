@@ -87,8 +87,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
             <React.Fragment key={item.id}>
               {item.id === 'identity' && (
                 <Box sx={{ 
-                  flexGrow: activeTab ? 1 : 0, 
-                  transition: "flex-grow 0.3s cubic-bezier(0.4, 0, 0.2, 1)", 
+                  flexGrow: 1, 
                   width: "100%" 
                 }} />
               )}

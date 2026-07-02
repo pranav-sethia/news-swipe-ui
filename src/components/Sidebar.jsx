@@ -10,8 +10,13 @@ import { MagneticBox, SectionHeader, ShortcutRow, Label, Mono } from "./SharedCo
 
 export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowOnboarding, onLogout }) {
   const [activeTab, setActiveTab] = useState(null);
+  const [renderedTab, setRenderedTab] = useState(null);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activeTab) setRenderedTab(activeTab);
+  }, [activeTab]);
 
   const token = localStorage.getItem("token");
   let user = null;
@@ -57,10 +62,10 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
           overflow: "hidden",
           boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)",
         }}
-      initial={{ width: 72, height: "auto" }}
+      initial={{ width: 72, height: 320 }}
       animate={{ 
         width: activeTab ? 380 : 72,
-        height: activeTab ? "80vh" : "auto"
+        height: activeTab ? "80vh" : 320
       }}
       transition={{ type: "spring", bounce: 0, duration: 0.5 }}
     >
@@ -134,7 +139,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
       <AnimatePresence>
         {activeTab && (
           <motion.div
-            key={activeTab}
+            key="content-panel"
             initial={{ opacity: 0, x: -10, filter: "blur(4px)" }}
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, x: -10, filter: "blur(4px)", transition: { duration: 0.2, ease: "easeIn" } }}
@@ -148,10 +153,10 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
               <ArrowBack sx={{ fontSize: 18 }} />
             </IconButton>
 
-            {activeTab === 'taste' && <TasteProfilePanel swipeCount={swipeCount} />}
-            {activeTab === 'saved' && <LikedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
-            {activeTab === 'identity' && <IdentityPanel swipeCount={swipeCount} user={user} isGuest={isGuest} navigate={navigate} onLogout={onLogout} />}
-            {activeTab === 'settings' && (
+            {renderedTab === 'taste' && <TasteProfilePanel swipeCount={swipeCount} />}
+            {renderedTab === 'saved' && <LikedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
+            {renderedTab === 'identity' && <IdentityPanel swipeCount={swipeCount} user={user} isGuest={isGuest} navigate={navigate} onLogout={onLogout} />}
+            {renderedTab === 'settings' && (
               <Box>
                 <SectionHeader icon={<SettingsIcon sx={{ fontSize: 16 }} />} label="SETTINGS" />
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mt: 3, mb: 1 }}>AI Profile Management</Typography>

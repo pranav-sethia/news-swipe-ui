@@ -329,6 +329,40 @@ export default function App() {
         </Box>
       </Box>
 
+      {/* Triangular Pull Tab */}
+      <AnimatePresence>
+        {!isCommentsOpen && !isExhausted && !showOnboarding && articles.length > 0 && topCard?.hn_id && (
+          <Box component={motion.div}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            whileHover={{ x: -4, filter: 'drop-shadow(-8px 0 20px rgba(255, 102, 0, 0.4))' }}
+            onClick={() => setIsCommentsOpen(true)}
+            sx={{
+              position: 'fixed',
+              right: -1,
+              top: '50%',
+              marginTop: '-36px', // offset half height since translateY doesn't work perfectly with motion.div sometimes
+              width: 28,
+              height: 72,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 90,
+              filter: 'drop-shadow(-4px 0 12px rgba(0, 0, 0, 0.5))',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:active': { transform: 'scale(0.95)' }
+            }}
+          >
+            <svg width="100%" height="100%" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: 'absolute', zIndex: -1 }}>
+              <path d="M28 0 L 6 28 Q 0 36 6 44 L 28 72 Z" fill="rgba(18,18,18,0.95)" stroke="rgba(255,102,0,0.5)" strokeWidth="1" strokeLinejoin="round" />
+            </svg>
+            <ArrowBack sx={{ color: C.orange, fontSize: 16, ml: 1.5, opacity: 0.9 }} />
+          </Box>
+        )}
+      </AnimatePresence>
+
       {/* Comments Drawer */}
       <CommentsDrawer 
         open={isCommentsOpen} 

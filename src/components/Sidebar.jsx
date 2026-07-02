@@ -85,12 +85,6 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
         <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center", flexGrow: 1 }}>
           {navItems.map((item, index) => (
             <React.Fragment key={item.id}>
-              {item.id === 'identity' && (
-                <Box sx={{ 
-                  flexGrow: 1, 
-                  width: "100%" 
-                }} />
-              )}
               <Tooltip title={item.label} placement="right">
                 <Box sx={{ position: "relative", mb: index !== navItems.length - 1 ? 2 : 0 }}>
                   {activeTab === item.id && (

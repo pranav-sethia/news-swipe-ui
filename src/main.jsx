@@ -4,8 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 
 import App from './App.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
+import Auth from './pages/Auth.jsx';
 import Onboarding from './pages/Onboarding.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
 import MobileGate from './components/MobileGate.jsx';
@@ -38,11 +37,11 @@ const darkTheme = createTheme({
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: <Auth />,
   },
   {
     path: '/register',
-    element: <Register />,
+    element: <Auth />,
   },
   {
     path: '/',

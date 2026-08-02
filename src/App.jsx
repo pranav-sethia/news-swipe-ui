@@ -16,6 +16,7 @@ import { C } from "./theme.js";
 import { MagneticBox, SectionHeader, StatBadge, ShortcutRow, Label, Mono, ActionHint, KeyHint } from "./components/SharedComponents.jsx";
 import { NewsCard, TerminalLoader, ExhaustedCard } from "./components/NewsCard.jsx";
 import { ExpandableSidebar } from "./components/Sidebar.jsx";
+import AuthStatusPill from "./components/AuthStatusPill.jsx";
 import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
 import { track } from "./analytics.js";
@@ -235,7 +236,8 @@ export default function App() {
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, letterSpacing: "0.15em", fontWeight: 700, display: { xs: "none", sm: "block" } }}>
           AI-POWERED HACKER NEWS DISCOVERY
         </Typography>
-        <Box sx={{ display: "flex", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <AuthStatusPill onLogout={logout} />
           <Tooltip title="Tutorial">
             <MagneticBox>
               <IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton>

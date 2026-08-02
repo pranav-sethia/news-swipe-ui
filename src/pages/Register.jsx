@@ -3,6 +3,7 @@ import { Box, TextField, Button, Typography, Paper, Link, CircularProgress } fro
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
 import { C } from '../theme.js';
+import { track } from '../analytics.js';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -22,9 +23,20 @@ export default function Register() {
       return;
     }
 
+    const wasGuest = (() => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return false;
+        return !!JSON.parse(atob(token.split('.')[1])).user?.isGuest;
+      } catch {
+        return false;
+      }
+    })();
+
     try {
       const res = await api.register(email, password);
       localStorage.setItem('token', res.data.token);
+      track(wasGuest ? 'guest_converted' : 'signup_completed');
       navigate('/');
     } catch (err) {
       if (err.response?.data?.error) {

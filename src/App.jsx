@@ -18,6 +18,7 @@ import { NewsCard, TerminalLoader, ExhaustedCard } from "./components/NewsCard.j
 import { ExpandableSidebar } from "./components/Sidebar.jsx";
 import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
+import { track } from "./analytics.js";
 
 export default function App() {
   const [articles, setArticles] = useState([]);
@@ -160,15 +161,20 @@ export default function App() {
   const handleSwipe = useCallback((direction, swipedArticle) => {
     setIsCommentsOpen(false); // Close comments on swipe
     setLastSwiped({ article: swipedArticle, direction });
-    // SYNCHRONOUS card removal — no async/await.
+    // Synchronous card removal, no async/await.
     // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
-    
+
     // Background API call. No blocking.
     const likedValue = direction === "right" ? true : (direction === "left" ? false : null);
     api.sendSwipe(swipedArticle.id, likedValue)
       .then(() => {
-        setSwipeCount((p) => p + 1);
+        setSwipeCount((p) => {
+          const next = p + 1;
+          if (next === 1) track("first_swipe");
+          else if ([5, 10, 25, 50, 100].includes(next)) track("swipe_milestone", { count: next });
+          return next;
+        });
         if (direction === "right") {
           // Immediately pull fresh matches generated from the new taste vector
           // and seamlessly replace the stale tail-end of the queue!

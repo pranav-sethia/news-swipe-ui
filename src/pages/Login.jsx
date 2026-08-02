@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
 import { C } from '../theme.js';
 import { GOOGLE_CLIENT_ID } from '../config.js';
+import { track } from '../analytics.js';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function Login() {
     try {
       const res = await api.login(email, password);
       localStorage.setItem('token', res.data.token);
+      track('login_completed', { method: 'password' });
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
@@ -34,6 +36,7 @@ export default function Login() {
     try {
       const res = await api.loginAsGuest();
       localStorage.setItem('token', res.data.token);
+      track('guest_started');
       navigate('/');
     } catch {
       setError('Failed to start guest session. Please try again.');
@@ -62,6 +65,7 @@ export default function Login() {
         api.loginWithGoogle(accessToken)
           .then(res => {
             localStorage.setItem('token', res.data.token);
+            track('login_completed', { method: 'google' });
             navigate('/');
           })
           .catch(() => {

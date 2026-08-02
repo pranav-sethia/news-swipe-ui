@@ -12,6 +12,9 @@ import './index.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GOOGLE_CLIENT_ID } from './config.js';
 import { C } from './theme.js';
+import { initAnalytics } from './analytics.js';
+
+initAnalytics();
 
 // Create a simple dark theme
 const darkTheme = createTheme({

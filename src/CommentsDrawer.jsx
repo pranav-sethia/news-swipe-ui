@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
-import { Drawer, Box, Typography, CircularProgress, Button, Modal, IconButton } from "@mui/material";
+import { Drawer, Box, Typography, CircularProgress, Button, Modal, IconButton, Tooltip } from "@mui/material";
 import { QuestionAnswer, AutoAwesome, LockOutlined } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCommentSummary } from "./api.js";
 import { useNavigate } from "react-router-dom";
 import { C } from "./theme.js";
+import { EASE } from "./motion.js";
 
 export default function CommentsDrawer({ open, onClose, hnId }) {
   const [comments, setComments] = useState([]);
@@ -124,25 +125,31 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       {/* AI Summary Section */}
       <Box sx={{ mb: 4 }}>
         {!summary && !summarizing && !summaryError && (
-          <Button 
-            fullWidth variant="outlined" 
-            onClick={handleSummarize}
-            disabled={loading || comments.length === 0}
-            startIcon={<AutoAwesome sx={{ color: "#00ffcc" }} />}
-            sx={{
-              borderColor: "rgba(0,255,204,0.3)", color: "#00ffcc", fontFamily: C.fontMono,
-              "&:hover": { borderColor: "#00ffcc", background: "rgba(0,255,204,0.1)" },
-              "&:disabled": { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.2)" }
-            }}
-          >
-            AI SUMMARIZE DISCUSSION
-          </Button>
+          <Tooltip title={!loading && comments.length === 0 ? "No comments to summarize yet" : ""}>
+            <span>
+              <Button
+                fullWidth variant="outlined"
+                onClick={handleSummarize}
+                disabled={loading || comments.length === 0}
+                startIcon={<AutoAwesome sx={{ color: C.teal }} />}
+                sx={{
+                  borderColor: "rgba(0,255,204,0.3)", color: C.teal, fontFamily: C.fontMono,
+                  transition: `all 150ms ${EASE.standard}`,
+                  "&:hover": { borderColor: C.teal, background: "rgba(0,255,204,0.1)" },
+                  "&:active": { transform: "scale(0.98)" },
+                  "&:disabled": { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.2)" }
+                }}
+              >
+                AI SUMMARIZE DISCUSSION
+              </Button>
+            </span>
+          </Tooltip>
         )}
         
         {summarizing && (
           <Box sx={{ p: 2, border: "1px dashed rgba(0,255,204,0.3)", borderRadius: 2, textAlign: "center" }}>
-            <CircularProgress size={20} sx={{ color: "#00ffcc", mb: 1 }} />
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "#00ffcc" }}>Analyzing community sentiment...</Typography>
+            <CircularProgress size={20} sx={{ color: C.teal, mb: 1 }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.teal }}>Analyzing community sentiment...</Typography>
           </Box>
         )}
         
@@ -155,8 +162,8 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
         {summary && (
           <Box sx={{ p: 3, border: "1px solid rgba(0,255,204,0.3)", borderRadius: "12px", background: "linear-gradient(135deg, rgba(0,255,204,0.05) 0%, rgba(0,0,0,0) 100%)", boxShadow: "0 4px 20px rgba(0,255,204,0.05)" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <AutoAwesome sx={{ color: "#00ffcc", fontSize: 16 }} />
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "#00ffcc", fontWeight: 700, letterSpacing: "1px" }}>AI CONSENSUS</Typography>
+              <AutoAwesome sx={{ color: C.teal, fontSize: 16 }} />
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.teal, fontWeight: 700, letterSpacing: "1px" }}>AI CONSENSUS</Typography>
             </Box>
             
             <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.9rem", color: "white", mb: 2, fontWeight: 600, lineHeight: 1.5 }}>
@@ -169,7 +176,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   {summary.takeaways.map((t, i) => (
                     <Box key={i} sx={{ display: "flex", gap: 1 }}>
-                      <Typography sx={{ color: "#00ffcc", fontSize: "0.8rem" }}>▸</Typography>
+                      <Typography sx={{ color: C.teal, fontSize: "0.8rem" }}>▸</Typography>
                       <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#e8e8e8", lineHeight: 1.4 }}>{t}</Typography>
                     </Box>
                   ))}
@@ -183,7 +190,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   {summary.criticisms.map((c, i) => (
                     <Box key={i} sx={{ display: "flex", gap: 1 }}>
-                      <Typography sx={{ color: "#f87171", fontSize: "0.8rem" }}>▸</Typography>
+                      <Typography sx={{ color: C.error, fontSize: "0.8rem" }}>▸</Typography>
                       <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#e8e8e8", lineHeight: 1.4 }}>{c}</Typography>
                     </Box>
                   ))}
@@ -200,7 +207,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
           <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, fontSize: "0.8rem" }}>Loading discussion...</Typography>
         </Box>
       ) : error ? (
-        <Typography sx={{ fontFamily: C.fontMono, color: "#f87171", fontSize: "0.8rem", textAlign: "center", mt: 4 }}>
+        <Typography sx={{ fontFamily: C.fontMono, color: C.error, fontSize: "0.8rem", textAlign: "center", mt: 4 }}>
           Failed to load comments.
         </Typography>
       ) : comments.length === 0 ? (
@@ -259,7 +266,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
               <IconButton onClick={() => setShowAuthModal(false)} sx={{ position: 'absolute', top: 12, right: 12, color: C.textDim, '&:hover': { color: 'white' } }}>✕</IconButton>
               
               <Box sx={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(0,255,204,0.2) 0%, rgba(0,255,204,0.05) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 3, border: '1px solid rgba(0,255,204,0.3)', boxShadow: '0 0 20px rgba(0,255,204,0.15)' }}>
-                <LockOutlined sx={{ color: '#00ffcc', fontSize: 30 }} />
+                <LockOutlined sx={{ color: C.teal, fontSize: 30 }} />
               </Box>
               
               <Typography sx={{ fontFamily: C.fontUi, fontWeight: 800, fontSize: '1.4rem', color: 'white', mb: 1.5, letterSpacing: '-0.02em' }}>Unlock AI Summaries</Typography>
@@ -270,7 +277,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
               <Button 
                 fullWidth variant="contained" 
                 onClick={() => { navigate('/register'); onClose(); }}
-                sx={{ background: '#00ffcc', color: 'black', fontFamily: C.fontMono, fontWeight: 700, py: 1.8, borderRadius: '50px', fontSize: '0.95rem', letterSpacing: '0.05em', boxShadow: '0 4px 14px rgba(0,255,204,0.3)', '&:hover': { background: '#00e6b8', boxShadow: '0 6px 20px rgba(0,255,204,0.4)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                sx={{ background: C.teal, color: 'black', fontFamily: C.fontMono, fontWeight: 700, py: 1.8, borderRadius: '50px', fontSize: '0.95rem', letterSpacing: '0.05em', boxShadow: '0 4px 14px rgba(0,255,204,0.3)', '&:hover': { background: '#00e6b8', boxShadow: '0 6px 20px rgba(0,255,204,0.4)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
               >
                 CREATE ACCOUNT
               </Button>

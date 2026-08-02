@@ -40,6 +40,7 @@ export default function App() {
     toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
   }, []);
 
+  const [undoSuccess, setUndoSuccess] = useState(false);
   const handleUndo = useCallback(async () => {
     if (!lastSwiped) return;
     const articleToUndo = lastSwiped.article;
@@ -48,6 +49,8 @@ export default function App() {
     try {
       await api.unlikeArticle(articleToUndo.id);
       setSwipeCount(p => p + 1);
+      setUndoSuccess(true);
+      setTimeout(() => setUndoSuccess(false), 500);
     } catch (err) {
       console.error("Undo failed", err);
       showToast("Undo didn't save. Try again.");
@@ -101,7 +104,7 @@ export default function App() {
   const topCard = articles[articles.length - 1] ?? null;
 
   const fetchFeed = useCallback(async (isReset = false, replaceStale = false) => {
-    // Use ref guard — state-based guard causes stale closure deadlocks
+    // Use ref guard: state-based guard causes stale closure deadlocks
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setIsLoading(true);
@@ -144,7 +147,7 @@ export default function App() {
       isFetchingRef.current = false;
       if (isInitialMount.current) isInitialMount.current = false;
     }
-  }, []); // No deps — uses refs and functional setState to avoid stale closures
+  }, []); // No deps, uses refs and functional setState to avoid stale closures
 
   useEffect(() => { fetchFeed(true); }, [fetchFeed]);
 
@@ -269,7 +272,7 @@ export default function App() {
           ) : isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
         ) : (
           <AnimatePresence mode="popLayout">
-            {/* Only render top 3 cards — rest stay invisible until they become top 3 */}
+            {/* Only render top 3 cards, rest stay invisible until they become top 3 */}
             {articles.slice(-3).map((article, sliceIndex, sliceArr) => {
               const globalIndex = articles.length - sliceArr.length + sliceIndex;
               return (
@@ -296,11 +299,11 @@ export default function App() {
           alignItems: "center", gap: 1.5, zIndex: 50,
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" />
+            <KeyHint icon={<ArrowBack sx={{ fontSize: 14 }} />} label="DISLIKE" code="ArrowLeft" />
             <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-            <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" />
+            <KeyHint icon={<ArrowUpward sx={{ fontSize: 14 }} />} label="SKIP" code="ArrowUp" />
             <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>·</Typography>
-            <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} />
+            <KeyHint label="LIKE" icon={<ArrowForward sx={{ fontSize: 14 }} />} code="ArrowRight" />
           </Box>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>or drag the card</Typography>
         </Box>
@@ -374,6 +377,21 @@ export default function App() {
           </Box>
         )}
       </AnimatePresence>
+
+      {/* Brief confirmation that undo actually saved, since the button above
+          unmounts the instant undo starts (lastSwiped clears immediately). */}
+      {undoSuccess && (
+        <Box sx={{
+          position: "fixed", bottom: 20, right: 32, zIndex: 50,
+          width: 48, height: 48, borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: C.card, border: `1px solid ${C.success}`, color: C.success,
+          boxShadow: `0 0 20px ${C.success}55`,
+          animation: "undoConfirm 500ms ease-out",
+        }}>
+          <Undo sx={{ fontSize: 20 }} />
+        </Box>
+      )}
 
 
 

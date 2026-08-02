@@ -17,7 +17,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
   const neutralOpacity = useTransform(y, [-50, -140], [0, 1]);
   const cardsFromTop = totalCards - 1 - stackIndex;
 
-  // Typewriter only runs on the top card — background cards stay blank to avoid flash
+  // Typewriter only runs on the top card, background cards stay blank to avoid flash
   const { displayed, done } = useTypewriter(article.title, 28, isTop && !isExiting);
 
   // Keyboard arrow support
@@ -53,7 +53,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         transition: { duration: 0.25, ease: "easeOut" },
       });
     } catch {
-      // Animation was interrupted (e.g. component unmounted mid-flight) — still complete the swipe
+      // Animation was interrupted (e.g. component unmounted mid-flight), still complete the swipe
     }
     onSwipe(dir);
   }, [controls, onSwipe, isExiting]);
@@ -73,11 +73,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
   const fallbackBgIndex = article.id ? (article.id % 5) : 0;
   const isFallback = !article.image_url || imageFailed;
   const imageUrl = isFallback ? `/hacker_bgs/bg_${fallbackBgIndex}.png` : article.image_url;
+  // A curated set of tasteful hue shifts, rather than the full 0-360 range, so
+  // fallback images read as designed variety instead of a broken/wrong photo.
+  const HUE_SHIFTS = [0, -18, 18, -32, 168];
+  const hueShift = article.id ? HUE_SHIFTS[article.id % HUE_SHIFTS.length] : 0;
 
   return (
     <Box
       component={motion.div}
       data-tour={dataTour}
+      role="group"
+      aria-label={isTop ? `Article: ${article.title}. Swipe right to like, left to dislike, up to skip.` : undefined}
+      aria-hidden={!isTop}
       initial={{ scale: 0.96, y: 12, opacity: 0.85 }}
       animate={controls}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
@@ -121,7 +128,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             sx={{
               width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
               ...(isFallback && article.id && {
-                filter: `hue-rotate(${(article.id * 37) % 360}deg) saturate(${(article.id % 2) ? 1.5 : 1})`,
+                filter: `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1})`,
                 transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
                 objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
               })
@@ -147,21 +154,21 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               </Box>
               
               {article.match_pct ? (
-                <Tooltip 
+                <Tooltip
                   title={
                     article.match_reason ? (
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                         <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.7rem", color: "rgba(255,255,255,0.6)" }}>
                           Recommended because you liked:
                         </Typography>
-                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#00ffcc", fontWeight: 500, lineHeight: 1.3, fontStyle: "italic" }}>
+                        <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: C.teal, fontWeight: 500, lineHeight: 1.3, fontStyle: "italic" }}>
                           "{article.match_reason}"
                         </Typography>
                       </Box>
                     ) : (
                       "Personalized for you based on your taste"
                     )
-                  } 
+                  }
                   placement="top"
                   arrow
                   slotProps={{
@@ -169,7 +176,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                       sx: {
                         background: "rgba(13,13,13,0.95)",
                         backdropFilter: "blur(10px)",
-                        border: "1px solid rgba(0,255,204,0.3)",
+                        border: `1px solid ${C.tealDim}`,
                         color: "#e8e8e8",
                         fontFamily: C.fontUi,
                         fontSize: "0.75rem",
@@ -184,18 +191,20 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                     }
                   }}
                 >
-                  <Typography sx={{ 
-                    fontFamily: C.fontMono, fontSize: "0.65rem", color: "#00ffcc", letterSpacing: "0.5px", 
-                    background: "rgba(0,255,204,0.1)", px: 1, py: 0.5, borderRadius: "4px", 
-                    border: "1px solid rgba(0,255,204,0.3)",
+                  <Typography sx={{
+                    fontFamily: C.fontMono, fontSize: "0.65rem", color: C.teal, letterSpacing: "0.5px",
+                    background: article.match_pct >= 95 ? "rgba(255,215,0,0.12)" : "rgba(0,255,204,0.1)",
+                    px: 1, py: 0.5, borderRadius: "4px",
+                    border: `1px solid ${article.match_pct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.3)"}`,
+                    ...(article.match_pct >= 95 && { boxShadow: "0 0 12px rgba(255,215,0,0.25)", color: "#ffd700" }),
                     cursor: "help",
                     textDecoration: "underline",
                     textDecorationStyle: "dashed",
                     textUnderlineOffset: "3px",
-                    textDecorationColor: "rgba(0,255,204,0.5)",
-                    "&:hover": { background: "rgba(0,255,204,0.2)", textDecorationColor: "#00ffcc" }
+                    textDecorationColor: article.match_pct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.5)",
+                    "&:hover": { background: article.match_pct >= 95 ? "rgba(255,215,0,0.2)" : "rgba(0,255,204,0.2)" },
                   }}>
-                    {article.match_pct}% MATCH
+                    {article.match_pct >= 95 ? `★ ${article.match_pct}% RARE MATCH` : `${article.match_pct}% MATCH`}
                   </Typography>
                 </Tooltip>
               ) : (
@@ -209,16 +218,17 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
               {article.read_time_minutes != null && (() => {
                 const mins = parseInt(article.read_time_minutes, 10);
-                let color = "#f39c12"; // Yellow/Orange
-                let bg = "rgba(243, 156, 18, 0.1)";
-                let border = "rgba(243, 156, 18, 0.3)";
-                if (mins <= 5) { color = "#4ade80"; bg = "rgba(74, 222, 128, 0.1)"; border = "rgba(74, 222, 128, 0.3)"; }
-                else if (mins > 15) { color = "#f87171"; bg = "rgba(248, 113, 113, 0.1)"; border = "rgba(248, 113, 113, 0.3)"; }
+                let color = C.warning;
+                let legend = "Medium read (6 to 15 min)";
+                if (mins <= 5) { color = C.success; legend = "Quick read (5 min or less)"; }
+                else if (mins > 15) { color = C.error; legend = "Long read (over 15 min)"; }
                 return (
-                  <Typography sx={{ display: "flex", alignItems: "center", fontFamily: C.fontMono, fontSize: "0.65rem", color: color, background: bg, border: `1px solid ${border}`, px: 1.2, py: 0.4, borderRadius: "6px" }}>
-                    <AccessTime sx={{ fontSize: 12, mr: 0.5 }} />
-                    {mins} min read
-                  </Typography>
+                  <Tooltip title={legend} placement="top">
+                    <Typography sx={{ display: "flex", alignItems: "center", fontFamily: C.fontMono, fontSize: "0.65rem", color, background: `${color}1a`, border: `1px solid ${color}4d`, px: 1.2, py: 0.4, borderRadius: "6px", cursor: "help" }}>
+                      <AccessTime sx={{ fontSize: 12, mr: 0.5 }} />
+                      {mins} min read
+                    </Typography>
+                  </Tooltip>
                 );
               })()}
               
@@ -235,7 +245,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               )}
             </Box>
 
-            {/* Title — typewriter runs only on top card; others are blank */}
+            {/* Title, typewriter runs only on top card, others are blank */}
             <Typography sx={{
               fontFamily: C.fontPixel,
               fontSize: "0.72rem",
@@ -247,7 +257,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               {isTop && !done && <span className="cursor-blink" />}
             </Typography>
 
-            {/* Summary description — fades in only after title is done typing */}
+            {/* Summary description, fades in only after title is done typing */}
             <Box sx={{ opacity: done ? 1 : 0, transition: "opacity 0.5s ease" }}>
               {(() => {
                 const lines = article.description 
@@ -353,10 +363,10 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
 
         {/* Swipe feedback overlays */}
         <motion.div style={{ opacity: likeOpacity, position: "absolute", top: 24, right: 24, pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #4ade80", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#4ade80", transform: "rotate(12deg)" }}>LIKE</Box>
+          <Box sx={{ border: `3px solid ${C.success}`, borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: C.success, transform: "rotate(12deg)" }}>LIKE</Box>
         </motion.div>
         <motion.div style={{ opacity: skipOpacity, position: "absolute", top: 24, left: 24, pointerEvents: "none", zIndex: 10 }}>
-          <Box sx={{ border: "3px solid #f87171", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#f87171", transform: "rotate(-12deg)" }}>DISLIKE</Box>
+          <Box sx={{ border: `3px solid ${C.error}`, borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: C.error, transform: "rotate(-12deg)" }}>DISLIKE</Box>
         </motion.div>
         <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
           <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>

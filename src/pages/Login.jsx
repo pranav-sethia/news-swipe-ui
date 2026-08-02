@@ -180,7 +180,7 @@ export default function Login() {
             value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
 
           {error && (
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.75rem', color: '#f87171', mt: 1.5, textAlign: 'center' }}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: '0.75rem', color: C.error, mt: 1.5, textAlign: 'center' }}>
               {error}
             </Typography>
           )}

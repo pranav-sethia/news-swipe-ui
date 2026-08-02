@@ -108,7 +108,7 @@ export default function Register() {
           value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
 
         {error && (
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.8rem', color: '#f87171', mt: 1.5, textAlign: 'center', fontWeight: 600 }}>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.8rem', color: C.error, mt: 1.5, textAlign: 'center', fontWeight: 600 }}>
             {error}
           </Typography>
         )}

@@ -128,13 +128,34 @@ export function ActionHint({ icon, label, color }) {
   );
 }
 
-export function KeyHint({ icon, label }) {
+export function KeyHint({ icon, label, code }) {
+  const [active, setActive] = useState(false);
+
+  React.useEffect(() => {
+    if (!code) return;
+    const handleDown = (e) => { if (e.code === code) setActive(true); };
+    const handleUp = (e) => { if (e.code === code) setActive(false); };
+    window.addEventListener("keydown", handleDown);
+    window.addEventListener("keyup", handleUp);
+    return () => {
+      window.removeEventListener("keydown", handleDown);
+      window.removeEventListener("keyup", handleUp);
+    };
+  }, [code]);
+
   return (
-    <Box sx={{ opacity: 0.4, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-      <Box sx={{ p: 1.5, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", color: "#fff" }}>
+    <Box sx={{ opacity: active ? 0.9 : 0.4, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, transition: "opacity 100ms ease" }}>
+      <Box sx={{
+        p: 1.5, borderRadius: "50%",
+        background: active ? C.orangeDim : "rgba(255,255,255,0.05)",
+        border: `1px solid ${active ? C.orange : "rgba(255,255,255,0.1)"}`,
+        display: "flex", color: active ? C.orange : "#fff",
+        transform: active ? "scale(0.92)" : "none",
+        transition: "all 100ms ease",
+      }}>
         {icon}
       </Box>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "#fff" }}>
+      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: active ? C.orange : "#fff" }}>
         {label}
       </Typography>
     </Box>

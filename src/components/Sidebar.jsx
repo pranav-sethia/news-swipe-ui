@@ -537,7 +537,12 @@ export function SavedPanel({ swipeCount, onUnliked }) {
     <>
       <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`SAVED STORIES (${liked.length})`} color={C.error} />
       <Box sx={{ mt: 1.5, mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", px: 1, py: 0.5 }}>
+        <Box sx={{
+          display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", px: 1, py: 0.5,
+          transition: `border-color 150ms ${EASE.standard}`,
+          "&:focus-within": { borderColor: C.orange },
+        }}>
           <Search sx={{ fontSize: 16, color: C.textDim, mr: 1 }} />
           <input
             type="text"

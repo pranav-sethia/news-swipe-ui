@@ -6,6 +6,9 @@ import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import App from './App.jsx';
 import Auth from './pages/Auth.jsx';
 import Onboarding from './pages/Onboarding.jsx';
+import Privacy from './pages/Privacy.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
 import MobileGate from './components/MobileGate.jsx';
 import './index.css';
@@ -42,6 +45,18 @@ const router = createBrowserRouter([
   {
     path: '/register',
     element: <Auth />,
+  },
+  {
+    path: '/privacy',
+    element: <Privacy />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPassword />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPassword />,
   },
   {
     path: '/',

@@ -372,6 +372,15 @@ export default function Auth() {
           <TextField label="Password" type="password" variant="outlined" fullWidth margin="normal"
             value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
 
+          {mode === "login" && (
+            <Typography
+              onClick={() => navigate("/forgot-password")}
+              sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "right", mt: 1, cursor: "pointer", "&:hover": { color: "#fff" } }}
+            >
+              Forgot password?
+            </Typography>
+          )}
+
           {error && (
             <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1.5, textAlign: "center" }}>
               {error}
@@ -388,6 +397,14 @@ export default function Auth() {
             }}>
             {loading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : (mode === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
           </Button>
+          {mode === "register" && (
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textAlign: "center", mt: -1.5, mb: 2 }}>
+              By creating an account you agree to our{" "}
+              <Box component="span" onClick={() => navigate("/privacy")} sx={{ color: C.textDim, cursor: "pointer", "&:hover": { color: "#fff" } }}>
+                Privacy Policy
+              </Box>.
+            </Typography>
+          )}
         </form>
 
         <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 3 }} />

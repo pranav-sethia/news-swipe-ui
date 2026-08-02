@@ -250,40 +250,49 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       <AnimatePresence>
         {showAuthModal && (
           <Modal open={true} onClose={() => setShowAuthModal(false)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-            <Box component={motion.div} 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            <Box component={motion.div}
+              initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.2, ease: EASE.decisive }}
               sx={{
-                background: 'linear-gradient(180deg, rgba(15,15,15,0.9) 0%, rgba(5,5,5,0.95) 100%)', 
-                backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)',
-                border: '1px solid rgba(0, 255, 204, 0.2)', borderRadius: 6, p: { xs: 4, sm: 5 }, maxWidth: 420, width: '90%',
-                textAlign: 'center', boxShadow: '0 20px 80px rgba(0,255,204,0.1)', outline: 'none', position: 'relative',
+                background: 'linear-gradient(160deg, rgba(24,24,24,0.98) 0%, rgba(13,13,13,0.98) 100%)',
+                backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                border: `1px solid ${C.border}`, borderRadius: '20px', p: { xs: 3.5, sm: 4.5 }, maxWidth: 420, width: '90%',
+                textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)', outline: 'none', position: 'relative',
                 overflow: 'hidden'
               }}
             >
-              {/* Top ambient glow */}
-              <Box sx={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', width: 200, height: 100, background: 'rgba(0,255,204,0.15)', filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }} />
+              {/* Top ambient glow, AI-feature accent per the reserved teal convention */}
+              <Box sx={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', width: 200, height: 100, background: 'rgba(0,255,204,0.12)', filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
-              <IconButton onClick={() => setShowAuthModal(false)} sx={{ position: 'absolute', top: 12, right: 12, color: C.textDim, '&:hover': { color: 'white' } }}>✕</IconButton>
-              
-              <Box sx={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(0,255,204,0.2) 0%, rgba(0,255,204,0.05) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 3, border: '1px solid rgba(0,255,204,0.3)', boxShadow: '0 0 20px rgba(0,255,204,0.15)' }}>
-                <LockOutlined sx={{ color: C.teal, fontSize: 30 }} />
+              <IconButton onClick={() => setShowAuthModal(false)} sx={{ position: 'absolute', top: 12, right: 12, color: C.textDim, '&:hover': { color: 'white', background: 'rgba(255,255,255,0.1)' } }}>✕</IconButton>
+
+              <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: C.tealDim, display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5, border: '1px solid rgba(0,255,204,0.3)' }}>
+                <LockOutlined sx={{ color: C.teal, fontSize: 26 }} />
               </Box>
-              
-              <Typography sx={{ fontFamily: C.fontUi, fontWeight: 800, fontSize: '1.4rem', color: 'white', mb: 1.5, letterSpacing: '-0.02em' }}>Create an account to summarize this</Typography>
-              <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.95rem', color: C.textDim, mb: 4, lineHeight: 1.6, px: 1 }}>
+
+              <Typography sx={{ fontFamily: C.fontUi, fontWeight: 800, fontSize: '1.25rem', color: 'white', mb: 1.25, letterSpacing: '-0.01em' }}>Create an account to summarize this</Typography>
+              <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.88rem', color: C.textDim, mb: 3.5, lineHeight: 1.6, px: 1 }}>
                 Guest sessions can't run AI summaries. Sign up free and your swipes and taste profile carry over automatically.
               </Typography>
-              
-              <Button 
-                fullWidth variant="contained" 
+
+              <Button
+                fullWidth variant="contained"
                 onClick={() => { navigate('/register'); onClose(); }}
-                sx={{ background: C.teal, color: 'black', fontFamily: C.fontMono, fontWeight: 700, py: 1.8, borderRadius: '50px', fontSize: '0.95rem', letterSpacing: '0.05em', boxShadow: '0 4px 14px rgba(0,255,204,0.3)', '&:hover': { background: '#00e6b8', boxShadow: '0 6px 20px rgba(0,255,204,0.4)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                sx={{
+                  background: C.orange, color: '#000', fontFamily: C.fontMono, fontWeight: 700, py: 1.5, borderRadius: '10px',
+                  fontSize: '0.8rem', letterSpacing: '0.05em', mb: 1.5,
+                  '&:hover': { background: '#e65c00' },
+                  transition: `all 200ms ${EASE.standard}`,
+                }}
               >
                 CREATE ACCOUNT
               </Button>
-              <Button onClick={() => { navigate('/login'); onClose(); }} sx={{ mt: 2.5, color: C.textDim, fontFamily: C.fontUi, fontSize: '0.85rem', textTransform: 'none', '&:hover': { color: 'white', background: 'transparent' } }}>
-                Already have an account? Log In
-              </Button>
+              <Typography
+                onClick={() => { navigate('/login'); onClose(); }}
+                sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, cursor: 'pointer', '&:hover': { color: 'white' } }}
+              >
+                Already have an account? Sign in
+              </Typography>
             </Box>
           </Modal>
         )}

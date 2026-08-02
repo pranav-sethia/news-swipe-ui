@@ -33,6 +33,8 @@ export const login = (email, password) => apiClient.post('/auth/login', { email,
 export const register = (email, password) => apiClient.post('/auth/register', { email, password });
 export const loginAsGuest = () => apiClient.post('/auth/guest');
 export const loginWithGoogle = (credential) => apiClient.post('/api/auth/google', { credential });
+export const forgotPassword = (email) => apiClient.post('/auth/forgot-password', { email });
+export const resetPassword = (token, password) => apiClient.post('/auth/reset-password', { token, password });
 
 // --- Feed ---
 export const getFeed = async () => { const { data } = await apiClient.get('/api/feed'); return data; };

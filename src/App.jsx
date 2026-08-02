@@ -10,7 +10,7 @@ import {
   Psychology, Bookmark, Settings as SettingsIcon, Search
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import * as api from "./api.js";
 import { C } from "./theme.js";
 import { MagneticBox, SectionHeader, StatBadge, ShortcutRow, Label, Mono, ActionHint, KeyHint } from "./components/SharedComponents.jsx";
@@ -21,11 +21,22 @@ import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
 import { track } from "./analytics.js";
 
+function isGuestUser() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+    return !!JSON.parse(atob(token.split(".")[1])).user?.isGuest;
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExhausted, setIsExhausted] = useState(false);
   const { logout } = useOutletContext();
+  const navigate = useNavigate();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -39,6 +50,25 @@ export default function App() {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast(message);
     toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // One-time nudge for guests once their feed has genuinely had a chance to
+  // improve, rather than leaning solely on the session countdown to convert.
+  const LIKE_MILESTONE = 5;
+  const likeCountRef = useRef(0);
+  const [showLikeBanner, setShowLikeBanner] = useState(false);
+
+  useEffect(() => {
+    if (!isGuestUser() || localStorage.getItem("hs_seen_like_milestone") === "1") return;
+    api.getDetailedStats()
+      .then((d) => {
+        likeCountRef.current = d.likes || 0;
+        if (likeCountRef.current >= LIKE_MILESTONE) {
+          localStorage.setItem("hs_seen_like_milestone", "1");
+          setShowLikeBanner(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const [undoSuccess, setUndoSuccess] = useState(false);
@@ -204,6 +234,14 @@ export default function App() {
           // Immediately pull fresh matches generated from the new taste vector
           // and seamlessly replace the stale tail-end of the queue!
           fetchFeed(false, true);
+
+          if (isGuestUser() && localStorage.getItem("hs_seen_like_milestone") !== "1") {
+            likeCountRef.current += 1;
+            if (likeCountRef.current >= LIKE_MILESTONE) {
+              localStorage.setItem("hs_seen_like_milestone", "1");
+              setShowLikeBanner(true);
+            }
+          }
         }
       })
       .catch(() => {
@@ -453,6 +491,54 @@ export default function App() {
       {/* Tutorial overlay */}
       <AnimatePresence>
         {showOnboarding && <TutorialOverlay onDismiss={dismissOnboarding} />}
+      </AnimatePresence>
+
+      {/* One-time guest conversion nudge, shown once their feed has genuinely improved */}
+      <AnimatePresence>
+        {showLikeBanner && (
+          <Box component={motion.div}
+            initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            sx={{
+              position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)",
+              zIndex: 200, width: { xs: "90vw", sm: 420 },
+              background: "linear-gradient(160deg, rgba(24,24,24,0.98) 0%, rgba(13,13,13,0.98) 100%)",
+              border: `1px solid ${C.border}`, borderRadius: "16px", p: 2.5,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,102,0,0.1)",
+              display: "flex", alignItems: "flex-start", gap: 1.5,
+            }}
+          >
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.orange, letterSpacing: "0.06em", mb: 0.5 }}>
+                YOUR FEED JUST GOT SHARPER
+              </Typography>
+              <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(232,232,232,0.8)", lineHeight: 1.5, mb: 1.5 }}>
+                5 likes in, and the feed already knows more about what you want. Create a free account to keep it, no guest countdown.
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                <Button
+                  onClick={() => { setShowLikeBanner(false); navigate("/register"); }}
+                  sx={{
+                    background: C.orange, color: "#000", fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.7rem",
+                    px: 2, py: 0.8, borderRadius: "8px", letterSpacing: "0.05em",
+                    "&:hover": { background: "#e65c00" },
+                  }}
+                >
+                  CREATE ACCOUNT
+                </Button>
+                <Typography
+                  onClick={() => setShowLikeBanner(false)}
+                  sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, cursor: "pointer", "&:hover": { color: "#fff" } }}
+                >
+                  Not now
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={() => setShowLikeBanner(false)} size="small" sx={{ color: C.textDim, "&:hover": { color: "#fff" } }}>
+              <Typography sx={{ fontSize: "1rem", lineHeight: 1 }}>✕</Typography>
+            </IconButton>
+          </Box>
+        )}
       </AnimatePresence>
 
       {/* Toast: surfaces failures that used to be silent (swipe/undo not saving) */}

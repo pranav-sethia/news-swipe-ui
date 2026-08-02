@@ -67,7 +67,23 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
   const [panelMounted, setPanelMounted] = useState(false);
   const closeTimeoutRef = useRef(null);
   const sidebarRef = useRef(null);
+  const iconColRef = useRef(null);
   const navigate = useNavigate();
+
+  // Measure the icon column's real content height instead of hand-calculating
+  // a pixel guess, so the collapsed dock can't drift out of proportion as nav
+  // items or badges change. Kept as a number (not "auto") so it stays
+  // transitionable when the dock expands/collapses.
+  const [collapsedHeight, setCollapsedHeight] = useState(280);
+  useEffect(() => {
+    if (!iconColRef.current) return;
+    const el = iconColRef.current;
+    const measure = () => setCollapsedHeight(el.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (activeTab) {
@@ -125,12 +141,19 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
           overflow: "hidden",
           boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)",
           width: activeTab ? 420 : 72,
-          height: activeTab ? "80vh" : 96 + navItems.length * 64,
+          height: activeTab ? "80vh" : `${collapsedHeight}px`,
           transition: `width 420ms ${EASE.decisive}, height 420ms ${EASE.decisive}`,
         }}
       >
         {/* Icon Column */}
-        <Box data-tour="sidebar" sx={{ width: 72, minWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", py: 3, position: "relative" }}>
+        <Box data-tour="sidebar" sx={{ width: 72, minWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+          {/* Ref'd on this inner wrapper, not the icon column itself: the
+              icon column is a flex item of the row-direction sidebar box and
+              stretches to fill its height by default, which would make a
+              measurement of it circular (it'd just report whatever height
+              the sidebar currently has). This wrapper's height stays purely
+              content-driven regardless of that. */}
+          <Box ref={iconColRef} sx={{ py: 3, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
           <Box sx={{
             width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 16px ${C.orange}`, mb: 3,
             animation: "brandPulse 2s ease-in-out infinite",
@@ -171,6 +194,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
                 </Tooltip>
               );
             })}
+          </Box>
           </Box>
         </Box>
 

@@ -61,6 +61,12 @@ export default function App() {
 
   // Ambient cursor glow, smoothed rather than tracking 1:1, so it trails
   // gently instead of reading as a flat circle glued to the pointer.
+  // Moved via transform on dedicated fixed-size layers (GPU compositing only)
+  // rather than animating a radial-gradient's center point, which forces a
+  // full repaint of that background every frame and was the main source of
+  // the jank under the nav bar's backdrop-blur.
+  const orangeGlowRef = useRef(null);
+  const tealGlowRef = useRef(null);
   useEffect(() => {
     let target = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let current = { ...target };
@@ -72,8 +78,12 @@ export default function App() {
     const tick = () => {
       current.x += (target.x - current.x) * 0.08;
       current.y += (target.y - current.y) * 0.08;
-      document.documentElement.style.setProperty('--mouse-x', `${current.x}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${current.y}px`);
+      if (orangeGlowRef.current) {
+        orangeGlowRef.current.style.transform = `translate3d(${current.x - 450}px, ${current.y - 450}px, 0)`;
+      }
+      if (tealGlowRef.current) {
+        tealGlowRef.current.style.transform = `translate3d(${current.x - 160}px, ${current.y - 160}px, 0)`;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -227,10 +237,22 @@ export default function App() {
         height: "100vh", width: "100vw", position: "relative", zIndex: 1,
         display: "flex", flexDirection: "column",
         backgroundColor: "transparent",
-        backgroundImage: `radial-gradient(900px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.1), transparent 40%), radial-gradient(320px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(0,255,204,0.05), transparent 60%), linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`,
-        backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
+        backgroundImage: `linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`,
+        backgroundSize: "32px 32px, 32px 32px",
         overflow: "hidden",
       }}>
+      {/* Ambient cursor glow: fixed-size layers moved via transform only, so
+          the mouse-follow animation never repaints the gradient itself */}
+      <Box ref={orangeGlowRef} sx={{
+        position: "absolute", top: 0, left: 0, width: 900, height: 900,
+        background: "radial-gradient(circle, rgba(255,102,0,0.1), transparent 40%)",
+        pointerEvents: "none", zIndex: 0, willChange: "transform",
+      }} />
+      <Box ref={tealGlowRef} sx={{
+        position: "absolute", top: 0, left: 0, width: 320, height: 320,
+        background: "radial-gradient(circle, rgba(0,255,204,0.05), transparent 60%)",
+        pointerEvents: "none", zIndex: 0, willChange: "transform",
+      }} />
       {/* Nav */}
       <Box sx={{
         display: "flex", alignItems: "center",

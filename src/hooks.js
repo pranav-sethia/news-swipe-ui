@@ -1,4 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
+import { MOBILE_BREAKPOINT } from './theme.js';
+
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  return isMobile;
+}
 
 export function useTypewriter(text, speed = 28, active = true) {
   const [displayed, setDisplayed] = useState("");

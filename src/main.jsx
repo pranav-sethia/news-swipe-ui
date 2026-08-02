@@ -7,9 +7,11 @@ import App from './App.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
+import MobileGate from './components/MobileGate.jsx';
 import './index.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GOOGLE_CLIENT_ID } from './config.js';
+import { C } from './theme.js';
 
 // Create a simple dark theme
 const darkTheme = createTheme({
@@ -20,7 +22,7 @@ const darkTheme = createTheme({
       paper: 'rgba(20, 20, 20, 0.85)',
     },
     primary: {
-      main: '#00e5ff', // A cyan/blue color
+      main: C.teal,
     },
   },
   typography: {
@@ -55,7 +57,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <ThemeProvider theme={darkTheme}>
         <CssBaseline />
-        <RouterProvider router={router} />
+        <MobileGate>
+          <RouterProvider router={router} />
+        </MobileGate>
       </ThemeProvider>
     </GoogleOAuthProvider>
   </React.StrictMode>,

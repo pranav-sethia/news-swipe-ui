@@ -8,7 +8,7 @@ import * as api from "../api.js";
 import { C } from "../theme.js";
 import { MagneticBox, SectionHeader, ShortcutRow, Label, Mono } from "./SharedComponents.jsx";
 
-export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowOnboarding, onLogout }) {
+export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setShowOnboarding, onLogout }) {
   const [activeTab, setActiveTab] = useState(null);
   const [renderedTab, setRenderedTab] = useState(null);
   const sidebarRef = useRef(null);
@@ -160,7 +160,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, handleReset, setShowO
               <Box>
                 <SectionHeader icon={<SettingsIcon sx={{ fontSize: 16 }} />} label="SETTINGS" />
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mt: 3, mb: 1 }}>AI Profile Management</Typography>
-                <Button fullWidth variant="outlined" onClick={() => handleReset()} sx={{ color: "#f87171", borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: "#f87171", background: "rgba(248,113,113,0.1)" }, mb: 3 }}>
+                <Button fullWidth variant="outlined" onClick={() => onRequestReset()} sx={{ color: "#f87171", borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: "#f87171", background: "rgba(248,113,113,0.1)" }, mb: 3 }}>
                   Nuclear Reset
                 </Button>
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mb: 1 }}>App Interface</Typography>
@@ -389,7 +389,7 @@ export function IdentityPanel({ swipeCount, user, isGuest, navigate, onLogout })
               boxShadow: `0 4px 15px rgba(255,102,0,0.15)`,
               "&:hover": { filter: "brightness(1.1)", boxShadow: `0 6px 20px rgba(255,102,0,0.4)` }
             }}>
-            CLAIM ACCOUNT
+            CREATE ACCOUNT
           </Button>
         </Box>
       ) : (

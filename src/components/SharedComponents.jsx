@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Box, Typography } from "@mui/material";
-import { motion } from "framer-motion";
 import { C } from "../theme.js";
+import { EASE } from "../motion.js";
 
 export function MagneticBox({ children, onClick, sx }) {
   const ref = useRef(null);
@@ -21,16 +21,15 @@ export function MagneticBox({ children, onClick, sx }) {
 
   return (
     <Box
-      component={motion.div}
       ref={ref}
       onMouseMove={handleMouse}
       onMouseLeave={reset}
-      animate={{ x: position.x, y: position.y }}
-      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
       onClick={onClick}
       sx={{
         display: "inline-flex",
         cursor: "pointer",
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: `transform 220ms ${EASE.bounce}`,
         ...sx
       }}
     >

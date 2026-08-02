@@ -18,20 +18,7 @@ import { NewsCard, TerminalLoader, ExhaustedCard } from "./components/NewsCard.j
 import { ExpandableSidebar } from "./components/Sidebar.jsx";
 import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
-import Particles, { initParticlesEngine } from "@tsparticles/react";
-import { loadSlim } from "@tsparticles/slim";
 
-// ---------------------------------------------------------------------------
-// Hook: Typewriter Effect (rAF-based, no stale closures)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Component: Magnetic Box (Micro-interaction)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Main App
-// ---------------------------------------------------------------------------
 export default function App() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +30,14 @@ export default function App() {
   const [hasError, setHasError] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [lastSwiped, setLastSwiped] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = useCallback((message) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast(message);
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
+  }, []);
 
   const handleUndo = useCallback(async () => {
     if (!lastSwiped) return;
@@ -54,17 +49,10 @@ export default function App() {
       setSwipeCount(p => p + 1);
     } catch (err) {
       console.error("Undo failed", err);
+      showToast("Undo didn't save. Try again.");
     }
-  }, [lastSwiped]);
+  }, [lastSwiped, showToast]);
 
-  const [particlesInit, setParticlesInit] = useState(false);
-  useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-    }).then(() => {
-      setParticlesInit(true);
-    });
-  }, []);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -82,6 +70,8 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
       if (e.key === "c" || e.key === "C") {
         if (!isResetModalOpen && !showOnboarding) setIsCommentsOpen(prev => !prev);
       }
@@ -186,12 +176,12 @@ export default function App() {
         }
       })
       .catch(() => {
-        // If the swipe fails to save, revert the UI state
-        setArticles((prev) => [...prev, swipedArticle]);
+        // If the swipe fails to save, we just log it instead of jarringly reverting the UI state
         setLastSwiped(null); // Clear undo state for this failed swipe
-        console.error("Failed to save swipe, reverting card.");
+        console.error("Failed to save swipe.");
+        showToast("That swipe didn't save. Check your connection.");
       });
-  }, [fetchFeed]);
+  }, [fetchFeed, showToast]);
 
   const handleReset = async () => {
     try {
@@ -211,30 +201,7 @@ export default function App() {
 
   return (
     <>
-      {particlesInit && (
-        <Particles
-          id="tsparticles"
-          options={{
-            background: { color: { value: "transparent" } },
-            fpsLimit: 60,
-            interactivity: {
-              events: { onHover: { enable: true, mode: "grab" }, resize: true },
-              modes: { grab: { distance: 250, links: { opacity: 0.7 } } },
-            },
-            particles: {
-              color: { value: ["#ff6600", "#00ffcc"] },
-              links: { color: "rgba(255, 102, 0, 0.6)", distance: 180, enable: true, opacity: 0.4, width: 1.2 },
-              move: { enable: true, speed: 0.7, random: true, outModes: { default: "out" } },
-              number: { density: { enable: true, area: 800 }, value: 75 },
-              opacity: { value: { min: 0.2, max: 0.7 } },
-              shape: { type: "circle" },
-              size: { value: { min: 1.5, max: 3 } },
-            },
-            detectRetina: true,
-          }}
-          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }}
-        />
-      )}
+
       <Box sx={{
         height: "100vh", width: "100vw", position: "relative", zIndex: 1,
         display: "flex", flexDirection: "column",
@@ -271,25 +238,29 @@ export default function App() {
       <ExpandableSidebar 
         swipeCount={swipeCount} 
         onUnliked={() => setSwipeCount((p) => p + 1)} 
-        handleReset={handleReset} 
+        handleReset={handleReset}
+        onRequestReset={() => setIsResetModalOpen(true)}
         setShowOnboarding={setShowOnboarding} 
         onLogout={logout}
       />
 
       {/* Center */}
       <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
-        {/* Only show loader when the stack is truly empty. Background fetches are invisible — no glitch. */}
-        {hasError ? (
-          <Box sx={{ textAlign: "center", maxWidth: 400 }}>
-            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: "#f39c12", mb: 3, lineHeight: 2 }}>NETWORK ERROR</Typography>
-            <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, mb: 4, fontSize: "0.9rem" }}>{">"} Could not connect to the API. Check your connection or server status.</Typography>
-            <Button variant="outlined" onClick={() => fetchFeed(true)}
-              sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}>
-              RETRY CONNECTION
-            </Button>
-          </Box>
-        ) : articles.length === 0 ? (
-          isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
+        {/* Only fall back to a full-screen state when there are truly no cards on
+            screen. A background prefetch failing must never blank out cards the
+            user still has to swipe (hasError alone used to gate this, which did
+            exactly that). */}
+        {articles.length === 0 ? (
+          hasError ? (
+            <Box sx={{ textAlign: "center", maxWidth: 400 }}>
+              <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.warning, mb: 3, lineHeight: 2 }}>NETWORK ERROR</Typography>
+              <Typography sx={{ fontFamily: C.fontMono, color: C.textDim, mb: 4, fontSize: "0.9rem" }}>{">"} Could not connect to the API. Check your connection or server status.</Typography>
+              <Button variant="outlined" onClick={() => fetchFeed(true)}
+                sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}>
+                RETRY CONNECTION
+              </Button>
+            </Box>
+          ) : isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
         ) : (
           <AnimatePresence mode="popLayout">
             {/* Only render top 3 cards — rest stay invisible until they become top 3 */}
@@ -424,38 +395,19 @@ export default function App() {
       <AnimatePresence>
         {showOnboarding && <TutorialOverlay onDismiss={dismissOnboarding} />}
       </AnimatePresence>
+
+      {/* Toast: surfaces failures that used to be silent (swipe/undo not saving) */}
+      {toast && (
+        <Box sx={{
+          position: "fixed", bottom: 90, left: "50%",
+          background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px",
+          px: 3, py: 1.5, zIndex: 200, boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+          animation: "toastIn 0.25s ease-out",
+        }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim }}>{toast}</Typography>
+        </Box>
+      )}
     </Box>
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Expandable Sidebar (Dock)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Taste Profile Panel
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Liked Panel (with search)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// News Card (with keyboard support + richer no-image fallback)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Loading / Exhausted States
-// ---------------------------------------------------------------------------
-
-
-// ---------------------------------------------------------------------------
-// Reusable Small Components
-// ---------------------------------------------------------------------------
-
-
-
-
-
-

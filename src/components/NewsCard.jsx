@@ -73,7 +73,6 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
   const fallbackBgIndex = article.id ? (article.id % 5) : 0;
   const isFallback = !article.image_url || imageFailed;
   const imageUrl = isFallback ? `/hacker_bgs/bg_${fallbackBgIndex}.png` : article.image_url;
-  const showImageSide = true; // We always show the image side now to standardize the cards
 
   return (
     <Box
@@ -111,27 +110,25 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: showImageSide ? "1.2fr 1fr" : "1fr" },
-        gridTemplateRows: { xs: showImageSide ? "200px 1fr" : "1fr", md: "1fr" },
+        gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr" },
+        gridTemplateRows: { xs: "200px 1fr", md: "1fr" },
         position: "relative",
       }}>
         {/* Image OR decorative left panel */}
-        {showImageSide && (
-          <Box sx={{ position: "relative", overflow: "hidden" }}>
-            <Box component="img" src={imageUrl} alt={article.title}
-              onError={() => setImageFailed(true)}
-              sx={{ 
-                width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
-                ...(isFallback && article.id && {
-                  filter: `hue-rotate(${(article.id * 37) % 360}deg) saturate(${(article.id % 2) ? 1.5 : 1})`,
-                  transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
-                  objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
-                })
-              }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
-          </Box>
-        )}
+        <Box sx={{ position: "relative", overflow: "hidden" }}>
+          <Box component="img" src={imageUrl} alt={article.title}
+            onError={() => setImageFailed(true)}
+            sx={{
+              width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
+              ...(isFallback && article.id && {
+                filter: `hue-rotate(${(article.id * 37) % 360}deg) saturate(${(article.id % 2) ? 1.5 : 1})`,
+                transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
+                objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
+              })
+            }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
+        </Box>
 
         {/* Content panel */}
         <Box sx={{ 
@@ -241,10 +238,10 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             {/* Title — typewriter runs only on top card; others are blank */}
             <Typography sx={{
               fontFamily: C.fontPixel,
-              fontSize: showImageSide ? "0.72rem" : "0.85rem",
+              fontSize: "0.72rem",
               color: "#f5f5f5", lineHeight: 1.8, mb: 2,
-              minHeight: showImageSide ? "5rem" : "5.5rem",
-              maxWidth: showImageSide ? "100%" : "95%",
+              minHeight: "5rem",
+              maxWidth: "100%",
             }}>
               {displayed}
               {isTop && !done && <span className="cursor-blink" />}
@@ -261,9 +258,9 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
 
                 if (isBulleted) {
                   return (
-                    <Box sx={{ 
+                    <Box sx={{
                       display: "flex", flexDirection: "column", gap: 1,
-                      maxWidth: showImageSide ? "100%" : "90%"
+                      maxWidth: "100%"
                     }}>
                       {lines.map((line, idx) => {
                         const cleanLine = line.replace(/^[-*•\s]+/, '');
@@ -272,7 +269,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                             <Typography sx={{ color: C.orange, fontSize: "0.7rem", mt: "2px" }}>▸</Typography>
                             <Typography sx={{
                               fontFamily: C.fontMono,
-                              fontSize: showImageSide ? "0.82rem" : "0.86rem",
+                              fontSize: "0.82rem",
                               color: "rgba(220,220,220,0.9)",
                               lineHeight: 1.4,
                               letterSpacing: "0.2px",
@@ -295,16 +292,16 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 return (
                   <Typography sx={{
                     fontFamily: C.fontMono,
-                    fontSize: showImageSide ? "0.78rem" : "0.82rem",
+                    fontSize: "0.78rem",
                     color: "rgba(200,200,200,0.55)",
                     lineHeight: 1.7,
                     display: "-webkit-box",
-                    WebkitLineClamp: showImageSide ? 3 : 5,
+                    WebkitLineClamp: 3,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
                     borderLeft: `2px solid rgba(255,102,0,0.25)`,
                     pl: 2, ml: "1px",
-                    maxWidth: showImageSide ? "100%" : "90%",
+                    maxWidth: "100%",
                   }}>
                     {article.description}
                   </Typography>
@@ -364,8 +361,6 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
           <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>
         </motion.div>
-
-        <Box sx={{ display: "none" }}></Box>
       </Box>
     </Box>
   );

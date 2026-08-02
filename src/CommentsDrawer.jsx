@@ -5,19 +5,7 @@ import { QuestionAnswer, AutoAwesome, LockOutlined } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCommentSummary } from "./api.js";
 import { useNavigate } from "react-router-dom";
-
-const C = {
-  orange: "#ff6600",
-  orangeDim: "rgba(255,102,0,0.12)",
-  bg: "#080808",
-  card: "#0d0d0d",
-  panel: "rgba(10,10,10,0.88)",
-  border: "rgba(255,102,0,0.14)",
-  textDim: "rgba(232,232,232,0.5)",
-  fontPixel: "'Press Start 2P', monospace",
-  fontMono: "'Share Tech Mono', monospace",
-  fontUi: "'Inter', sans-serif",
-};
+import { C } from "./theme.js";
 
 export default function CommentsDrawer({ open, onClose, hnId }) {
   const [comments, setComments] = useState([]);
@@ -284,7 +272,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 onClick={() => { navigate('/register'); onClose(); }}
                 sx={{ background: '#00ffcc', color: 'black', fontFamily: C.fontMono, fontWeight: 700, py: 1.8, borderRadius: '50px', fontSize: '0.95rem', letterSpacing: '0.05em', boxShadow: '0 4px 14px rgba(0,255,204,0.3)', '&:hover': { background: '#00e6b8', boxShadow: '0 6px 20px rgba(0,255,204,0.4)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
               >
-                CREATE FREE ACCOUNT
+                CREATE ACCOUNT
               </Button>
               <Button onClick={() => { navigate('/login'); onClose(); }} sx={{ mt: 2.5, color: C.textDim, fontFamily: C.fontUi, fontSize: '0.85rem', textTransform: 'none', '&:hover': { color: 'white', background: 'transparent' } }}>
                 Already have an account? Log In

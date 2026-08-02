@@ -25,7 +25,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       if (!token) return true;
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload.user && payload.user.isGuest;
-    } catch (e) {
+    } catch {
       return true;
     }
   };
@@ -269,9 +269,9 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 <LockOutlined sx={{ color: C.teal, fontSize: 30 }} />
               </Box>
               
-              <Typography sx={{ fontFamily: C.fontUi, fontWeight: 800, fontSize: '1.4rem', color: 'white', mb: 1.5, letterSpacing: '-0.02em' }}>Unlock AI Summaries</Typography>
+              <Typography sx={{ fontFamily: C.fontUi, fontWeight: 800, fontSize: '1.4rem', color: 'white', mb: 1.5, letterSpacing: '-0.02em' }}>Create an account to summarize this</Typography>
               <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.95rem', color: C.textDim, mb: 4, lineHeight: 1.6, px: 1 }}>
-                Create a free account to instantly summarize complex discussions and sync your AI taste profile across devices.
+                Guest sessions can't run AI summaries. Sign up free and your swipes and taste profile carry over automatically.
               </Typography>
               
               <Button 

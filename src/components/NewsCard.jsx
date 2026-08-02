@@ -388,6 +388,16 @@ export function TerminalLoader() {
 }
 
 export function ExhaustedCard({ onReset }) {
+  const isGuest = (() => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return false;
+      return !!JSON.parse(atob(token.split(".")[1])).user?.isGuest;
+    } catch {
+      return false;
+    }
+  })();
+
   return (
     <Box sx={{ textAlign: "center", maxWidth: 400 }}>
       <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.textDim, mb: 3, lineHeight: 2 }}>FEED EXHAUSTED</Typography>
@@ -396,6 +406,11 @@ export function ExhaustedCard({ onReset }) {
         sx={{ fontFamily: C.fontMono, color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim } }}>
         RESET &amp; RELOAD
       </Button>
+      {isGuest && (
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.textDim, mt: 3 }}>
+          Guest tip: <Link href="/register" sx={{ color: C.orange, cursor: "pointer" }}>create an account</Link> to keep unlocking fresh matches from a saved profile.
+        </Typography>
+      )}
     </Box>
   );
 }

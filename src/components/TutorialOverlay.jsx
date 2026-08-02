@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { C } from "../theme.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
 export const TOUR_STEPS = [
   {
     title: "Welcome to HackerSwipe",

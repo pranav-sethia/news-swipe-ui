@@ -45,7 +45,12 @@ export function TutorialOverlay({ onDismiss }) {
   const visibleSteps = TOUR_STEPS.filter(s => !s.desktopOnly || !isMobile);
   const current = visibleSteps[step];
   const isLast = step === visibleSteps.length - 1;
-  const next = () => isLast ? onDismiss() : setStep(s => s + 1);
+  // Clamped rather than a plain +1/-1: the previous tooltip stays mounted and
+  // clickable during its exit animation, so a click landing on it while the
+  // next one is already animating in can fire this twice in a row and walk
+  // `step` past the end of visibleSteps, crashing the whole page.
+  const next = () => isLast ? onDismiss() : setStep(s => Math.min(s + 1, visibleSteps.length - 1));
+  const back = () => setStep(s => Math.max(s - 1, 0));
 
   // Continually track the element's bounding box
   useEffect(() => {
@@ -236,7 +241,7 @@ export function TutorialOverlay({ onDismiss }) {
             </Button>
             <Box sx={{ display: "flex", gap: 1 }}>
               {step > 0 && (
-                <Button onClick={() => setStep(s => s - 1)} size="small"
+                <Button onClick={back} size="small"
                   sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: C.textDim, textTransform: "none", px: 1.5, "&:hover": { background: "rgba(255,255,255,0.05)" } }}>
                   Back
                 </Button>

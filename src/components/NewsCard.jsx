@@ -358,6 +358,27 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 COMMENTS
               </Button>
             )}
+            {article.hn_id && (
+              <Tooltip title="Open the real discussion on Hacker News" placement="top">
+                <Button
+                  component="a"
+                  href={`https://news.ycombinator.com/item?id=${article.hn_id}`}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  sx={{
+                    minWidth: 0, px: 1.2, py: 1,
+                    fontFamily: C.fontMono, fontSize: "0.65rem", fontWeight: 700, color: C.orange,
+                    background: "rgba(255,102,0,0.05)",
+                    border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "8px", textTransform: "none",
+                    transition: "all 0.2s ease",
+                    "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.15)", transform: "scale(1.05)" },
+                    "&:active": { transform: "scale(0.98)" }
+                  }}
+                >
+                  HN
+                </Button>
+              </Tooltip>
+            )}
           </Box>
         </Box>
 

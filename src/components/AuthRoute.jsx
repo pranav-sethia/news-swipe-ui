@@ -20,8 +20,9 @@ const AuthRoute = () => {
   };
 
   if (!token || isTokenExpired(token)) {
+    const hadToken = !!token;
     if (token) localStorage.removeItem('token');
-    return <Navigate to="/login" replace />;
+    return <Navigate to={hadToken ? '/login?expired=true' : '/login'} replace />;
   }
 
   return <Outlet context={{ logout: handleLogout }} />;

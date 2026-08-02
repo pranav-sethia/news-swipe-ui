@@ -116,6 +116,12 @@ html, body, #root {
   50% { transform: scale(1.2); opacity: 1; }
 }
 
+/* Dropdown entrance (auth status pill) */
+@keyframes dropdownIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* Undo success confirmation */
 @keyframes undoConfirm {
   0% { transform: scale(0.8); opacity: 0; }
@@ -127,6 +133,12 @@ html, body, #root {
 @keyframes radarGrow {
   from { transform: scale(0); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+/* Taste radar idle breathing pulse */
+@keyframes radarBreathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
 }
 
 /* Archetype card first-reveal */

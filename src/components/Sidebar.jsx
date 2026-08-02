@@ -125,7 +125,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
           overflow: "hidden",
           boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)",
           width: activeTab ? 420 : 72,
-          height: activeTab ? "80vh" : 320,
+          height: activeTab ? "80vh" : 96 + navItems.length * 64,
           transition: `width 420ms ${EASE.decisive}, height 420ms ${EASE.decisive}`,
         }}
       >
@@ -136,7 +136,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
             animation: "brandPulse 2s ease-in-out infinite",
           }} />
 
-          <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center", flexGrow: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center" }}>
             {navItems.map((item, index) => {
               const isActive = activeTab === item.id;
               return (
@@ -245,8 +245,20 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
   );
 }
 
+const CATEGORY_SHORT_LABEL = {
+  "Software Engineering": "SWE",
+  "Hardware & Systems": "HW",
+  "Artificial Intelligence": "AI",
+  "Startups & VC": "VC",
+  "Cybersecurity": "SEC",
+  "Business & Finance": "BIZ",
+  "Science & Space": "SCI",
+  "Design & UI/UX": "UX",
+  "Other": "OTH",
+};
+
 function TasteRadar({ profile }) {
-  const size = 210, cx = size / 2, cy = size / 2, R = 74;
+  const size = 236, cx = size / 2, cy = size / 2, R = 82;
   const maxPct = Math.max(1, ...profile.map((p) => p.percentage));
   const valueFor = (cat) => {
     const entry = profile.find((p) => p.category === cat);
@@ -256,41 +268,78 @@ function TasteRadar({ profile }) {
     const angle = (i / CATEGORY_ORDER.length) * 2 * Math.PI - Math.PI / 2;
     return [cx + R * frac * Math.cos(angle), cy + R * frac * Math.sin(angle)];
   };
-  const dataPoints = CATEGORY_ORDER.map((cat, i) => axisPoint(i, valueFor(cat)).join(",")).join(" ");
+  const dataVertices = CATEGORY_ORDER.map((cat, i) => axisPoint(i, valueFor(cat)));
+  const dataPoints = dataVertices.map((p) => p.join(",")).join(" ");
   const ring = (frac) => CATEGORY_ORDER.map((_, i) => axisPoint(i, frac).join(",")).join(" ");
   const topCategory = profile.length > 0
     ? profile.reduce((max, p) => (p.percentage > max.percentage ? p : max), profile[0]).category
     : null;
   const strokeColor = topCategory ? CATEGORY_COLORS[topCategory] : C.orange;
+  const gradientId = "radarFill";
+  const glowId = "radarGlow";
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", my: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", my: 1 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <radialGradient id={gradientId} cx="50%" cy="50%" r="65%">
+            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.38" />
+            <stop offset="100%" stopColor={strokeColor} stopOpacity="0.06" />
+          </radialGradient>
+          <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
         {[0.25, 0.5, 0.75, 1].map((f) => (
-          <polygon key={f} points={ring(f)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          <polygon key={f} points={ring(f)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
         ))}
         {CATEGORY_ORDER.map((cat, i) => {
           const [x2, y2] = axisPoint(i, 1);
-          return <line key={cat} x1={cx} y1={cy} x2={x2} y2={y2} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
+          return <line key={cat} x1={cx} y1={cy} x2={x2} y2={y2} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />;
         })}
         <polygon
           points={dataPoints}
-          fill={strokeColor}
-          fillOpacity="0.15"
+          fill={`url(#${gradientId})`}
           stroke={strokeColor}
-          strokeWidth="2"
+          strokeWidth="2.25"
           strokeLinejoin="round"
-          style={{ transformOrigin: `${cx}px ${cy}px`, transformBox: "fill-box", animation: "radarGrow 700ms cubic-bezier(0.16,1,0.3,1)" }}
+          filter={`url(#${glowId})`}
+          style={{
+            transformOrigin: `${cx}px ${cy}px`, transformBox: "fill-box",
+            animation: "radarGrow 700ms cubic-bezier(0.16,1,0.3,1), radarBreathe 3.5s ease-in-out 700ms infinite",
+          }}
         />
+        {dataVertices.map(([vx, vy], i) => (
+          <circle key={i} cx={vx} cy={vy} r="3" fill={strokeColor} style={{ filter: `url(#${glowId})` }} />
+        ))}
         {CATEGORY_ORDER.map((cat, i) => {
-          const [lx, ly] = axisPoint(i, 1.22);
+          const [lx, ly] = axisPoint(i, 1.26);
+          const isTop = cat === topCategory;
           return (
-            <text key={cat} x={lx} y={ly} fill="rgba(255,255,255,0.35)" fontSize="7" fontFamily={C.fontMono} textAnchor="middle" dominantBaseline="middle">
-              {cat.split(" ")[0].slice(0, 4).toUpperCase()}
+            <text
+              key={cat} x={lx} y={ly}
+              fill={isTop ? strokeColor : "rgba(255,255,255,0.5)"}
+              fontSize={isTop ? "11" : "9.5"}
+              fontWeight={isTop ? "700" : "500"}
+              fontFamily={C.fontMono}
+              textAnchor="middle"
+              dominantBaseline="middle"
+            >
+              {CATEGORY_SHORT_LABEL[cat] || cat.slice(0, 3).toUpperCase()}
             </text>
           );
         })}
       </svg>
+      {topCategory && (
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: strokeColor, letterSpacing: "0.06em", mt: 0.5 }}>
+          STRONGEST: {topCategory.toUpperCase()}
+        </Typography>
+      )}
     </Box>
   );
 }

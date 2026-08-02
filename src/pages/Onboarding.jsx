@@ -29,7 +29,7 @@ export default function Onboarding() {
       // Not worth blocking the user over. They just get an unbiased cold-start feed.
     }
     track('onboarding_completed', { category_count: categories.length });
-    navigate('/');
+    navigate('/', { replace: true });
   };
 
   return (

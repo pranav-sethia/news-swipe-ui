@@ -41,26 +41,36 @@ function SwipeStackDemo() {
   const visible = [0, 1, 2].map((offset) => DEMO_ROWS[(index + offset) % DEMO_ROWS.length]);
 
   return (
-    <Box sx={{ position: "relative", height: 150, mt: 4, mb: 2 }}>
+    <Box sx={{ position: "relative", height: 190 }}>
+      <Box sx={{
+        position: "absolute", inset: "-30px -40px", borderRadius: "24px",
+        background: "radial-gradient(circle at 30% 40%, rgba(255,102,0,0.16), transparent 65%)",
+        filter: "blur(20px)", pointerEvents: "none",
+      }} />
       {visible.map((row, i) => {
         const isTop = i === 0;
         return (
           <Box key={`${row.title}-${index}-${i}`} sx={{
-            position: "absolute", top: i * 12, left: i * 4, right: i * 4,
+            position: "absolute", top: i * 14, left: i * 6, right: i * 6,
             transform: isTop && exiting
               ? `translateX(${direction === "right" ? 160 : -160}px) rotate(${direction === "right" ? 10 : -10}deg)`
               : "translateY(0)",
             opacity: isTop && exiting ? 0 : 1 - i * 0.22,
             transition: `all 450ms ${EASE.standard}`,
             zIndex: 3 - i,
-            background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px", p: 1.75,
-            boxShadow: isTop ? "0 12px 30px rgba(0,0,0,0.5)" : "none",
+            background: "linear-gradient(160deg, rgba(28,28,28,0.95), rgba(15,15,15,0.95))",
+            border: `1px solid ${isTop ? "rgba(255,102,0,0.3)" : C.border}`, borderRadius: "12px", p: 2,
+            boxShadow: isTop ? "0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,102,0,0.05)" : "none",
           }}>
-            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "#fff", fontWeight: 600 }}>{row.title}</Typography>
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, mt: 0.4 }}>{row.pts} pts</Typography>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#fff", fontWeight: 600, lineHeight: 1.4 }}>{row.title}</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.8 }}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, fontWeight: 700 }}>{row.pts} pts</Typography>
+              <Box sx={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}>news.ycombinator.com</Typography>
+            </Box>
             {isTop && exiting && (
               <Box sx={{
-                position: "absolute", top: 10, right: 10,
+                position: "absolute", top: 12, right: 12,
                 color: direction === "right" ? C.success : C.error,
                 fontFamily: C.fontPixel, fontSize: "0.5rem",
                 border: "2px solid currentColor", borderRadius: "4px", px: 0.6, py: 0.3,
@@ -87,6 +97,7 @@ export default function Auth() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [statusIndex, setStatusIndex] = useState(0);
   const { displayed, done } = useTypewriter(STATUS_LINES[statusIndex], 22, true);
+  const sessionExpired = new URLSearchParams(location.search).get("expired") === "true";
 
   useEffect(() => {
     setMode(location.pathname === "/register" ? "register" : "login");
@@ -111,7 +122,7 @@ export default function Auth() {
       const res = await api.loginAsGuest();
       localStorage.setItem("token", res.data.token);
       track("guest_started");
-      navigate("/onboarding");
+      navigate("/onboarding", { replace: true });
     } catch {
       setError("Failed to start guest session. Please try again.");
       setGuestLoading(false);
@@ -137,7 +148,7 @@ export default function Auth() {
           .then((res) => {
             localStorage.setItem("token", res.data.token);
             track("login_completed", { method: "google" });
-            navigate("/");
+            navigate("/", { replace: true });
           })
           .catch(() => {
             setError("Google sign in failed. Please try again.");
@@ -174,12 +185,12 @@ export default function Auth() {
         const res = await api.login(email, password);
         localStorage.setItem("token", res.data.token);
         track("login_completed", { method: "password" });
-        navigate("/");
+        navigate("/", { replace: true });
       } else {
         const res = await api.register(email, password);
         localStorage.setItem("token", res.data.token);
         track(wasGuest ? "guest_converted" : "signup_completed");
-        navigate(wasGuest ? "/" : "/onboarding");
+        navigate(wasGuest ? "/" : "/onboarding", { replace: true });
       }
     } catch (err) {
       setError(err.response?.data?.error || `${mode === "login" ? "Sign in" : "Registration"} failed. Please try again.`);
@@ -210,41 +221,59 @@ export default function Auth() {
       <Box sx={{
         display: { xs: "none", md: "flex" }, flexDirection: "column", justifyContent: "center",
         px: 8, position: "relative", overflow: "hidden",
-        backgroundImage: `radial-gradient(circle at 20% 30%, rgba(255,102,0,0.06) 0%, transparent 50%), linear-gradient(rgba(255,102,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.03) 1px, transparent 1px)`,
-        backgroundSize: "100% 100%, 32px 32px, 32px 32px",
+        backgroundImage: `radial-gradient(680px circle at 12% 8%, rgba(255,102,0,0.16), transparent 55%), radial-gradient(520px circle at 92% 88%, rgba(0,255,204,0.07), transparent 55%), linear-gradient(rgba(255,102,0,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.045) 1px, transparent 1px)`,
+        backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
       }}>
-        <Box sx={{ maxWidth: 480 }}>
-          <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange, letterSpacing: "0.1em", mb: 1 }}>
-            ● HACKERSWIPE
-          </Typography>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, letterSpacing: "0.15em", mb: 3 }}>
+        {/* Decorative corner brackets, terminal-window framing */}
+        <Box sx={{ position: "absolute", top: 40, left: 40, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px" }} />
+        <Box sx={{ position: "absolute", bottom: 40, right: 40, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.25)`, borderRight: `2px solid rgba(0,255,204,0.25)`, borderBottomRightRadius: "4px" }} />
+
+        <Box sx={{ maxWidth: 480, position: "relative" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
+            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange, letterSpacing: "0.1em" }}>
+              HACKERSWIPE
+            </Typography>
+          </Box>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(232,232,232,0.65)", letterSpacing: "0.15em", mb: 3 }}>
             AI-POWERED HACKER NEWS DISCOVERY
           </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "2.1rem", fontWeight: 800, color: "#fff", lineHeight: 1.2, mb: 4 }}>
-            Stop scrolling Hacker News.<br />Start swiping it.
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "2.35rem", fontWeight: 800, color: "#fff", lineHeight: 1.18, mb: 4, letterSpacing: "-0.01em" }}>
+            Stop scrolling Hacker News.<br />
+            Start{" "}
+            <Box component="span" sx={{
+              background: `linear-gradient(100deg, ${C.orange}, #ffb066)`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+            }}>
+              swiping
+            </Box>{" "}it.
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 4 }}>
             {[
               ["SWIPE", "Right to like, left to skip, up to skip neutrally. Two seconds a story."],
               ["LEARN", "Your taste vector sharpens the feed after every swipe you make."],
               ["DIGEST", "Ask the AI to summarize a long comment thread into one paragraph."],
             ].map(([tag, body]) => (
-              <Box key={tag} sx={{ display: "flex", gap: 1.5, alignItems: "baseline" }}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, flexShrink: 0, width: 56 }}>[{tag}]</Typography>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{body}</Typography>
+              <Box key={tag} sx={{
+                display: "flex", gap: 1.5, alignItems: "baseline",
+                px: 1.5, py: 1.1, borderRadius: "8px",
+                background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)",
+              }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, flexShrink: 0, width: 56, fontWeight: 700 }}>[{tag}]</Typography>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>{body}</Typography>
               </Box>
             ))}
           </Box>
 
           <SwipeStackDemo />
 
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim, mb: 3 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "rgba(232,232,232,0.7)", mt: 4, mb: 2 }}>
             {"> "}{displayed}
             <span className="cursor-blink" />
           </Typography>
 
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.25)" }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}>
             Built on real Hacker News data. Not a clone, a better way to read it.
           </Typography>
         </Box>
@@ -260,6 +289,14 @@ export default function Auth() {
         <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", justifyContent: "center", mb: 4 }}>
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.1em" }}>HACKERSWIPE</Typography>
         </Box>
+
+        {sessionExpired && (
+          <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5 }}>
+              Your guest session ended. Create an account to keep a saved taste profile, or start a new guest session below.
+            </Typography>
+          </Box>
+        )}
 
         <Box sx={{ display: "flex", mb: 4, borderRadius: "10px", border: `1px solid ${C.border}`, p: "3px" }}>
           {["login", "register"].map((m) => (

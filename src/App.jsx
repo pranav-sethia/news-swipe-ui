@@ -9,7 +9,7 @@ import {
   Delete, Visibility, ChatBubbleOutline, ArrowBack, ArrowForward, ArrowUpward, HelpOutline, QuestionAnswer,
   Psychology, Bookmark, Settings as SettingsIcon, Search
 } from "@mui/icons-material";
-import { motion, useMotionValue, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
 import * as api from "./api.js";
 import { C } from "./theme.js";
@@ -59,19 +59,30 @@ export default function App() {
   }, [lastSwiped, showToast]);
 
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
+  // Ambient cursor glow, smoothed rather than tracking 1:1, so it trails
+  // gently instead of reading as a flat circle glued to the pointer.
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
-    };
+    let target = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    let current = { ...target };
+    let raf;
+
+    const handleMouseMove = (e) => { target = { x: e.clientX, y: e.clientY }; };
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY]);
+
+    const tick = () => {
+      current.x += (target.x - current.x) * 0.08;
+      current.y += (target.y - current.y) * 0.08;
+      document.documentElement.style.setProperty('--mouse-x', `${current.x}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${current.y}px`);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   useEffect(() => {
     const handler = (e) => {
@@ -216,8 +227,8 @@ export default function App() {
         height: "100vh", width: "100vw", position: "relative", zIndex: 1,
         display: "flex", flexDirection: "column",
         backgroundColor: "transparent",
-        backgroundImage: `radial-gradient(1000px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.08), transparent 45%), linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`,
-        backgroundSize: "100% 100%, 32px 32px, 32px 32px",
+        backgroundImage: `radial-gradient(900px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(255,102,0,0.1), transparent 40%), radial-gradient(320px circle at var(--mouse-x, 50vw) var(--mouse-y, 50vh), rgba(0,255,204,0.05), transparent 60%), linear-gradient(rgba(255,102,0,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,102,0,0.06) 1px,transparent 1px)`,
+        backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
         overflow: "hidden",
       }}>
       {/* Nav */}

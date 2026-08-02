@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, TextField, Button, Divider, CircularProgress } from "@mui/material";
+import { ArrowForward } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as api from "../api.js";
 import { C } from "../theme.js";
@@ -7,6 +8,19 @@ import { EASE } from "../motion.js";
 import { GOOGLE_CLIENT_ID } from "../config.js";
 import { useTypewriter } from "../hooks.js";
 import { track } from "../analytics.js";
+
+// A layered text-shadow stack: an isometric orange extrusion trailing down-right,
+// plus a teal chromatic-aberration ghost, so the headline reads as a distinct
+// hacker/CRT signature instead of a flat sans-serif hero treatment.
+const GLITCH_SHADOW = [
+  "-1.5px 0 0 rgba(0,255,204,0.35)",
+  "0.5px 0.5px 0 rgba(255,102,0,0.9)",
+  "1px 1px 0 rgba(255,102,0,0.7)",
+  "1.5px 1.5px 0 rgba(255,102,0,0.5)",
+  "2px 2px 0 rgba(255,102,0,0.32)",
+  "2.5px 2.5px 0 rgba(255,102,0,0.18)",
+  "4px 4px 10px rgba(0,0,0,0.6)",
+].join(", ");
 
 const STATUS_LINES = [
   "indexing today's front page...",
@@ -121,6 +135,7 @@ export default function Auth() {
     try {
       const res = await api.loginAsGuest();
       localStorage.setItem("token", res.data.token);
+      localStorage.removeItem("hs_onboarding_done");
       track("guest_started");
       navigate("/onboarding", { replace: true });
     } catch {
@@ -147,6 +162,7 @@ export default function Auth() {
         api.loginWithGoogle(accessToken)
           .then((res) => {
             localStorage.setItem("token", res.data.token);
+            localStorage.removeItem("hs_onboarding_done");
             track("login_completed", { method: "google" });
             navigate("/", { replace: true });
           })
@@ -184,11 +200,13 @@ export default function Auth() {
       if (mode === "login") {
         const res = await api.login(email, password);
         localStorage.setItem("token", res.data.token);
+        localStorage.removeItem("hs_onboarding_done");
         track("login_completed", { method: "password" });
         navigate("/", { replace: true });
       } else {
         const res = await api.register(email, password);
         localStorage.setItem("token", res.data.token);
+        if (!wasGuest) localStorage.removeItem("hs_onboarding_done");
         track(wasGuest ? "guest_converted" : "signup_completed");
         navigate(wasGuest ? "/" : "/onboarding", { replace: true });
       }
@@ -213,21 +231,20 @@ export default function Auth() {
 
   return (
     <Box sx={{
-      height: "100vh", display: "grid",
-      gridTemplateColumns: { xs: "1fr", md: "minmax(560px, 1fr) 440px" },
+      height: "100vh", width: "100%", display: "flex", position: "relative", overflow: "hidden",
       background: C.bg,
+      backgroundImage: `radial-gradient(900px circle at 15% 12%, rgba(255,102,0,0.14), transparent 55%), radial-gradient(700px circle at 85% 85%, rgba(0,255,204,0.06), transparent 55%), linear-gradient(rgba(255,102,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.04) 1px, transparent 1px)`,
+      backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
     }}>
-      {/* Left: value proposition */}
+      {/* Decorative corner brackets, terminal-window framing over the whole page */}
+      <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px" }} />
+      <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.2)`, borderRight: `2px solid rgba(0,255,204,0.2)`, borderBottomRightRadius: "4px" }} />
+
+      {/* Left: value proposition, shares the page background rather than owning its own */}
       <Box sx={{
         display: { xs: "none", md: "flex" }, flexDirection: "column", justifyContent: "center",
-        px: 8, position: "relative", overflow: "hidden",
-        backgroundImage: `radial-gradient(680px circle at 12% 8%, rgba(255,102,0,0.16), transparent 55%), radial-gradient(520px circle at 92% 88%, rgba(0,255,204,0.07), transparent 55%), linear-gradient(rgba(255,102,0,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.045) 1px, transparent 1px)`,
-        backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
+        flex: 1, minWidth: 0, px: 8, position: "relative",
       }}>
-        {/* Decorative corner brackets, terminal-window framing */}
-        <Box sx={{ position: "absolute", top: 40, left: 40, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px" }} />
-        <Box sx={{ position: "absolute", bottom: 40, right: 40, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.25)`, borderRight: `2px solid rgba(0,255,204,0.25)`, borderBottomRightRadius: "4px" }} />
-
         <Box sx={{ maxWidth: 480, position: "relative" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
             <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
@@ -235,25 +252,27 @@ export default function Auth() {
               HACKERSWIPE
             </Typography>
           </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(232,232,232,0.65)", letterSpacing: "0.15em", mb: 3 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(232,232,232,0.65)", letterSpacing: "0.15em", mb: 3.5 }}>
             AI-POWERED HACKER NEWS DISCOVERY
           </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "2.35rem", fontWeight: 800, color: "#fff", lineHeight: 1.18, mb: 4, letterSpacing: "-0.01em" }}>
-            Stop scrolling Hacker News.<br />
+          <Typography sx={{
+            fontFamily: C.fontMono, fontSize: "3rem", fontWeight: 700, color: "#f2f2f2",
+            lineHeight: 1.05, mb: 1.5, letterSpacing: "0.01em", textTransform: "uppercase",
+            textShadow: GLITCH_SHADOW,
+          }}>
+            Stop<br />scrolling.<br />
             Start{" "}
-            <Box component="span" sx={{
-              background: `linear-gradient(100deg, ${C.orange}, #ffb066)`,
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            }}>
-              swiping
-            </Box>{" "}it.
+            <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>swiping.</Box>
+          </Typography>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.95rem", color: "rgba(232,232,232,0.6)", lineHeight: 1.5, mb: 4, maxWidth: 380 }}>
+            Hacker News, filtered by an algorithm that actually learns your taste.
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 4 }}>
             {[
-              ["SWIPE", "Right to like, left to skip, up to skip neutrally. Two seconds a story."],
-              ["LEARN", "Your taste vector sharpens the feed after every swipe you make."],
-              ["DIGEST", "Ask the AI to summarize a long comment thread into one paragraph."],
+              ["SWIPE", "Right to like, left to skip. Two seconds per story."],
+              ["LEARN", "Every swipe sharpens what the feed shows you next."],
+              ["DIGEST", "Ask the AI to boil a long thread down to one paragraph."],
             ].map(([tag, body]) => (
               <Box key={tag} sx={{
                 display: "flex", gap: 1.5, alignItems: "baseline",
@@ -261,7 +280,7 @@ export default function Auth() {
                 background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)",
               }}>
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, flexShrink: 0, width: 56, fontWeight: 700 }}>[{tag}]</Typography>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>{body}</Typography>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.5, textWrap: "pretty" }}>{body}</Typography>
               </Box>
             ))}
           </Box>
@@ -279,13 +298,23 @@ export default function Auth() {
         </Box>
       </Box>
 
-      {/* Right: auth form, docked full height */}
+      {/* Right: auth form, a floating glass panel on the same shared canvas
+          rather than a competing full-height block */}
       <Box sx={{
-        display: "flex", flexDirection: "column", justifyContent: "center",
-        px: { xs: 4, md: 5 }, py: 6,
-        background: C.card,
-        borderLeft: { xs: "none", md: `1px solid ${C.border}` },
+        display: "flex", alignItems: "center",
+        width: { xs: "100%", md: 460 }, flexShrink: 0,
+        p: { xs: 3, md: 0 },
+        my: { md: 5 }, mr: { md: 5 },
       }}>
+        <Box sx={{
+          width: "100%", maxHeight: "100%", overflowY: "auto",
+          px: { xs: 3, md: 4.5 }, py: { xs: 4, md: 5 },
+          borderRadius: "20px",
+          background: "linear-gradient(165deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.92) 100%)",
+          border: `1px solid ${C.border}`,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
+          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        }}>
         <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", justifyContent: "center", mb: 4 }}>
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.1em" }}>HACKERSWIPE</Typography>
         </Box>
@@ -361,17 +390,35 @@ export default function Auth() {
           </Button>
         </form>
 
-        <Typography
-          onClick={handleGuest}
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 3 }} />
+
+        <Button
+          fullWidth onClick={handleGuest} disabled={guestLoading}
+          endIcon={!guestLoading && <ArrowForward sx={{ fontSize: "1rem !important" }} />}
           sx={{
-            fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, textAlign: "center",
-            cursor: guestLoading ? "default" : "pointer",
-            "&:hover": { color: guestLoading ? C.textDim : "#fff" },
+            py: 1.3, borderRadius: "10px", textTransform: "none",
+            border: "1.5px dashed rgba(255,255,255,0.25)",
+            background: "rgba(255,255,255,0.02)",
+            display: "flex", flexDirection: "column", gap: 0.3,
+            "&:hover": { borderColor: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)" },
+            "&:active": { transform: "scale(0.99)" },
+            transition: `all 200ms ${EASE.standard}`,
           }}
         >
-          {guestLoading ? <CircularProgress size={14} sx={{ color: C.textDim, verticalAlign: "middle", mr: 1 }} /> : null}
-          Just browsing? Continue as guest for 24 hours, no signup needed.
-        </Typography>
+          {guestLoading ? (
+            <CircularProgress size={18} sx={{ color: C.textDim }} />
+          ) : (
+            <>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.04em", color: "#fff" }}>
+                CONTINUE AS GUEST
+              </Typography>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim }}>
+                No signup. Explore free for 24 hours.
+              </Typography>
+            </>
+          )}
+        </Button>
+        </Box>
       </Box>
     </Box>
   );

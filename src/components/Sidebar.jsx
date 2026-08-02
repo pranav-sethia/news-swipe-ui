@@ -348,11 +348,12 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLog
   const [profile, setProfile] = useState([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ total: 0, likes: 0, dislikes: 0, skips: 0, streak: 0 });
+  const [statsReady, setStatsReady] = useState(false);
   const [remaining, setRemaining] = useState(null);
 
   useEffect(() => {
     api.getTasteProfile().then((d) => { setProfile(d.profile || []); setTotal(d.totalLiked || 0); }).catch(() => {});
-    api.getDetailedStats().then(setStats).catch(() => {});
+    api.getDetailedStats().then((d) => { setStats(d); setStatsReady(true); }).catch(() => setStatsReady(true));
   }, [swipeCount]);
 
   useEffect(() => {
@@ -442,25 +443,34 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLog
 
       {/* Streak */}
       <Box sx={{ mb: 3, p: 2, borderRadius: "12px", background: "rgba(255,102,0,0.04)", border: "1px solid rgba(255,102,0,0.15)" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-          <LocalFireDepartment sx={{ fontSize: 18, color: stats.streak > 0 ? C.orange : "rgba(255,255,255,0.2)" }} />
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
-            {stats.streak} day{stats.streak === 1 ? "" : "s"}
-          </Typography>
-        </Box>
-        {stats.streak === 0 ? (
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.textDim }}>Swipe on a story today to start one.</Typography>
-        ) : tier ? (
+        {!statsReady ? (
           <>
-            <Box sx={{ height: 4, borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden", mb: 1 }}>
-              <Box sx={{ height: "100%", width: `${tierProgress * 100}%`, background: C.orange, borderRadius: "2px", transition: `width 900ms ${EASE.decisive}` }} />
-            </Box>
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>
-              {tier.days - stats.streak} day{tier.days - stats.streak === 1 ? "" : "s"} to {tier.name}
-            </Typography>
+            <Box sx={{ width: 72, height: 22, borderRadius: "5px", background: "rgba(255,255,255,0.06)", animation: "skeletonPulse 1.2s ease-in-out infinite", mb: 1 }} />
+            <Box sx={{ width: 140, height: 14, borderRadius: "4px", background: "rgba(255,255,255,0.04)", animation: "skeletonPulse 1.2s ease-in-out infinite" }} />
           </>
         ) : (
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>You've hit every milestone. Respect.</Typography>
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <LocalFireDepartment sx={{ fontSize: 18, color: stats.streak > 0 ? C.orange : "rgba(255,255,255,0.2)" }} />
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
+                {stats.streak} day{stats.streak === 1 ? "" : "s"}
+              </Typography>
+            </Box>
+            {stats.streak === 0 ? (
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.textDim }}>Swipe on a story today to start one.</Typography>
+            ) : tier ? (
+              <>
+                <Box sx={{ height: 4, borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden", mb: 1 }}>
+                  <Box sx={{ height: "100%", width: `${tierProgress * 100}%`, background: C.orange, borderRadius: "2px", transition: `width 900ms ${EASE.decisive}` }} />
+                </Box>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>
+                  {tier.days - stats.streak} day{tier.days - stats.streak === 1 ? "" : "s"} to {tier.name}
+                </Typography>
+              </>
+            ) : (
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>You've hit every milestone. Respect.</Typography>
+            )}
+          </>
         )}
       </Box>
 

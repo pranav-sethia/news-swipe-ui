@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { C } from '../theme.js';
@@ -17,6 +17,15 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
+  // A stale browser-history entry (back button after finishing onboarding
+  // earlier in this session) can land here even with replace:true nav calls,
+  // since existing history from before those calls isn't retroactively fixed.
+  useEffect(() => {
+    if (localStorage.getItem('hs_onboarding_done') === '1') {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
   const toggle = (cat) => {
     setSelected((prev) => prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]);
   };
@@ -28,6 +37,7 @@ export default function Onboarding() {
     } catch {
       // Not worth blocking the user over. They just get an unbiased cold-start feed.
     }
+    localStorage.setItem('hs_onboarding_done', '1');
     track('onboarding_completed', { category_count: categories.length });
     navigate('/', { replace: true });
   };

@@ -236,7 +236,7 @@ export default function App() {
         display: "flex", alignItems: "center",
         justifyContent: "space-between", px: 4, height: "64px", flexShrink: 0,
         background: "linear-gradient(90deg, rgba(12,12,12,0.95) 0%, rgba(18,18,18,0.85) 50%, rgba(12,12,12,0.95) 100%)",
-        backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", zIndex: 100,
+        backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", zIndex: 150,
         borderBottom: `1px solid rgba(255, 102, 0, 0.15)`,
         boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
       }}>

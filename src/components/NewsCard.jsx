@@ -100,7 +100,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.4 : 0),
         pointerEvents: isTop ? "auto" : "none",
       }}
-      sx={{ width: { xs: "90vw", sm: 600, md: 800 }, touchAction: "none" }}
+      sx={{ width: { xs: "90vw", sm: 640, md: 860 }, touchAction: "none" }}
       drag={isTop && !isExiting ? true : false}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.65}
@@ -108,12 +108,14 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
       <Box className="card-glow" sx={{
-        width: "100%", height: { xs: "75vh", sm: 500, md: 460 },
+        width: "100%", height: { xs: "75vh", sm: 540, md: 520 },
         background: "rgba(12, 12, 12, 0.95)", // High opacity to prevent bleed-through
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         border: `1px solid rgba(255,255,255,0.08)`,
-        boxShadow: isTop ? "0 24px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,102,0,0.05)" : "none",
+        boxShadow: isTop
+          ? "0 30px 70px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(255,255,255,0.02), 0 0 50px rgba(255,102,0,0.06)"
+          : "none",
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
@@ -133,13 +135,22 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
               })
             }} />
-          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 60%,#0d0d0d 100%)" }} />
-          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.6)0%,transparent 60%)" }} />
+          {/* Vignette for depth, so the image reads as part of one composed
+              card rather than a flat cropped rectangle */}
+          <Box sx={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 90px rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 55%,#0d0d0d 100%)" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.65)0%,transparent 55%)" }} />
+          {/* Glowing seam where the image meets the content panel */}
+          <Box sx={{
+            position: "absolute", top: 0, bottom: 0, right: 0, width: "2px",
+            display: { xs: "none", md: "block" },
+            background: "linear-gradient(180deg, transparent, rgba(255,102,0,0.35) 30%, rgba(255,102,0,0.35) 70%, transparent)",
+          }} />
         </Box>
 
         {/* Content panel */}
-        <Box sx={{ 
-          p: { xs: "20px", md: "32px 36px" }, display: "flex", flexDirection: "column", 
+        <Box sx={{
+          p: { xs: "20px", md: "36px 40px" }, display: "flex", flexDirection: "column",
           justifyContent: "space-between", minWidth: 0, zIndex: 1, 
           opacity: isTop ? 1 : 0, // FIX: Hides text on background cards to prevent double-vision bleed
           transition: "opacity 0.2s ease"
@@ -284,7 +295,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                               lineHeight: 1.4,
                               letterSpacing: "0.2px",
                               display: "-webkit-box",
-                              WebkitLineClamp: 2,
+                              WebkitLineClamp: 3,
                               WebkitBoxOrient: "vertical",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -306,7 +317,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                     color: "rgba(200,200,200,0.55)",
                     lineHeight: 1.7,
                     display: "-webkit-box",
-                    WebkitLineClamp: 3,
+                    WebkitLineClamp: 4,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
                     borderLeft: `2px solid rgba(255,102,0,0.25)`,

@@ -16,12 +16,16 @@ const AuthRoute = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('hs_onboarding_done');
     navigate('/login');
   };
 
   if (!token || isTokenExpired(token)) {
     const hadToken = !!token;
-    if (token) localStorage.removeItem('token');
+    if (token) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('hs_onboarding_done');
+    }
     return <Navigate to={hadToken ? '/login?expired=true' : '/login'} replace />;
   }
 

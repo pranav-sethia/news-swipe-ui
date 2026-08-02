@@ -141,6 +141,12 @@ html, body, #root {
   50% { opacity: 0.82; }
 }
 
+/* Skeleton loading placeholder */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
 /* Archetype card first-reveal */
 @keyframes archetypeReveal {
   from { transform: scale(0.92); opacity: 0; }

@@ -57,3 +57,5 @@ export const getDetailedStats = async () => {
   const res = await apiClient.get('/api/me/stats');
   return res.data;
 };
+
+export const saveOnboardingCategories = (categories) => apiClient.post('/api/onboarding', { categories });

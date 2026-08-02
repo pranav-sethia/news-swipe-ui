@@ -6,6 +6,7 @@ import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import App from './App.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import Onboarding from './pages/Onboarding.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
 import MobileGate from './components/MobileGate.jsx';
 import './index.css';
@@ -49,7 +50,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <App />, 
+        element: <App />,
+      },
+      {
+        path: '/onboarding',
+        element: <Onboarding />,
       },
     ],
   },

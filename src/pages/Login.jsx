@@ -37,7 +37,7 @@ export default function Login() {
       const res = await api.loginAsGuest();
       localStorage.setItem('token', res.data.token);
       track('guest_started');
-      navigate('/');
+      navigate('/onboarding');
     } catch {
       setError('Failed to start guest session. Please try again.');
       setGuestLoading(false);

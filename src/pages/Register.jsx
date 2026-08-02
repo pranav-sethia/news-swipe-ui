@@ -37,7 +37,9 @@ export default function Register() {
       const res = await api.register(email, password);
       localStorage.setItem('token', res.data.token);
       track(wasGuest ? 'guest_converted' : 'signup_completed');
-      navigate('/');
+      // A guest's onboarding picks (if any) already carried over to the same
+      // account row, so only a genuinely fresh signup needs the topic picker.
+      navigate(wasGuest ? '/' : '/onboarding');
     } catch (err) {
       if (err.response?.data?.error) {
         setError(err.response.data.error);

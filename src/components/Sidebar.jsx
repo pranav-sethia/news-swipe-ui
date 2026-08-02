@@ -1,28 +1,90 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Chip, Link, Tooltip } from "@mui/material";
-import { WarningAmber, OpenInNew, ArrowForward, ArrowBack, Search, Visibility, Settings as SettingsIcon, Bookmark, Psychology, Undo, Delete, PersonOutline, Person, HowToReg, LocalFireDepartment, ThumbUpAlt, ThumbDownAlt, SkipNext } from "@mui/icons-material";
+import { Box, Typography, Button, IconButton, Link, Tooltip } from "@mui/material";
+import {
+  ArrowBack, Search, Visibility, Settings as SettingsIcon, Bookmark, Psychology,
+  Delete, PersonOutline, Person, LocalFireDepartment, Lock,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from "framer-motion";
 import * as api from "../api.js";
 import { C } from "../theme.js";
+import { EASE } from "../motion.js";
 import { MagneticBox, SectionHeader, ShortcutRow, Label, Mono } from "./SharedComponents.jsx";
+
+const ARCHETYPES = {
+  "Software Engineering": { title: "The Builder", body: "You read for the how, not just the what. Always chasing the cleaner implementation." },
+  "Hardware & Systems": { title: "The Systems Thinker", body: "You care what's actually happening under the hood, all the way down to the silicon." },
+  "Artificial Intelligence": { title: "The AI Native", body: "You're tracking the frontier in real time, and you probably saw this coming." },
+  "Startups & VC": { title: "The Founder's Mind", body: "You read the news like a market. Every story is a signal." },
+  "Cybersecurity": { title: "The Skeptic", body: "You assume it's broken until proven otherwise. Usually you're right." },
+  "Business & Finance": { title: "The Operator", body: "You want to know who's really making money and how the deal actually works." },
+  "Science & Space": { title: "The Explorer", body: "Rockets, biotech, physics. If it pushes a frontier, you're reading it." },
+  "Design & UI/UX": { title: "The Craftsperson", body: "You notice the details everyone else scrolls past." },
+  "Other": { title: "The Wanderer", body: "Your taste doesn't fit a box yet, and that's fine." },
+};
+const CATEGORY_ORDER = Object.keys(ARCHETYPES);
+const CATEGORY_COLORS = {
+  "Artificial Intelligence": C.teal,
+  "Software Engineering": C.orange,
+  "Hardware & Systems": "#3498db",
+  "Cybersecurity": "#e74c3c",
+  "Startups & VC": "#f39c12",
+  "Business & Finance": "#9b59b6",
+  "Science & Space": C.success,
+  "Design & UI/UX": "#e67e22",
+  "Other": "#95a5a6",
+};
+const STREAK_TIERS = [
+  { days: 3, name: "Warming Up" },
+  { days: 7, name: "Week One" },
+  { days: 14, name: "Two Week Club" },
+  { days: 30, name: "Monthly Regular" },
+  { days: 60, name: "Two Month Streak" },
+  { days: 100, name: "Centurion" },
+  { days: 365, name: "Year Round" },
+];
+const MILESTONES = [10, 25, 50, 100, 250, 500];
+const ARCHETYPE_UNLOCK_THRESHOLD = 5;
+
+function nextTier(streak) {
+  return STREAK_TIERS.find((t) => t.days > streak) || null;
+}
+
+function formatCountdown(ms) {
+  if (ms == null) return null;
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function decodeToken(token) {
+  try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
+}
 
 export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setShowOnboarding, onLogout }) {
   const [activeTab, setActiveTab] = useState(null);
   const [renderedTab, setRenderedTab] = useState(null);
+  const [panelMounted, setPanelMounted] = useState(false);
+  const closeTimeoutRef = useRef(null);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (activeTab) setRenderedTab(activeTab);
+    if (activeTab) {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+      setRenderedTab(activeTab);
+      setPanelMounted(true);
+    } else if (panelMounted) {
+      closeTimeoutRef.current = setTimeout(() => setPanelMounted(false), 220);
+    }
+    return () => { if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const token = localStorage.getItem("token");
-  let user = null;
-  try { user = JSON.parse(atob(token.split('.')[1])).user; } catch {}
-  const isGuest = user?.isGuest;
-  const initial = user?.email ? user.email.charAt(0).toUpperCase() : "?";
+  const decoded = token ? decodeToken(token) : null;
+  const user = decoded?.user;
+  const isGuest = !!user?.isGuest;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -34,23 +96,24 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeTab]);
 
-  const toggleTab = (tab) => {
-    setActiveTab(prev => prev === tab ? null : tab);
-  };
+  const toggleTab = (tab) => setActiveTab((prev) => (prev === tab ? null : tab));
+
+  const [streak, setStreak] = useState(0);
+  useEffect(() => {
+    api.getDetailedStats().then((d) => setStreak(d.streak || 0)).catch(() => {});
+  }, [swipeCount]);
 
   const navItems = [
-    { id: 'taste', icon: <Psychology />, label: 'Taste Profile' },
-    { id: 'saved', icon: <Bookmark />, label: 'Saved Library' },
-    { id: 'identity', icon: isGuest ? <PersonOutline /> : <Person />, label: isGuest ? 'Guest Mode' : 'Profile' },
-    { id: 'settings', icon: <SettingsIcon />, label: 'Settings' }
+    { id: "profile", icon: isGuest ? <PersonOutline /> : <Person />, label: isGuest ? "Profile (Guest)" : "Profile", badge: streak },
+    { id: "saved", icon: <Bookmark />, label: "Saved" },
+    { id: "settings", icon: <SettingsIcon />, label: "Settings" },
   ];
 
   return (
     <Box sx={{ position: "fixed", top: 0, bottom: 0, left: 32, display: "flex", alignItems: "center", zIndex: 9999, pointerEvents: "none" }}>
-      <motion.div
+      <Box
         ref={sidebarRef}
-        layout
-        style={{
+        sx={{
           pointerEvents: "auto",
           maxHeight: "800px",
           background: "linear-gradient(135deg, rgba(20,20,20,0.7) 0%, rgba(10,10,10,0.8) 100%)",
@@ -61,115 +124,104 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
           display: "flex",
           overflow: "hidden",
           boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)",
-        }}
-      initial={{ width: 72, height: 320 }}
-      animate={{ 
-        width: activeTab ? 380 : 72,
-        height: activeTab ? "80vh" : 320
-      }}
-      transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-    >
-      {/* Icon Column */}
-      <Box 
-        data-tour="sidebar"
-        sx={{ 
-          width: 72, minWidth: 72, display: "flex", flexDirection: "column", 
-          alignItems: "center", py: 3, position: "relative"
+          width: activeTab ? 420 : 72,
+          height: activeTab ? "80vh" : 320,
+          transition: `width 420ms ${EASE.decisive}, height 420ms ${EASE.decisive}`,
         }}
       >
-        
-        {/* Animated Brand Dot */}
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 16px ${C.orange}`, mb: 3 }} />
-        </motion.div>
+        {/* Icon Column */}
+        <Box data-tour="sidebar" sx={{ width: 72, minWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", py: 3, position: "relative" }}>
+          <Box sx={{
+            width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 16px ${C.orange}`, mb: 3,
+            animation: "brandPulse 2s ease-in-out infinite",
+          }} />
 
-        {/* Top Nav Items */}
-        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center", flexGrow: 1 }}>
-          {navItems.map((item, index) => (
-            <React.Fragment key={item.id}>
-              <Tooltip title={item.label} placement="right">
-                <Box sx={{ position: "relative", mb: index !== navItems.length - 1 ? 2 : 0 }}>
-                  {activeTab === item.id && (
-                    <motion.div
-                      layoutId="activeTabIndicator"
-                      style={{
-                        position: "absolute",
-                        inset: -4,
-                        background: "rgba(255,102,0,0.15)",
-                        borderRadius: "16px",
-                        border: `1px solid rgba(255,102,0,0.3)`,
-                        boxShadow: `0 0 20px rgba(255,102,0,0.1)`,
-                      }}
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <MagneticBox onClick={() => toggleTab(item.id)}>
-                    <IconButton sx={{ 
-                      position: "relative", zIndex: 1,
-                      color: activeTab === item.id ? C.orange : C.textDim, 
-                      transition: "all 0.3s ease",
-                      "&:hover": { color: activeTab === item.id ? C.orange : "#fff" }
-                    }}>
-                      {item.icon}
-                    </IconButton>
-                  </MagneticBox>
-                </Box>
-              </Tooltip>
-            </React.Fragment>
-          ))}
+          <Box sx={{ display: "flex", flexDirection: "column", width: "100%", alignItems: "center", flexGrow: 1 }}>
+            {navItems.map((item, index) => {
+              const isActive = activeTab === item.id;
+              return (
+                <Tooltip key={item.id} title={item.label} placement="right">
+                  <Box sx={{ position: "relative", mb: index !== navItems.length - 1 ? 2 : 0 }}>
+                    <MagneticBox onClick={() => toggleTab(item.id)}>
+                      <IconButton sx={{
+                        position: "relative", zIndex: 1,
+                        color: isActive ? C.orange : C.textDim,
+                        background: isActive ? "rgba(255,102,0,0.15)" : "transparent",
+                        border: `1px solid ${isActive ? "rgba(255,102,0,0.3)" : "transparent"}`,
+                        boxShadow: isActive ? "0 0 20px rgba(255,102,0,0.1)" : "none",
+                        transition: `all 250ms ${EASE.standard}`,
+                        "&:hover": { color: isActive ? C.orange : "#fff" },
+                      }}>
+                        {item.icon}
+                      </IconButton>
+                    </MagneticBox>
+                    {!!item.badge && (
+                      <Box sx={{
+                        position: "absolute", bottom: -2, right: -2, display: "flex", alignItems: "center", gap: "1px",
+                        background: `linear-gradient(135deg, ${C.orange}, #ff8c00)`,
+                        borderRadius: "999px", px: "5px", py: "1px",
+                        boxShadow: "0 0 8px rgba(255,102,0,0.4)",
+                        pointerEvents: "none",
+                      }}>
+                        <LocalFireDepartment sx={{ fontSize: 9, color: "#000" }} />
+                        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.55rem", color: "#000", fontWeight: 700, lineHeight: 1 }}>{item.badge}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Tooltip>
+              );
+            })}
+          </Box>
         </Box>
-      </Box>
-      {/* Smooth Fade Divider */}
-      <AnimatePresence>
-        {activeTab && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{ width: "1px", height: "100%", background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.1) 20%, rgba(255,255,255,0.1) 80%, transparent)" }}
-          />
-        )}
-      </AnimatePresence>
 
-      {/* Content Area */}
-      <AnimatePresence>
-        {activeTab && (
-          <motion.div
-            key="content-panel"
-            initial={{ opacity: 0, x: -10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: -10, filter: "blur(4px)", transition: { duration: 0.2, ease: "easeIn" } }}
-            transition={{ delay: 0.1, duration: 0.3, ease: "easeOut" }}
-            style={{ width: "307px", height: "100%", overflowY: "auto", padding: "32px 24px", position: "relative" }}
-          >
-            <IconButton 
-              onClick={() => setActiveTab(null)} 
+        {/* Divider */}
+        <Box sx={{
+          width: "1px", height: "100%", flexShrink: 0,
+          background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.1) 20%, rgba(255,255,255,0.1) 80%, transparent)",
+          opacity: activeTab ? 1 : 0,
+          transition: `opacity 200ms ${EASE.standard}`,
+        }} />
+
+        {/* Content Area */}
+        {panelMounted && (
+          <Box sx={{
+            width: "347px", height: "100%", overflowY: "auto", overflowX: "hidden", padding: "32px 24px", position: "relative",
+            opacity: activeTab ? 1 : 0,
+            transform: activeTab ? "translateX(0)" : "translateX(-10px)",
+            filter: activeTab ? "blur(0px)" : "blur(4px)",
+            transition: activeTab
+              ? `opacity 300ms ${EASE.standard} 100ms, transform 300ms ${EASE.standard} 100ms, filter 300ms ${EASE.standard} 100ms`
+              : `opacity 200ms ease-in, transform 200ms ease-in, filter 200ms ease-in`,
+          }}>
+            <IconButton
+              onClick={() => setActiveTab(null)}
               sx={{ position: "absolute", top: 20, right: 16, color: C.textDim, "&:hover": { color: "#fff", background: "rgba(255,255,255,0.1)" } }}
             >
               <ArrowBack sx={{ fontSize: 18 }} />
             </IconButton>
 
-            {renderedTab === 'taste' && <TasteProfilePanel swipeCount={swipeCount} />}
-            {renderedTab === 'saved' && <LikedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
-            {renderedTab === 'identity' && <IdentityPanel swipeCount={swipeCount} user={user} isGuest={isGuest} navigate={navigate} onLogout={onLogout} />}
-            {renderedTab === 'settings' && (
+            {renderedTab === "profile" && <ProfilePanel swipeCount={swipeCount} user={user} isGuest={isGuest} token={token} navigate={navigate} onLogout={onLogout} />}
+            {renderedTab === "saved" && <SavedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
+            {renderedTab === "settings" && (
               <Box>
                 <SectionHeader icon={<SettingsIcon sx={{ fontSize: 16 }} />} label="SETTINGS" />
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mt: 3, mb: 1 }}>AI Profile Management</Typography>
-                <Button fullWidth variant="outlined" onClick={() => onRequestReset()} sx={{ color: "#f87171", borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: "#f87171", background: "rgba(248,113,113,0.1)" }, mb: 3 }}>
-                  Nuclear Reset
-                </Button>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mb: 1 }}>App Interface</Typography>
+
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, mt: 3, mb: 1 }}>Interface</Typography>
                 <Button fullWidth variant="outlined" onClick={() => setShowOnboarding(true)} sx={{ color: C.orange, borderColor: C.border, "&:hover": { borderColor: C.orange, background: C.orangeDim }, mb: 3 }}>
                   Replay Tutorial
                 </Button>
 
-                {/* Keyboard shortcuts */}
-                <Box sx={{ mt: 2, pt: 3, borderTop: `1px solid rgba(255,255,255,0.05)` }}>
+                <Box sx={{ mt: 1, pt: 2.5, borderTop: `1px solid rgba(248,113,113,0.15)` }}>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(248,113,113,0.7)", letterSpacing: "0.1em", mb: 1.5 }}>DANGER ZONE</Typography>
+                  <Button fullWidth variant="outlined" onClick={() => onRequestReset()} sx={{ color: C.error, borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: C.error, background: "rgba(248,113,113,0.1)" } }}>
+                    Reset Taste Profile
+                  </Button>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 1 }}>
+                    Deletes your swipe history and starts your feed over. This can't be undone.
+                  </Typography>
+                </Box>
+
+                <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid rgba(255,255,255,0.05)` }}>
                   <Label>KEYBOARD SHORTCUTS</Label>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1.5 }}>
                     <ShortcutRow keys={["←"]} label="Dislike story" code="ArrowLeft" />
@@ -180,82 +232,269 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
                     <ShortcutRow keys={["ENT"]} label="Open article" code="Enter" />
                   </Box>
                 </Box>
+
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.15)", mt: 4, textAlign: "center" }}>
+                  HackerSwipe reads Hacker News and remembers what you like.
+                </Typography>
               </Box>
             )}
-          </motion.div>
+          </Box>
         )}
-      </AnimatePresence>
-      </motion.div>
+      </Box>
     </Box>
   );
 }
 
-export function TasteProfilePanel({ swipeCount }) {
-  const [profile, setProfile] = useState([]);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    api.getTasteProfile().then(data => {
-      setProfile(data.profile || []);
-      setTotal(data.totalLiked || 0);
-    }).catch(console.error);
-  }, [swipeCount]);
-
-  const colors = ["#00ffcc", "#ff6600", "#9b59b6", "#3498db", "#e74c3c"];
+function TasteRadar({ profile }) {
+  const size = 210, cx = size / 2, cy = size / 2, R = 74;
+  const maxPct = Math.max(1, ...profile.map((p) => p.percentage));
+  const valueFor = (cat) => {
+    const entry = profile.find((p) => p.category === cat);
+    return entry ? entry.percentage / maxPct : 0;
+  };
+  const axisPoint = (i, frac) => {
+    const angle = (i / CATEGORY_ORDER.length) * 2 * Math.PI - Math.PI / 2;
+    return [cx + R * frac * Math.cos(angle), cy + R * frac * Math.sin(angle)];
+  };
+  const dataPoints = CATEGORY_ORDER.map((cat, i) => axisPoint(i, valueFor(cat)).join(",")).join(" ");
+  const ring = (frac) => CATEGORY_ORDER.map((_, i) => axisPoint(i, frac).join(",")).join(" ");
+  const topCategory = profile.length > 0
+    ? profile.reduce((max, p) => (p.percentage > max.percentage ? p : max), profile[0]).category
+    : null;
+  const strokeColor = topCategory ? CATEGORY_COLORS[topCategory] : C.orange;
 
   return (
-    <>
-      <SectionHeader icon={<Psychology sx={{ fontSize: 16 }} />} label="TASTE PROFILE" />
-      
-      {total === 0 ? (
-        <Box sx={{ textAlign: "center", mt: 4 }}>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
-            {"// Swipe right to build your profile"}
-          </Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 3, overflowY: "auto", pr: 1 }}>
-          {profile.map((p, i) => {
-            const radius = 22;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (p.percentage / 100) * circumference;
-            const color = colors[i % colors.length];
-
-            return (
-              <Box key={p.category} sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                <Box sx={{ position: "relative", width: 50, height: 50 }}>
-                  <svg width="50" height="50">
-                    <circle cx="25" cy="25" r={radius} stroke="rgba(255,255,255,0.05)" strokeWidth="4" fill="none" />
-                    <motion.circle 
-                      cx="25" cy="25" r={radius} 
-                      stroke={color} strokeWidth="4" fill="none" strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      initial={{ strokeDashoffset: circumference }}
-                      animate={{ strokeDashoffset: offset }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
-                    />
-                  </svg>
-                  <Typography sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.fontMono, fontSize: "0.6rem", color: "#fff" }}>
-                    {p.percentage}%
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", fontWeight: 600 }}>{p.category.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '')}</Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>{p.count} saved</Typography>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-
-    </>
+    <Box sx={{ display: "flex", justifyContent: "center", my: 1 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <polygon key={f} points={ring(f)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        ))}
+        {CATEGORY_ORDER.map((cat, i) => {
+          const [x2, y2] = axisPoint(i, 1);
+          return <line key={cat} x1={cx} y1={cy} x2={x2} y2={y2} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
+        })}
+        <polygon
+          points={dataPoints}
+          fill={strokeColor}
+          fillOpacity="0.15"
+          stroke={strokeColor}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          style={{ transformOrigin: `${cx}px ${cy}px`, transformBox: "fill-box", animation: "radarGrow 700ms cubic-bezier(0.16,1,0.3,1)" }}
+        />
+        {CATEGORY_ORDER.map((cat, i) => {
+          const [lx, ly] = axisPoint(i, 1.22);
+          return (
+            <text key={cat} x={lx} y={ly} fill="rgba(255,255,255,0.35)" fontSize="7" fontFamily={C.fontMono} textAnchor="middle" dominantBaseline="middle">
+              {cat.split(" ")[0].slice(0, 4).toUpperCase()}
+            </text>
+          );
+        })}
+      </svg>
+    </Box>
   );
 }
 
-export function LikedPanel({ swipeCount, onUnliked }) {
+export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLogout }) {
+  const [profile, setProfile] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ total: 0, likes: 0, dislikes: 0, skips: 0, streak: 0 });
+  const [remaining, setRemaining] = useState(null);
+
+  useEffect(() => {
+    api.getTasteProfile().then((d) => { setProfile(d.profile || []); setTotal(d.totalLiked || 0); }).catch(() => {});
+    api.getDetailedStats().then(setStats).catch(() => {});
+  }, [swipeCount]);
+
+  useEffect(() => {
+    if (!isGuest || !token) return;
+    const update = () => {
+      const decoded = decodeToken(token);
+      if (decoded?.exp) setRemaining(Math.max(0, decoded.exp * 1000 - Date.now()));
+    };
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, [isGuest, token]);
+
+  const tier = nextTier(stats.streak);
+  const prevTierDays = [0, ...STREAK_TIERS.map((t) => t.days)].reduce((prev, d) => (d <= stats.streak ? d : prev), 0);
+  const tierProgress = tier ? Math.min(1, (stats.streak - prevTierDays) / (tier.days - prevTierDays)) : 1;
+
+  const archetypeReady = total >= ARCHETYPE_UNLOCK_THRESHOLD;
+  const topCategory = profile.length > 0
+    ? profile.reduce((max, p) => (p.percentage > max.percentage ? p : max), profile[0]).category
+    : null;
+  const archetype = topCategory ? ARCHETYPES[topCategory] : null;
+  const secondCategory = profile.length > 1
+    ? profile.filter((p) => p.category !== topCategory).sort((a, b) => b.percentage - a.percentage)[0]?.category
+    : null;
+
+  const archetypeSeenKey = "hs_archetype_revealed";
+  const [justRevealed, setJustRevealed] = useState(false);
+  useEffect(() => {
+    if (archetypeReady && !localStorage.getItem(archetypeSeenKey)) {
+      setJustRevealed(true);
+      localStorage.setItem(archetypeSeenKey, "true");
+    }
+  }, [archetypeReady]);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <SectionHeader icon={<Psychology sx={{ fontSize: 16 }} />} label="YOUR PROFILE" />
+
+      {/* Archetype card */}
+      <Box sx={{
+        mt: 2.5, mb: 3, p: 2.5, borderRadius: "16px",
+        background: "linear-gradient(160deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.2) 100%)",
+        border: `1px solid ${archetype ? `${CATEGORY_COLORS[topCategory]}55` : "rgba(255,255,255,0.1)"}`,
+        animation: justRevealed ? "archetypeReveal 400ms cubic-bezier(0.34,1.56,0.64,1)" : "none",
+      }}>
+        <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.5rem", color: C.textDim, letterSpacing: "0.1em", mb: 1 }}>
+          YOUR ARCHETYPE
+        </Typography>
+        {archetypeReady && archetype ? (
+          <>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.3rem", fontWeight: 800, color: "#fff", mb: 1 }}>
+              {archetype.title}
+            </Typography>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim, lineHeight: 1.5 }}>
+              {archetype.body}
+            </Typography>
+            {secondCategory && (
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, lineHeight: 1.5, mt: 1 }}>
+                Lately you've also been deep in {secondCategory}.
+              </Typography>
+            )}
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", mt: 1.5 }}>
+              Based on {total} stories you've liked
+            </Typography>
+          </>
+        ) : total > 0 ? (
+          <>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.1rem", fontWeight: 700, color: "#fff", mb: 1 }}>
+              Still Forming
+            </Typography>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim, mb: 1.5 }}>
+              You've liked {total} {total === 1 ? "story" : "stories"} so far. A few more and your archetype locks in.
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.6 }}>
+              {Array.from({ length: ARCHETYPE_UNLOCK_THRESHOLD }).map((_, i) => (
+                <Box key={i} sx={{ width: 8, height: 8, borderRadius: "50%", background: i < total ? C.orange : "rgba(255,255,255,0.1)" }} />
+              ))}
+            </Box>
+          </>
+        ) : (
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim }}>
+            Swipe right on a few stories and we'll figure out who you are as a reader.
+          </Typography>
+        )}
+      </Box>
+
+      {/* Streak */}
+      <Box sx={{ mb: 3, p: 2, borderRadius: "12px", background: "rgba(255,102,0,0.04)", border: "1px solid rgba(255,102,0,0.15)" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+          <LocalFireDepartment sx={{ fontSize: 18, color: stats.streak > 0 ? C.orange : "rgba(255,255,255,0.2)" }} />
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
+            {stats.streak} day{stats.streak === 1 ? "" : "s"}
+          </Typography>
+        </Box>
+        {stats.streak === 0 ? (
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.textDim }}>Swipe on a story today to start one.</Typography>
+        ) : tier ? (
+          <>
+            <Box sx={{ height: 4, borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden", mb: 1 }}>
+              <Box sx={{ height: "100%", width: `${tierProgress * 100}%`, background: C.orange, borderRadius: "2px", transition: `width 900ms ${EASE.decisive}` }} />
+            </Box>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>
+              {tier.days - stats.streak} day{tier.days - stats.streak === 1 ? "" : "s"} to {tier.name}
+            </Typography>
+          </>
+        ) : (
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim }}>You've hit every milestone. Respect.</Typography>
+        )}
+      </Box>
+
+      {/* Reading DNA radar */}
+      {total > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim, letterSpacing: "0.08em", mb: 0.5, textAlign: "center" }}>
+            READING DNA
+          </Typography>
+          <TasteRadar profile={profile} />
+        </Box>
+      )}
+
+      {/* Milestones */}
+      {total > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: C.textDim, letterSpacing: "0.08em", mb: 1 }}>MILESTONES</Typography>
+          <Box sx={{ display: "flex", gap: 1, overflowX: "auto", pb: 0.5 }}>
+            {MILESTONES.map((m) => {
+              const achieved = total >= m;
+              return (
+                <Box key={m} sx={{
+                  flexShrink: 0, width: 58, textAlign: "center", p: 1, borderRadius: "8px",
+                  border: `1px solid ${achieved ? "rgba(255,102,0,0.3)" : "rgba(255,255,255,0.06)"}`,
+                  background: achieved ? "rgba(255,102,0,0.06)" : "transparent",
+                  opacity: achieved ? 1 : 0.35,
+                }}>
+                  {!achieved && <Lock sx={{ fontSize: 11, color: C.textDim, mb: 0.3 }} />}
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: achieved ? C.orange : C.textDim, fontWeight: 700 }}>{m}</Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
+
+      {/* Account footer */}
+      <Box sx={{ mt: "auto", pt: 2 }}>
+        {isGuest ? (
+          <Box sx={{ p: 2, borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "#e8e8e8", mb: 1.5, lineHeight: 1.5 }}>
+              {remaining != null
+                ? `You're browsing as a guest. Session ends in ${formatCountdown(remaining)}.`
+                : "You're browsing as a guest."}
+              {" "}Your streak, saved stories, and taste profile are lost when it ends.
+            </Typography>
+            {stats.streak > 0 && (
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.warning, mb: 1.5 }}>
+                You have a {stats.streak} day streak. Don't lose it.
+              </Typography>
+            )}
+            <Button
+              fullWidth variant="contained"
+              onClick={() => navigate("/register")}
+              sx={{
+                background: `linear-gradient(45deg, ${C.orange} 0%, #ff8c00 100%)`,
+                color: "#000", fontFamily: C.fontMono, fontWeight: 700,
+                boxShadow: "0 4px 15px rgba(255,102,0,0.15)",
+                "&:hover": { filter: "brightness(1.1)", boxShadow: "0 6px 20px rgba(255,102,0,0.4)" },
+              }}>
+              CREATE ACCOUNT
+            </Button>
+          </Box>
+        ) : (
+          <Box>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "1rem", color: "#fff", fontWeight: 700 }}>{user?.email}</Typography>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, mt: 0.5, mb: 2 }}>SYNCED</Typography>
+            <Button
+              fullWidth variant="outlined"
+              onClick={onLogout}
+              sx={{ borderColor: "rgba(255,255,255,0.1)", color: C.textDim, fontFamily: C.fontMono, "&:hover": { borderColor: C.error, color: C.error, background: "rgba(248,113,113,0.1)" } }}>
+              SIGN OUT
+            </Button>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+export function SavedPanel({ swipeCount, onUnliked }) {
   const [liked, setLiked] = useState([]);
+  const [removingIds, setRemovingIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [viewed, setViewed] = useState(() => {
@@ -282,43 +521,57 @@ export function LikedPanel({ swipeCount, onUnliked }) {
     });
   };
 
-  const handleUnlike = async (articleId) => {
-    try {
-      await api.unlikeArticle(articleId);
+  const handleUnlike = (articleId) => {
+    api.unlikeArticle(articleId).catch(() => {});
+    setRemovingIds((prev) => new Set(prev).add(articleId));
+    setTimeout(() => {
       setLiked((prev) => prev.filter((a) => a.id !== articleId));
+      setRemovingIds((prev) => { const next = new Set(prev); next.delete(articleId); return next; });
       onUnliked();
-    } catch { /* ignore */ }
+    }, 380);
   };
 
-  const filtered = liked.filter(a => a.title.toLowerCase().includes(search.toLowerCase()));
+  const filtered = liked.filter((a) => a.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <>
-      <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`MY LIKES (${liked.length})`} color="#ff4757" />
+      <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`SAVED STORIES (${liked.length})`} color={C.error} />
       <Box sx={{ mt: 1.5, mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", px: 1, py: 0.5 }}>
           <Search sx={{ fontSize: 16, color: C.textDim, mr: 1 }} />
-          <input 
-            type="text" 
-            placeholder="Search saved..." 
+          <input
+            type="text"
+            placeholder="Search saved..."
+            aria-label="Search saved stories"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ background: "transparent", border: "none", outline: "none", color: "#fff", fontFamily: C.fontUi, fontSize: "0.8rem", width: "100%" }}
           />
         </Box>
       </Box>
-      {loading ? <Mono dim>loading...</Mono> : filtered.length > 0 ? (
+      {loading ? (
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
+          loading<span className="cursor-blink" />
+        </Typography>
+      ) : filtered.length > 0 ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {filtered.map((a) => {
             const isViewed = viewed.has(String(a.id));
+            const isRemoving = removingIds.has(a.id);
             return (
               <Box key={a.id} sx={{
-                p: 1.5, borderRadius: "8px", position: "relative",
+                p: 1.5, borderRadius: "8px", position: "relative", overflow: "hidden",
                 background: isViewed ? "rgba(255,255,255,0.01)" : "rgba(255,102,0,0.04)",
                 border: `1px solid ${isViewed ? "rgba(255,255,255,0.05)" : "rgba(255,102,0,0.2)"}`,
-                borderLeft: isViewed ? `1px solid rgba(255,255,255,0.05)` : `3px solid ${C.orange}`,
-                transition: "all 0.2s ease",
-                "&:hover": { background: "rgba(255,102,0,0.08)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }
+                borderLeft: `3px solid ${isRemoving ? C.error : (isViewed ? "rgba(255,255,255,0.05)" : C.orange)}`,
+                maxHeight: isRemoving ? 0 : 200,
+                marginBottom: isRemoving ? 0 : undefined,
+                paddingTop: isRemoving ? 0 : undefined,
+                paddingBottom: isRemoving ? 0 : undefined,
+                opacity: isRemoving ? 0 : 1,
+                transform: isRemoving ? "scale(0.94) translateX(16px)" : "none",
+                transition: `opacity 350ms ${EASE.standard}, transform 350ms ${EASE.standard}, max-height 380ms ${EASE.standard} 50ms, border-left-color 150ms ease`,
+                "&:hover": isRemoving ? {} : { background: "rgba(255,102,0,0.08)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" },
               }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
                   <Link
@@ -330,14 +583,14 @@ export function LikedPanel({ swipeCount, onUnliked }) {
                       fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: isViewed ? 500 : 700, lineHeight: 1.4,
                       display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
                       transition: "color 0.2s", flexGrow: 1, pr: 1,
-                      "&:hover": { color: C.orange }
+                      "&:hover": { color: C.orange },
                     }}
                   >
                     {a.title}
                   </Link>
-                  <Tooltip title="Unlike" placement="left">
-                    <IconButton onClick={() => handleUnlike(a.id)} size="small"
-                      sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
+                  <Tooltip title="Remove">
+                    <IconButton onClick={() => handleUnlike(a.id)} size="small" aria-label="Remove from saved"
+                      sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: C.error, background: "rgba(248,113,113,0.1)" } }}>
                       <Delete sx={{ fontSize: 13 }} />
                     </IconButton>
                   </Tooltip>
@@ -353,100 +606,11 @@ export function LikedPanel({ swipeCount, onUnliked }) {
             );
           })}
         </Box>
-      ) : <Mono dim>{liked.length === 0 ? "swipe right to save stories here" : "no results match your search"}</Mono>}
+      ) : (
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim }}>
+          {liked.length === 0 ? "Nothing saved yet. Swipe right to keep a story here." : "No saved stories match your search."}
+        </Typography>
+      )}
     </>
   );
 }
-
-export function IdentityPanel({ swipeCount, user, isGuest, navigate, onLogout }) {
-  const [stats, setStats] = useState({ total: 0, likes: 0, dislikes: 0, skips: 0, streak: 0 });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getDetailedStats().then(data => {
-      setStats(data);
-      setLoading(false);
-    }).catch(console.error);
-  }, [swipeCount]);
-
-  if (loading) return <Mono dim>Loading stats...</Mono>;
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SectionHeader icon={isGuest ? <PersonOutline sx={{ fontSize: 16 }} /> : <HowToReg sx={{ fontSize: 16 }} />} label={isGuest ? "GUEST ACCOUNT" : "HACKERSWIPE PRO"} />
-      
-      {isGuest ? (
-        <Box sx={{ mt: 3, mb: 4, p: 2, borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#e8e8e8", mb: 1.5, lineHeight: 1.5 }}>
-            You are swiping as a guest. Your AI taste vector and saved articles are temporary and will be deleted after 30 days of inactivity.
-          </Typography>
-          <Button 
-            fullWidth variant="contained" 
-            onClick={() => navigate('/register')}
-            sx={{ 
-              mt: 1, background: `linear-gradient(45deg, ${C.orange} 0%, #ff8c00 100%)`, 
-              color: "#000", fontFamily: C.fontMono, fontWeight: 700,
-              boxShadow: `0 4px 15px rgba(255,102,0,0.15)`,
-              "&:hover": { filter: "brightness(1.1)", boxShadow: `0 6px 20px rgba(255,102,0,0.4)` }
-            }}>
-            CREATE ACCOUNT
-          </Button>
-        </Box>
-      ) : (
-        <Box sx={{ mt: 3, mb: 4 }}>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1rem", color: "#fff", fontWeight: 700 }}>{user?.email}</Typography>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, mt: 0.5 }}>SYNCHRONIZED</Typography>
-        </Box>
-      )}
-
-      <Label sx={{ mt: 4, mb: 2 }}>SWIPE STATISTICS</Label>
-      
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-        {/* Streak */}
-        <Box sx={{ background: "rgba(255,102,0,0.05)", border: `1px solid rgba(255,102,0,0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <LocalFireDepartment sx={{ fontSize: 14, color: C.orange }} />
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.orange }}>STREAK</Typography>
-          </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.2rem", color: "#fff", fontWeight: 700 }}>{stats.streak} <span style={{ fontSize: "0.7rem", color: C.textDim, fontWeight: 400 }}>days</span></Typography>
-        </Box>
-        
-        {/* Total */}
-        <Box sx={{ background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.1)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>TOTAL SWIPES</Typography>
-          </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.2rem", color: "#fff", fontWeight: 700 }}>{stats.total}</Typography>
-        </Box>
-
-        <Box sx={{ background: "rgba(74, 222, 128, 0.05)", border: `1px solid rgba(74, 222, 128, 0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <ThumbUpAlt sx={{ fontSize: 12, color: "#4ade80" }} />
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "#4ade80" }}>LIKED</Typography>
-          </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff" }}>{stats.likes}</Typography>
-        </Box>
-
-        <Box sx={{ background: "rgba(248, 113, 113, 0.05)", border: `1px solid rgba(248, 113, 113, 0.2)`, borderRadius: "8px", p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <ThumbDownAlt sx={{ fontSize: 12, color: "#f87171" }} />
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "#f87171" }}>DISLIKED</Typography>
-          </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "1.1rem", color: "#fff" }}>{stats.dislikes}</Typography>
-        </Box>
-      </Box>
-
-      {!isGuest && (
-        <Box sx={{ mt: "auto", pt: 4 }}>
-          <Button 
-            fullWidth variant="outlined" 
-            onClick={onLogout}
-            sx={{ borderColor: "rgba(255,255,255,0.1)", color: C.textDim, fontFamily: C.fontMono, "&:hover": { borderColor: "#f87171", color: "#f87171", background: "rgba(248,113,113,0.1)" } }}>
-            SIGN OUT
-          </Button>
-        </Box>
-      )}
-    </Box>
-  );
-}
-

@@ -93,6 +93,24 @@ html, body, #root {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+/* Sidebar brand dot pulse */
+@keyframes brandPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Taste radar reveal */
+@keyframes radarGrow {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Archetype card first-reveal */
+@keyframes archetypeReveal {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 /* Tour highlight pulse, cyan glow ring around targeted elements */
 @keyframes tourGlow {
   0%, 100% {

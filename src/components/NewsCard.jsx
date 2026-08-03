@@ -247,7 +247,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                     background: article.match_pct >= 95 ? "rgba(255,215,0,0.12)" : "rgba(0,255,204,0.1)",
                     px: 1, py: 0.5, borderRadius: "4px",
                     border: `1px solid ${article.match_pct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.3)"}`,
-                    ...(article.match_pct >= 95 && { boxShadow: "0 0 12px rgba(255,215,0,0.25)", color: "#ffd700" }),
+                    ...(article.match_pct >= 95 && { boxShadow: "0 0 12px rgba(255,215,0,0.25)", color: C.rareMatchGold }),
                     cursor: "help",
                     textDecoration: "underline",
                     textDecorationStyle: "dashed",

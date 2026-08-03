@@ -21,6 +21,10 @@ export const C = {
   error: "#f87171",
   warning: "#f39c12",
 
+  // The "RARE MATCH" (>=95%) badge tier deliberately breaks from teal to
+  // read as a rarer tier, not a mistake to "fix" back to teal later.
+  rareMatchGold: "#ffd700",
+
   fontPixel: "'Press Start 2P', monospace",
   fontMono: "'Share Tech Mono', monospace",
   fontUi: "Inter, sans-serif",

@@ -40,6 +40,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
     return () => window.removeEventListener("keydown", handler);
   }, [isTop, isInteractive, isExiting, article]); // eslint-disable-line
 
+  // When a background card gets promoted to the top of the stack (the
+  // previous top card was swiped away), animate it up to full visibility.
+  // Needed because once a card is promoted, `animate` switches from a plain
+  // target object to `controls`, and controls only ever moves on an
+  // explicit .start() call - without this it would just freeze at
+  // whatever dimmed peek-card values it last had.
+  useEffect(() => {
+    if (isTop && !isExiting) {
+      controls.start({ scale: 1, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 30 } });
+    }
+  }, [isTop, isExiting]); // eslint-disable-line
+
   const triggerSwipe = useCallback(async (dir) => {
     // Guard: if already animating out, ignore
     if (isExiting) return;
@@ -85,19 +97,33 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
       role="group"
       aria-label={isTop ? `Article: ${article.title}. Swipe right to like, left to dislike, up to skip.` : undefined}
       aria-hidden={!isTop}
-      initial={{ scale: 0.96, y: 12, opacity: 0.85 }}
-      animate={controls}
+      initial={{
+        scale: isTop ? 1 : (cardsFromTop === 1 ? 0.96 : 0.93),
+        y: isTop ? 0 : (cardsFromTop === 1 ? 10 : 20),
+        opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.14 : 0),
+      }}
+      // Only the card directly below the top is slightly visible as a peek card;
+      // any card beyond that is invisible to avoid the glitch. Kept dim
+      // enough that a bright real article photo underneath doesn't read
+      // clearly through the top card - this is just a "there's more"
+      // depth cue, not a second visible image competing with the top one.
+      // Background cards animate to a plain target object (auto-tracked by
+      // Framer Motion as cardsFromTop changes); the top card is driven by
+      // `controls` so triggerSwipe/handleDragEnd/the promotion effect above
+      // can imperatively animate it.
+      animate={isTop ? controls : {
+        scale: cardsFromTop === 1 ? 0.96 : 0.93,
+        y: cardsFromTop === 1 ? 10 : 20,
+        opacity: cardsFromTop === 1 ? 0.14 : 0,
+        transition: { type: "spring", stiffness: 300, damping: 30 },
+      }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       style={{
         x, rotate,
+        y: isTop ? y : undefined,
         position: "absolute",
         cursor: !isTop || isExiting ? "default" : "grab",
         zIndex: isTop ? 100 : stackIndex,
-        // Only the card directly below the top is slightly visible as a peek card;
-        // any card beyond that is invisible to avoid the glitch.
-        scale: isTop ? 1 : (cardsFromTop === 1 ? 0.96 : 0.93),
-        y: isTop ? y : (cardsFromTop === 1 ? 10 : 20),
-        opacity: isTop ? 1 : (cardsFromTop === 1 ? 0.4 : 0),
         pointerEvents: isTop ? "auto" : "none",
       }}
       sx={{ width: { xs: "90vw", sm: 640, md: 860 }, touchAction: "none" }}
@@ -130,14 +156,17 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             sx={{
               width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
               ...(isFallback && article.id && {
-                filter: `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1})`,
+                // brightness boost: some of these curated stock textures
+                // (the dark hexagon one especially) are dark enough on their
+                // own that the vignette below made them nearly invisible.
+                filter: `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1}) brightness(1.4)`,
                 transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
                 objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
               })
             }} />
           {/* Vignette for depth, so the image reads as part of one composed
               card rather than a flat cropped rectangle */}
-          <Box sx={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 90px rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+          <Box sx={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 90px rgba(0,0,0,0.4)", pointerEvents: "none" }} />
           <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 55%,#0d0d0d 100%)" }} />
           <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.65)0%,transparent 55%)" }} />
           {/* Glowing seam where the image meets the content panel */}

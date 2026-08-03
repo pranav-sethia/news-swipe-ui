@@ -173,8 +173,8 @@ export default function Auth() {
             track("login_completed", { method: "google" });
             navigate("/", { replace: true });
           })
-          .catch(() => {
-            setError("Google sign in failed. Please try again.");
+          .catch((err) => {
+            setError(err.response?.data?.error || "Google sign in failed. Please try again.");
             setLoading(false);
             setGoogleCallbackPending(false);
           });

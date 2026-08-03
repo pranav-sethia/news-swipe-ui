@@ -109,6 +109,13 @@ export default function Auth() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  // Lazy initializer so this is already true on the very first render, before
+  // paint - otherwise the full landing page (hero + form) flashes on screen
+  // for a moment after the Google redirect lands back here, before the async
+  // token exchange resolves and navigates away.
+  const [googleCallbackPending, setGoogleCallbackPending] = useState(() =>
+    typeof window !== "undefined" && window.location.hash.includes("access_token=")
+  );
   const [statusIndex, setStatusIndex] = useState(0);
   const { displayed, done } = useTypewriter(STATUS_LINES[statusIndex], 22, true);
   const sessionExpired = new URLSearchParams(location.search).get("expired") === "true";
@@ -169,6 +176,7 @@ export default function Auth() {
           .catch(() => {
             setError("Google sign in failed. Please try again.");
             setLoading(false);
+            setGoogleCallbackPending(false);
           });
       }
     }
@@ -228,6 +236,20 @@ export default function Auth() {
     "& .MuiInputLabel-root": { color: C.textDim, fontFamily: C.fontMono },
     "& .MuiInputLabel-root.Mui-focused": { color: C.orange },
   };
+
+  if (googleCallbackPending) {
+    return (
+      <Box sx={{
+        height: "100vh", width: "100%", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", background: C.bg,
+      }}>
+        <CircularProgress size={28} sx={{ color: C.orange, mb: 2.5 }} />
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim, letterSpacing: "0.05em" }}>
+          SIGNING YOU IN WITH GOOGLE...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{

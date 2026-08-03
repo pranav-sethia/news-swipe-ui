@@ -29,3 +29,23 @@ export const C = {
 // Breakpoint below which the mobile gate applies. Kept in one place so the
 // gate, any future responsive work, and useIsMobile all agree.
 export const MOBILE_BREAKPOINT = 900;
+
+// One color per taste category, shared by the Profile archetype panel, the
+// Saved panel's category chips/filter, and the main card's category chip -
+// a single source of truth so a category means the same color everywhere.
+// A curated set of tasteful hue shifts, rather than the full 0-360 range, so
+// fallback images read as designed variety instead of a broken/wrong photo.
+// Shared by the main card and the Saved panel's thumbnails.
+export const FALLBACK_HUE_SHIFTS = [0, -18, 18, -32, 168];
+
+export const CATEGORY_COLORS = {
+  "Artificial Intelligence": C.teal,
+  "Software Engineering": C.orange,
+  "Hardware & Systems": "#3498db",
+  "Cybersecurity": "#e74c3c",
+  "Startups & VC": "#f39c12",
+  "Business & Finance": "#9b59b6",
+  "Science & Space": C.success,
+  "Design & UI/UX": "#e67e22",
+  "Other": "#95a5a6",
+};

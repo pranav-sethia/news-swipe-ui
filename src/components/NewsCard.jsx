@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, CircularProgress, Link, Tooltip, Button } from "@mui/material";
 import { AccessTime, OpenInNew, QuestionAnswer, ChatBubbleOutline, ArrowBack, ArrowUpward, ArrowForward } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
-import { C } from "../theme.js";
+import { C, CATEGORY_COLORS, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
 import { StatBadge } from "./SharedComponents.jsx";
 
@@ -85,10 +85,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
   const fallbackBgIndex = article.id ? (article.id % 5) : 0;
   const isFallback = !article.image_url || imageFailed;
   const imageUrl = isFallback ? `/hacker_bgs/bg_${fallbackBgIndex}.png` : article.image_url;
-  // A curated set of tasteful hue shifts, rather than the full 0-360 range, so
-  // fallback images read as designed variety instead of a broken/wrong photo.
-  const HUE_SHIFTS = [0, -18, 18, -32, 168];
-  const hueShift = article.id ? HUE_SHIFTS[article.id % HUE_SHIFTS.length] : 0;
+  const hueShift = article.id ? FALLBACK_HUE_SHIFTS[article.id % FALLBACK_HUE_SHIFTS.length] : 0;
 
   return (
     <Box
@@ -163,14 +160,14 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
               })
             }} />
-          {/* Real per-article photos vary wildly in how dark they are (a night
-              shot, a dark-mode screenshot, a Twitter video thumbnail can be
-              near-black) and a flat brightness() multiplier on a near-black
-              source barely moves it. `screen` blend mode lifts a luminance
-              floor instead: it raises black toward this gray but leaves
-              already-bright pixels alone, so it fixes the near-black case
-              without washing out normally-exposed photos. */}
-          <Box sx={{ position: "absolute", inset: 0, background: "rgba(160,160,160,0.75)", mixBlendMode: "screen", pointerEvents: "none" }} />
+          {/* Genuinely dark/low-quality images (e.g. a near-black video
+              thumbnail used as an og:image) are now rejected server-side at
+              ingestion - see ingest.js's isImageGoodQuality - so real images
+              reaching this component are already a real photo, not a
+              placeholder. This is just a light safety-net lift for images
+              near the low end of that server-side brightness floor, much
+              lighter than the salvage-heavy version this used to be. */}
+          <Box sx={{ position: "absolute", inset: 0, background: "rgba(110,110,110,0.4)", mixBlendMode: "screen", pointerEvents: "none" }} />
           {/* Vignette for depth, so the image reads as part of one composed
               card rather than a flat cropped rectangle. Kept lighter than
               before - stacked on top of an already-dark source image, the
@@ -265,6 +262,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
 
             {/* Metadata Tags */}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
+              {article.category && (() => {
+                const categoryColor = CATEGORY_COLORS[article.category] || C.textDim;
+                return (
+                  <Typography sx={{
+                    fontFamily: C.fontMono, fontSize: "0.65rem", color: categoryColor,
+                    background: `${categoryColor}1a`, border: `1px solid ${categoryColor}4d`,
+                    px: 1.2, py: 0.4, borderRadius: "6px", fontWeight: 700,
+                  }}>
+                    {article.category.toUpperCase()}
+                  </Typography>
+                );
+              })()}
               {article.read_time_minutes != null && (() => {
                 const mins = parseInt(article.read_time_minutes, 10);
                 let color = C.warning;
@@ -294,12 +303,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               )}
             </Box>
 
-            {/* Title, typewriter runs only on top card, others are blank */}
+            {/* Title, typewriter runs only on top card, others are blank.
+                Moved off the pixel font (kept for short chrome moments like
+                the LIKE/DISLIKE/SKIP stamps) to a larger, bolder monospace
+                treatment - the title is the card's single most important
+                line and needs to read as the primary hierarchy element, not
+                compete at similar visual weight with the body bullets. */}
             <Typography sx={{
-              fontFamily: C.fontPixel,
-              fontSize: "0.72rem",
-              color: "#f5f5f5", lineHeight: 1.8, mb: 2,
-              minHeight: "5rem",
+              fontFamily: C.fontMono,
+              fontSize: "1.15rem",
+              fontWeight: 700,
+              color: "#f5f5f5", lineHeight: 1.35, mb: 2,
+              minHeight: "3.4rem",
               maxWidth: "100%",
             }}>
               {displayed}

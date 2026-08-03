@@ -90,7 +90,7 @@ export default function Onboarding() {
         <Button
           fullWidth
           variant="contained"
-          disabled={saving}
+          disabled={saving || selected.length === 0}
           onClick={() => finish(selected)}
           sx={{
             py: 1.6, background: C.orange, fontFamily: C.fontMono, fontSize: '0.85rem',
@@ -99,7 +99,7 @@ export default function Onboarding() {
             '&:disabled': { background: 'rgba(255,102,0,0.4)' },
           }}
         >
-          {selected.length > 0 ? `CONTINUE WITH ${selected.length} PICKED` : 'CONTINUE'}
+          {selected.length > 0 ? `CONTINUE WITH ${selected.length} PICKED` : 'PICK A FEW TO CONTINUE'}
         </Button>
 
         <Typography

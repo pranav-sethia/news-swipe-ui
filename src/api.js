@@ -35,6 +35,10 @@ export const loginAsGuest = () => apiClient.post('/auth/guest');
 export const loginWithGoogle = (credential) => apiClient.post('/api/auth/google', { credential });
 export const forgotPassword = (email) => apiClient.post('/auth/forgot-password', { email });
 export const resetPassword = (token, password) => apiClient.post('/auth/reset-password', { token, password });
+export const isResetTokenValid = async (token) => {
+  const { data } = await apiClient.get('/auth/reset-token-valid', { params: { token } });
+  return data.valid;
+};
 
 // --- Feed ---
 export const getFeed = async () => { const { data } = await apiClient.get('/api/feed'); return data; };

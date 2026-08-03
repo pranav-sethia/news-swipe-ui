@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, CircularProgress } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { C } from '../theme.js';
@@ -14,6 +14,16 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  // Checked up front so a stale/already-used link says so immediately,
+  // instead of just showing the form and only failing once submitted.
+  const [tokenStatus, setTokenStatus] = useState(token ? 'checking' : 'missing');
+
+  useEffect(() => {
+    if (!token) return;
+    api.isResetTokenValid(token)
+      .then((valid) => setTokenStatus(valid ? 'valid' : 'invalid'))
+      .catch(() => setTokenStatus('invalid'));
+  }, [token]);
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -62,9 +72,17 @@ export default function ResetPassword() {
           HACKERSWIPE
         </Typography>
 
-        {!token ? (
+        {tokenStatus === 'missing' ? (
           <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.9rem', color: C.textDim, textAlign: 'center', mb: 3 }}>
             This reset link is missing its token. Request a new one from the sign-in page.
+          </Typography>
+        ) : tokenStatus === 'checking' ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <CircularProgress size={24} sx={{ color: C.orange }} />
+          </Box>
+        ) : tokenStatus === 'invalid' ? (
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: '0.9rem', color: C.textDim, textAlign: 'center', mb: 3 }}>
+            This reset link has expired or was already used. Request a new one from the sign-in page.
           </Typography>
         ) : done ? (
           <>

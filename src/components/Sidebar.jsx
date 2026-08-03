@@ -400,8 +400,10 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLog
     ? profile.reduce((max, p) => (p.percentage > max.percentage ? p : max), profile[0]).category
     : null;
   const archetype = topCategory ? ARCHETYPES[topCategory] : null;
+  // "Other" is a catch-all bucket, not a real interest, so "you've also been
+  // deep in Other" reads as nonsense. Skip it when picking the runner-up.
   const secondCategory = profile.length > 1
-    ? profile.filter((p) => p.category !== topCategory).sort((a, b) => b.percentage - a.percentage)[0]?.category
+    ? profile.filter((p) => p.category !== topCategory && p.category !== "Other").sort((a, b) => b.percentage - a.percentage)[0]?.category
     : null;
 
   const archetypeSeenKey = "hs_archetype_revealed";

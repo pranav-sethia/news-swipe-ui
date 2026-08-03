@@ -125,25 +125,38 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       {/* AI Summary Section */}
       <Box sx={{ mb: 4 }}>
         {!summary && !summarizing && !summaryError && (
-          <Tooltip title={!loading && comments.length === 0 ? "No comments to summarize yet" : ""}>
-            <span>
-              <Button
-                fullWidth variant="outlined"
-                onClick={handleSummarize}
-                disabled={loading || comments.length === 0}
-                startIcon={<AutoAwesome sx={{ color: C.teal }} />}
-                sx={{
-                  borderColor: "rgba(0,255,204,0.3)", color: C.teal, fontFamily: C.fontMono,
-                  transition: `all 150ms ${EASE.standard}`,
-                  "&:hover": { borderColor: C.teal, background: "rgba(0,255,204,0.1)" },
-                  "&:active": { transform: "scale(0.98)" },
-                  "&:disabled": { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.2)" }
-                }}
-              >
-                AI SUMMARIZE DISCUSSION
-              </Button>
-            </span>
-          </Tooltip>
+          loading ? (
+            // Clicks during this window used to just silently do nothing (the
+            // button was disabled with no visible cue), which read as "the
+            // popup doesn't work" if you clicked right after opening the drawer.
+            <Button
+              fullWidth variant="outlined" disabled
+              startIcon={<CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.3)" }} />}
+              sx={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)", fontFamily: C.fontMono }}
+            >
+              LOADING COMMENTS...
+            </Button>
+          ) : (
+            <Tooltip title={comments.length === 0 ? "No comments to summarize yet" : ""}>
+              <span>
+                <Button
+                  fullWidth variant="outlined"
+                  onClick={handleSummarize}
+                  disabled={comments.length === 0}
+                  startIcon={<AutoAwesome sx={{ color: C.teal }} />}
+                  sx={{
+                    borderColor: "rgba(0,255,204,0.3)", color: C.teal, fontFamily: C.fontMono,
+                    transition: `all 150ms ${EASE.standard}`,
+                    "&:hover": { borderColor: C.teal, background: "rgba(0,255,204,0.1)" },
+                    "&:active": { transform: "scale(0.98)" },
+                    "&:disabled": { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.2)" }
+                  }}
+                >
+                  AI SUMMARIZE DISCUSSION
+                </Button>
+              </span>
+            </Tooltip>
+          )
         )}
         
         {summarizing && (

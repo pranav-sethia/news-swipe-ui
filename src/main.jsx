@@ -60,7 +60,10 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AuthRoute />,
+    // Only the actual swipe app (and its onboarding step) is gated on
+    // mobile - the landing/auth pages, privacy policy, etc. render on any
+    // viewport, since those are pure content with no drag/swipe interaction.
+    element: <MobileGate><AuthRoute /></MobileGate>,
     children: [
       {
         path: '/',
@@ -79,9 +82,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <ThemeProvider theme={darkTheme}>
         <CssBaseline />
-        <MobileGate>
-          <RouterProvider router={router} />
-        </MobileGate>
+        <RouterProvider router={router} />
       </ThemeProvider>
     </GoogleOAuthProvider>
   </React.StrictMode>,

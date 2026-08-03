@@ -47,6 +47,19 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The hard overflow lock above exists for the swipe app's own fixed-height
+   layout, and that app is already gated to desktop only (MobileGate). Below
+   that breakpoint nothing needing the lock is ever shown, and the mobile
+   landing page's content can be taller than the viewport, so allow it to
+   scroll instead of silently clipping. */
+@media (max-width: 899px) {
+  html, body, #root {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+}
+
 /* Scanline overlay on the root for CRT effect */
 #root::before {
   content: '';

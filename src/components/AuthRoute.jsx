@@ -16,15 +16,18 @@ const AuthRoute = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('hs_onboarding_done');
     navigate('/login');
   };
 
   if (!token || isTokenExpired(token)) {
     const hadToken = !!token;
+    // Only the token clears here - hs_onboarding_done is browser-level ("has
+    // this category-picker step ever been completed/skipped here"), not
+    // per-account state. Clearing it on every logout/expiry used to mean a
+    // returning user hitting the back button to /onboarding after logging
+    // back in would see it again as if brand new.
     if (token) {
       localStorage.removeItem('token');
-      localStorage.removeItem('hs_onboarding_done');
     }
     return <Navigate to={hadToken ? '/login?expired=true' : '/login'} replace />;
   }

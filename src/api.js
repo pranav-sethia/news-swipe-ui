@@ -19,7 +19,6 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       localStorage.removeItem('token');
-      localStorage.removeItem('hs_onboarding_done');
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login?expired=true';
       }
@@ -32,7 +31,7 @@ apiClient.interceptors.response.use(
 export const login = (email, password) => apiClient.post('/auth/login', { email, password });
 export const register = (email, password) => apiClient.post('/auth/register', { email, password });
 export const loginAsGuest = () => apiClient.post('/auth/guest');
-export const loginWithGoogle = (credential) => apiClient.post('/api/auth/google', { credential });
+export const loginWithGoogle = (idToken, nonce) => apiClient.post('/api/auth/google', { idToken, nonce });
 export const forgotPassword = (email) => apiClient.post('/auth/forgot-password', { email });
 export const resetPassword = (token, password) => apiClient.post('/auth/reset-password', { token, password });
 export const isResetTokenValid = async (token) => {
@@ -65,6 +64,6 @@ export const getDetailedStats = async () => {
   return res.data;
 };
 
-export const deleteAccount = () => apiClient.delete('/api/account');
+export const deleteAccount = (password) => apiClient.delete('/api/account', { data: password ? { password } : {} });
 
 export const saveOnboardingCategories = (categories) => apiClient.post('/api/onboarding', { categories });

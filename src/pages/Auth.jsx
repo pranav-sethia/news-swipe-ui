@@ -6,7 +6,7 @@ import * as api from "../api.js";
 import { C } from "../theme.js";
 import { EASE } from "../motion.js";
 import { GOOGLE_CLIENT_ID } from "../config.js";
-import { useTypewriter } from "../hooks.js";
+import { useTypewriter, useIsMobile } from "../hooks.js";
 import { track } from "../analytics.js";
 
 // A layered text-shadow stack: an isometric orange extrusion trailing down-right,
@@ -103,6 +103,7 @@ function SwipeStackDemo() {
 export default function Auth() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [mode, setMode] = useState(location.pathname === "/register" ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -114,7 +115,7 @@ export default function Auth() {
   // for a moment after the Google redirect lands back here, before the async
   // token exchange resolves and navigates away.
   const [googleCallbackPending, setGoogleCallbackPending] = useState(() =>
-    typeof window !== "undefined" && window.location.hash.includes("access_token=")
+    typeof window !== "undefined" && window.location.hash.includes("id_token=")
   );
   const [statusIndex, setStatusIndex] = useState(0);
   const { displayed, done } = useTypewriter(STATUS_LINES[statusIndex], 22, true);
@@ -152,24 +153,36 @@ export default function Auth() {
   };
 
   const handleGoogleLogin = () => {
+    // A nonce is required by Google whenever an id_token is requested via the
+    // implicit/hybrid flow, and doubles as replay protection: it's minted
+    // here, stashed in sessionStorage (survives the full-page redirect to
+    // Google and back), embedded in the returned id_token's own nonce claim,
+    // and checked again server-side against what we send back.
+    const nonce = window.crypto.randomUUID();
+    sessionStorage.setItem("hs_google_oauth_nonce", nonce);
     const redirectUri = encodeURIComponent(window.location.origin + "/login");
     const scope = encodeURIComponent("openid email profile");
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=id_token&scope=${scope}&prompt=select_account&nonce=${nonce}`;
     window.location.href = url;
   };
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash && hash.includes("access_token=")) {
+    if (hash && hash.includes("id_token=")) {
       const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get("access_token");
-      if (accessToken) {
+      const idToken = params.get("id_token");
+      const nonce = sessionStorage.getItem("hs_google_oauth_nonce");
+      sessionStorage.removeItem("hs_google_oauth_nonce");
+      if (idToken) {
         window.history.replaceState(null, null, window.location.pathname);
         setLoading(true);
-        api.loginWithGoogle(accessToken)
+        api.loginWithGoogle(idToken, nonce)
           .then((res) => {
             localStorage.setItem("token", res.data.token);
-            localStorage.removeItem("hs_onboarding_done");
+            // Only force the category picker for a genuinely new account -
+            // a returning user signing back in with Google should never see
+            // onboarding again just because they logged in.
+            if (res.data.isNewUser) localStorage.removeItem("hs_onboarding_done");
             track("login_completed", { method: "google" });
             navigate("/", { replace: true });
           })
@@ -208,7 +221,9 @@ export default function Auth() {
       if (mode === "login") {
         const res = await api.login(email, password);
         localStorage.setItem("token", res.data.token);
-        localStorage.removeItem("hs_onboarding_done");
+        // A returning password login should never re-trigger onboarding -
+        // that flag only matters for a genuinely new account (see the
+        // register branch below).
         track("login_completed", { method: "password" });
         navigate("/", { replace: true });
       } else {
@@ -253,21 +268,23 @@ export default function Auth() {
 
   return (
     <Box sx={{
-      height: "100vh", width: "100%", display: "flex", position: "relative", overflow: "hidden",
+      minHeight: "100vh", width: "100%", display: "flex", flexDirection: { xs: "column", md: "row" }, position: "relative", overflow: { xs: "visible", md: "hidden" },
       background: C.bg,
       backgroundImage: `radial-gradient(900px circle at 15% 12%, rgba(255,102,0,0.14), transparent 55%), radial-gradient(700px circle at 85% 85%, rgba(0,255,204,0.06), transparent 55%), linear-gradient(rgba(255,102,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.04) 1px, transparent 1px)`,
       backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
     }}>
       {/* Decorative corner brackets, terminal-window framing over the whole page */}
-      <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px" }} />
-      <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.2)`, borderRight: `2px solid rgba(0,255,204,0.2)`, borderBottomRightRadius: "4px" }} />
+      <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px", display: { xs: "none", md: "block" } }} />
+      <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.2)`, borderRight: `2px solid rgba(0,255,204,0.2)`, borderBottomRightRadius: "4px", display: { xs: "none", md: "block" } }} />
 
-      {/* Left: value proposition, shares the page background rather than owning its own */}
+      {/* Left: value proposition. Visible on every viewport now - a phone
+          visitor arriving via a shared link should see the actual pitch, not
+          a dead end, even though the swipe app itself stays desktop-only. */}
       <Box sx={{
-        display: { xs: "none", md: "flex" }, flexDirection: "column", justifyContent: "center",
-        flex: 1, minWidth: 0, px: 8, position: "relative",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 0 }, position: "relative",
       }}>
-        <Box sx={{ maxWidth: 480, position: "relative" }}>
+        <Box sx={{ maxWidth: 480, mx: { xs: "auto", md: 0 }, position: "relative" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
             <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
             <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange, letterSpacing: "0.1em" }}>
@@ -278,7 +295,7 @@ export default function Auth() {
             AI-POWERED HACKER NEWS DISCOVERY
           </Typography>
           <Typography sx={{
-            fontFamily: C.fontMono, fontSize: "3rem", fontWeight: 700, color: "#f2f2f2",
+            fontFamily: C.fontMono, fontSize: { xs: "2.1rem", md: "3rem" }, fontWeight: 700, color: "#f2f2f2",
             lineHeight: 1.05, mb: 1.5, letterSpacing: "0.01em", textTransform: "uppercase",
             textShadow: GLITCH_SHADOW,
           }}>
@@ -317,11 +334,27 @@ export default function Auth() {
           <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}>
             Built on real Hacker News data. Not a clone, a better way to read it.
           </Typography>
+
+          {isMobile && (
+            <Box sx={{
+              mt: 4, p: 2, borderRadius: "10px",
+              background: "rgba(255,102,0,0.06)", border: `1px solid ${C.border}`,
+            }}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "#fff", fontWeight: 700, mb: 0.5 }}>
+                Laptop or desktop only, for now
+              </Typography>
+              <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(232,232,232,0.65)", lineHeight: 1.5 }}>
+                The swipe experience isn't built for phones yet. Open this link on a laptop to sign in and start swiping.
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Box>
 
       {/* Right: auth form, a floating glass panel on the same shared canvas
-          rather than a competing full-height block */}
+          rather than a competing full-height block. Hidden on mobile - see
+          the notice above instead - since the app itself is desktop-only. */}
+      {!isMobile && (
       <Box sx={{
         display: "flex", alignItems: "center",
         width: { xs: "100%", md: 460 }, flexShrink: 0,
@@ -459,6 +492,7 @@ export default function Auth() {
         </Button>
         </Box>
       </Box>
+      )}
     </Box>
   );
 }

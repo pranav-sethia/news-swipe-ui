@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, CircularProgress, Link, Tooltip, Button } from "@mui/material";
 import { AccessTime, OpenInNew, QuestionAnswer, ChatBubbleOutline, ArrowBack, ArrowUpward, ArrowForward } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
-import { C, CATEGORY_COLORS, FALLBACK_HUE_SHIFTS } from "../theme.js";
+import { C, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
 import { StatBadge } from "./SharedComponents.jsx";
 
@@ -262,18 +262,6 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
 
             {/* Metadata Tags */}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
-              {article.category && (() => {
-                const categoryColor = CATEGORY_COLORS[article.category] || C.textDim;
-                return (
-                  <Typography sx={{
-                    fontFamily: C.fontMono, fontSize: "0.65rem", color: categoryColor,
-                    background: `${categoryColor}1a`, border: `1px solid ${categoryColor}4d`,
-                    px: 1.2, py: 0.4, borderRadius: "6px", fontWeight: 700,
-                  }}>
-                    {article.category.toUpperCase()}
-                  </Typography>
-                );
-              })()}
               {article.read_time_minutes != null && (() => {
                 const mins = parseInt(article.read_time_minutes, 10);
                 let color = C.warning;

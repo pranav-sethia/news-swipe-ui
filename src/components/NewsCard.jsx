@@ -25,6 +25,11 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
     if (!isTop || !isInteractive) return;
     const handler = async (e) => {
       if (isExiting) return;
+      // Ignore typing in any input/textarea (e.g. the Saved panel's search
+      // box) so Enter there submits/confirms a search instead of blurring
+      // the field and popping the current top article open in a new tab.
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
       if (e.key === "ArrowRight") triggerSwipe("right");
       if (e.key === "ArrowLeft") triggerSwipe("left");
       if (e.key === "ArrowUp") triggerSwipe("up");

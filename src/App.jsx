@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box, Typography, Button, IconButton,
   Dialog, DialogActions, DialogContent,
-  DialogContentText, DialogTitle, Link, Tooltip,
+  DialogContentText, DialogTitle, Link, Tooltip, TextField,
 } from "@mui/material";
 import {
   Logout, OpenInNew, WarningAmber, Undo, AccessTime,
@@ -43,6 +43,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastSwiped, setLastSwiped] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
@@ -129,16 +130,17 @@ export default function App() {
     const handler = (e) => {
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
+      const blocked = isResetModalOpen || isDeleteAccountModalOpen || showOnboarding || isSidebarOpen;
       if (e.key === "c" || e.key === "C") {
-        if (!isResetModalOpen && !showOnboarding) setIsCommentsOpen(prev => !prev);
+        if (!blocked) setIsCommentsOpen(prev => !prev);
       }
       if (e.key === "z" || e.key === "Z") {
-        if (!isResetModalOpen && !showOnboarding) handleUndo();
+        if (!blocked) handleUndo();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isResetModalOpen, showOnboarding, handleUndo]);
+  }, [isResetModalOpen, isDeleteAccountModalOpen, showOnboarding, isSidebarOpen, handleUndo]);
 
   useEffect(() => {
     if (!localStorage.getItem("hs_seen_onboarding") && !isLoading && articles.length > 0) {
@@ -269,13 +271,33 @@ export default function App() {
     } catch (err) { console.error("Failed to reset:", err); setIsLoading(false); }
   };
 
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
+  const [deleteAccountNeedsPassword, setDeleteAccountNeedsPassword] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState("");
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+
   const handleDeleteAccount = async () => {
+    setDeleteAccountError("");
+    setDeleteAccountLoading(true);
     try {
-      await api.deleteAccount();
+      await api.deleteAccount(deleteAccountPassword);
       logout();
     } catch (err) {
-      console.error("Failed to delete account:", err);
-      showToast("Couldn't delete your account. Try again.");
+      const code = err.response?.data?.error;
+      if (code === "password_required") {
+        // Guests and Google accounts skip this and delete on the first try -
+        // only a password account lands here, revealing the field inline
+        // instead of a scary error, since this is the expected first step.
+        setDeleteAccountNeedsPassword(true);
+      } else if (err.response?.status === 401) {
+        setDeleteAccountError("Incorrect password.");
+      } else {
+        console.error("Failed to delete account:", err);
+        setIsDeleteAccountModalOpen(false);
+        showToast("Couldn't delete your account. Try again.");
+      }
+    } finally {
+      setDeleteAccountLoading(false);
     }
   };
 
@@ -336,6 +358,7 @@ export default function App() {
         onRequestDeleteAccount={() => setIsDeleteAccountModalOpen(true)}
         setShowOnboarding={setShowOnboarding}
         onLogout={logout}
+        onActiveTabChange={setIsSidebarOpen}
       />
 
       {/* Center */}
@@ -367,7 +390,7 @@ export default function App() {
                   onSwipe={(dir) => handleSwipe(dir, article)}
                   onOpenComments={() => setIsCommentsOpen(true)}
                   isTop={globalIndex === articles.length - 1}
-                  isInteractive={!isResetModalOpen && !showOnboarding}
+                  isInteractive={!isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen}
                   stackIndex={globalIndex}
                   totalCards={articles.length}
                   dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
@@ -494,27 +517,51 @@ export default function App() {
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setIsResetModalOpen(false)} sx={{ color: C.textDim, fontFamily: C.fontUi }}>Cancel</Button>
           <Button onClick={() => { setIsResetModalOpen(false); handleReset(); }} variant="contained"
-            sx={{ background: "#c0392b", fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e74c3c" } }}>
+            sx={{ background: C.error, fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e65a5a" } }}>
             Reset
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete account modal */}
-      <Dialog open={isDeleteAccountModalOpen} onClose={() => setIsDeleteAccountModalOpen(false)}
+      <Dialog
+        open={isDeleteAccountModalOpen}
+        onClose={() => {
+          setIsDeleteAccountModalOpen(false);
+          setDeleteAccountPassword("");
+          setDeleteAccountNeedsPassword(false);
+          setDeleteAccountError("");
+        }}
         PaperProps={{ sx: { background: C.card, color: "white", borderRadius: "16px", border: `1px solid ${C.borderHot}` } }}>
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontFamily: C.fontUi, fontWeight: 700 }}>
           <WarningAmber sx={{ color: "#f39c12" }} /> Delete your account?
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: C.textDim, fontFamily: C.fontUi }}>
+          <DialogContentText sx={{ color: C.textDim, fontFamily: C.fontUi, mb: deleteAccountNeedsPassword ? 2 : 0 }}>
             This permanently deletes your account, swipe history, and taste profile. This can't be undone.
           </DialogContentText>
+          {deleteAccountNeedsPassword && (
+            <TextField
+              autoFocus fullWidth type="password" label="Current password" variant="outlined"
+              value={deleteAccountPassword}
+              onChange={(e) => setDeleteAccountPassword(e.target.value)}
+              error={!!deleteAccountError}
+              helperText={deleteAccountError}
+              onKeyDown={(e) => { if (e.key === "Enter") handleDeleteAccount(); }}
+              sx={{
+                '& .MuiOutlinedInput-root': { color: 'white', fontFamily: C.fontMono },
+                '& .MuiInputLabel-root': { color: C.textDim, fontFamily: C.fontMono },
+              }}
+            />
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setIsDeleteAccountModalOpen(false)} sx={{ color: C.textDim, fontFamily: C.fontUi }}>Cancel</Button>
-          <Button onClick={() => { setIsDeleteAccountModalOpen(false); handleDeleteAccount(); }} variant="contained"
-            sx={{ background: "#c0392b", fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e74c3c" } }}>
+          <Button
+            onClick={handleDeleteAccount}
+            disabled={deleteAccountLoading || (deleteAccountNeedsPassword && !deleteAccountPassword)}
+            variant="contained"
+            sx={{ background: C.error, fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e65a5a" }, "&:disabled": { background: "rgba(248,113,113,0.3)" } }}>
             Delete Account
           </Button>
         </DialogActions>

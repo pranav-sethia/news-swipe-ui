@@ -50,7 +50,7 @@ function decodeToken(token) {
   try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
 }
 
-export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onRequestDeleteAccount, setShowOnboarding, onLogout }) {
+export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onRequestDeleteAccount, setShowOnboarding, onLogout, onActiveTabChange }) {
   const [activeTab, setActiveTab] = useState(null);
   const [renderedTab, setRenderedTab] = useState(null);
   const [panelMounted, setPanelMounted] = useState(false);
@@ -85,6 +85,14 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onReq
     return () => { if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Lets the parent know whether any panel is open, so it can suppress the
+  // global swipe-card keyboard shortcuts while the sidebar has focus - those
+  // shortcuts used to fire straight through an open panel with no visual
+  // feedback (e.g. arrow keys silently swiping the card hidden behind it).
+  useEffect(() => {
+    onActiveTabChange?.(!!activeTab);
+  }, [activeTab, onActiveTabChange]);
 
   const token = localStorage.getItem("token");
   const decoded = token ? decodeToken(token) : null;

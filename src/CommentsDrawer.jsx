@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import DOMPurify from "dompurify";
-import { Drawer, Box, Typography, CircularProgress, Button, Modal, IconButton, Tooltip } from "@mui/material";
+import { Drawer, Box, Typography, CircularProgress, Button, IconButton, Tooltip } from "@mui/material";
 import { QuestionAnswer, AutoAwesome, LockOutlined } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCommentSummary } from "./api.js";
@@ -58,6 +59,13 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
       setSummarizing(false);
     }
   };
+
+  useEffect(() => {
+    if (!showAuthModal) return;
+    const handleKey = (e) => { if (e.key === "Escape") setShowAuthModal(false); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [showAuthModal]);
 
   useEffect(() => {
     if (!open || !hnId) return;
@@ -259,13 +267,37 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
         </Box>
       )}
 
-      {/* Auth Prompt Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <Modal open={true} onClose={() => setShowAuthModal(false)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      {/* Auth prompt: a plain portaled overlay, not MUI's Modal - nesting a
+          Modal inside a Drawer (itself Modal-based) causes the two
+          components' backdrop/focus-trap logic to conflict, which is what
+          caused this to flicker open/closed and made its own close button
+          unreliable. Portaling straight to body also sidesteps position:fixed
+          being scoped to the Drawer's translated Paper instead of the
+          viewport. */}
+      {showAuthModal && createPortal(
+        <AnimatePresence>
+          <Box
+            component={motion.div}
+            key="auth-modal-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setShowAuthModal(false)}
+            sx={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(0,0,0,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
             <Box component={motion.div}
+              onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: 0.2, ease: EASE.decisive }}
+              // Framer Motion's `ease` needs a keyword or a [x1,y1,x2,y2]
+              // array, not the CSS cubic-bezier(...) string EASE.decisive is
+              // (that token is for plain CSS `transition:`). Passing the raw
+              // string threw "Invalid easing type" and crashed the whole app
+              // with no error boundary on this route - every open/close of
+              // this popup, which is exactly the flicker/dead-X-button bug.
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               sx={{
                 background: 'linear-gradient(160deg, rgba(24,24,24,0.98) 0%, rgba(13,13,13,0.98) 100%)',
                 backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
@@ -290,7 +322,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
 
               <Button
                 fullWidth variant="contained"
-                onClick={() => { navigate('/register'); onClose(); }}
+                onClick={() => { setShowAuthModal(false); navigate('/register'); onClose(); }}
                 sx={{
                   background: C.orange, color: '#000', fontFamily: C.fontMono, fontWeight: 700, py: 1.5, borderRadius: '10px',
                   fontSize: '0.8rem', letterSpacing: '0.05em', mb: 1.5,
@@ -301,15 +333,16 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 CREATE ACCOUNT
               </Button>
               <Typography
-                onClick={() => { navigate('/login'); onClose(); }}
+                onClick={() => { setShowAuthModal(false); navigate('/login'); onClose(); }}
                 sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, cursor: 'pointer', '&:hover': { color: 'white' } }}
               >
                 Already have an account? Sign in
               </Typography>
             </Box>
-          </Modal>
-        )}
-      </AnimatePresence>
+          </Box>
+        </AnimatePresence>,
+        document.body
+      )}
     </Drawer>
   );
 }

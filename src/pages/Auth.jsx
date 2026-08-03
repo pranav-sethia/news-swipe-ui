@@ -144,6 +144,13 @@ export default function Auth() {
       const res = await api.loginAsGuest();
       localStorage.setItem("token", res.data.token);
       localStorage.removeItem("hs_onboarding_done");
+      // hs_seen_onboarding gates the separate in-app tutorial overlay (the
+      // swipe walkthrough on the feed) and was never cleared anywhere - once
+      // any guest on this browser saw it once, every later guest session
+      // silently skipped it forever, even though each new guest is a fresh,
+      // isolated account. Clear it here too so a new guest session actually
+      // gets a fresh tour, same as the category picker already does.
+      localStorage.removeItem("hs_seen_onboarding");
       track("guest_started");
       navigate("/onboarding", { replace: true });
     } catch {

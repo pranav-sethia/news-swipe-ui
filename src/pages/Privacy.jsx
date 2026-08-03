@@ -3,8 +3,6 @@ import { Box, Typography, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { C } from '../theme.js';
 
-const SUPPORT_EMAIL = 'YOUR_EMAIL_HERE@example.com';
-
 function Section({ title, children }) {
   return (
     <Box sx={{ mb: 4 }}>
@@ -78,16 +76,12 @@ export default function Privacy() {
         </Section>
 
         <Section title="DELETING YOUR DATA">
-          There's no self-serve delete button yet. Email {SUPPORT_EMAIL} and we'll remove your account and all
-          associated data.
+          Settings has a self-serve Delete Account option. It immediately and permanently removes your account,
+          swipe history, and taste profile. There's no waiting period and no support request needed.
         </Section>
 
         <Section title="CHANGES">
           If this policy changes in any meaningful way, the date at the top of this page will be updated.
-        </Section>
-
-        <Section title="CONTACT">
-          Questions about any of this: {SUPPORT_EMAIL}.
         </Section>
       </Box>
     </Box>

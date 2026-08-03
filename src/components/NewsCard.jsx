@@ -155,20 +155,29 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             onError={() => setImageFailed(true)}
             sx={{
               width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
+              filter: isFallback && article.id
+                ? `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1}) brightness(1.4)`
+                : "brightness(1.15) contrast(1.05)",
               ...(isFallback && article.id && {
-                // brightness boost: some of these curated stock textures
-                // (the dark hexagon one especially) are dark enough on their
-                // own that the vignette below made them nearly invisible.
-                filter: `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1}) brightness(1.4)`,
                 transform: `scale(${1 + ((article.id % 3) * 0.15)})`,
                 objectPosition: `${(article.id * 13) % 100}% ${(article.id * 17) % 100}%`
               })
             }} />
+          {/* Real per-article photos vary wildly in how dark they are (a night
+              shot, a dark-mode screenshot, a Twitter video thumbnail can be
+              near-black) and a flat brightness() multiplier on a near-black
+              source barely moves it. `screen` blend mode lifts a luminance
+              floor instead: it raises black toward this gray but leaves
+              already-bright pixels alone, so it fixes the near-black case
+              without washing out normally-exposed photos. */}
+          <Box sx={{ position: "absolute", inset: 0, background: "rgba(160,160,160,0.75)", mixBlendMode: "screen", pointerEvents: "none" }} />
           {/* Vignette for depth, so the image reads as part of one composed
-              card rather than a flat cropped rectangle */}
-          <Box sx={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 90px rgba(0,0,0,0.4)", pointerEvents: "none" }} />
+              card rather than a flat cropped rectangle. Kept lighter than
+              before - stacked on top of an already-dark source image, the
+              old 0.4/0.65 values could crush a dark photo to near-black. */}
+          <Box sx={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 90px rgba(0,0,0,0.25)", pointerEvents: "none" }} />
           <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent 55%,#0d0d0d 100%)" }} />
-          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.65)0%,transparent 55%)" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(13,13,13,0.5)0%,transparent 55%)" }} />
           {/* Glowing seam where the image meets the content panel */}
           <Box sx={{
             position: "absolute", top: 0, bottom: 0, right: 0, width: "2px",

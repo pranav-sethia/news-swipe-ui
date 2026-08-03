@@ -61,4 +61,6 @@ export const getDetailedStats = async () => {
   return res.data;
 };
 
+export const deleteAccount = () => apiClient.delete('/api/account');
+
 export const saveOnboardingCategories = (categories) => apiClient.post('/api/onboarding', { categories });

@@ -6,7 +6,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import * as api from "../api.js";
-import { C } from "../theme.js";
+import { C, CATEGORY_COLORS, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { EASE } from "../motion.js";
 import { MagneticBox, SectionHeader, ShortcutRow, Label, Mono } from "./SharedComponents.jsx";
 
@@ -22,17 +22,6 @@ const ARCHETYPES = {
   "Other": { title: "The Wanderer", body: "Your taste doesn't fit a box yet, and that's fine." },
 };
 const CATEGORY_ORDER = Object.keys(ARCHETYPES);
-const CATEGORY_COLORS = {
-  "Artificial Intelligence": C.teal,
-  "Software Engineering": C.orange,
-  "Hardware & Systems": "#3498db",
-  "Cybersecurity": "#e74c3c",
-  "Startups & VC": "#f39c12",
-  "Business & Finance": "#9b59b6",
-  "Science & Space": C.success,
-  "Design & UI/UX": "#e67e22",
-  "Other": "#95a5a6",
-};
 const STREAK_TIERS = [
   { days: 3, name: "Warming Up" },
   { days: 7, name: "Week One" },
@@ -61,7 +50,7 @@ function decodeToken(token) {
   try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
 }
 
-export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setShowOnboarding, onLogout }) {
+export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onRequestDeleteAccount, setShowOnboarding, onLogout }) {
   const [activeTab, setActiveTab] = useState(null);
   const [renderedTab, setRenderedTab] = useState(null);
   const [panelMounted, setPanelMounted] = useState(false);
@@ -240,8 +229,14 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, setSh
                   <Button fullWidth variant="outlined" onClick={() => onRequestReset()} sx={{ color: C.error, borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: C.error, background: "rgba(248,113,113,0.1)" } }}>
                     Reset Taste Profile
                   </Button>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 1 }}>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 1, mb: 2 }}>
                     Deletes your swipe history and starts your feed over. This can't be undone.
+                  </Typography>
+                  <Button fullWidth variant="outlined" onClick={() => onRequestDeleteAccount()} sx={{ color: C.error, borderColor: "rgba(248,113,113,0.3)", "&:hover": { borderColor: C.error, background: "rgba(248,113,113,0.1)" } }}>
+                    Delete Account
+                  </Button>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 1 }}>
+                    Permanently deletes your account, swipe history, and taste profile. This can't be undone.
                   </Typography>
                 </Box>
 
@@ -577,11 +572,26 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLog
   );
 }
 
+function formatRelativeTime(dateString) {
+  if (!dateString) return null;
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 export function SavedPanel({ swipeCount, onUnliked }) {
   const [liked, setLiked] = useState([]);
   const [removingIds, setRemovingIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("newest");
   const [viewed, setViewed] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("hs_viewed") || "[]")); }
     catch { return new Set(); }
@@ -616,12 +626,22 @@ export function SavedPanel({ swipeCount, onUnliked }) {
     }, 380);
   };
 
-  const filtered = liked.filter((a) => a.title.toLowerCase().includes(search.toLowerCase()));
+  // Only categories actually present among what this user saved, not all 9
+  // always, so the filter row doesn't turn into a wall of mostly-empty chips.
+  const categoriesPresent = [...new Set(liked.map((a) => a.category).filter(Boolean))];
+
+  let filtered = liked.filter((a) => a.title.toLowerCase().includes(search.toLowerCase()));
+  if (categoryFilter !== "All") filtered = filtered.filter((a) => a.category === categoryFilter);
+  filtered = [...filtered].sort((a, b) => (
+    sortBy === "popular"
+      ? (b.score || 0) - (a.score || 0)
+      : new Date(b.swipe_time) - new Date(a.swipe_time)
+  ));
 
   return (
     <>
       <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`SAVED STORIES (${liked.length})`} color={C.error} />
-      <Box sx={{ mt: 1.5, mb: 2 }}>
+      <Box sx={{ mt: 1.5, mb: 1.5 }}>
         <Box sx={{
           display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)",
           border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", px: 1, py: 0.5,
@@ -639,6 +659,57 @@ export function SavedPanel({ swipeCount, onUnliked }) {
           />
         </Box>
       </Box>
+
+      {categoriesPresent.length > 0 && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.5 }}>
+          {["All", ...categoriesPresent].map((cat) => {
+            const isActive = categoryFilter === cat;
+            const color = cat === "All" ? C.orange : (CATEGORY_COLORS[cat] || C.textDim);
+            return (
+              <Box
+                key={cat}
+                component="button"
+                onClick={() => setCategoryFilter(cat)}
+                sx={{
+                  fontFamily: C.fontMono, fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.02em",
+                  color: isActive ? color : C.textDim,
+                  background: isActive ? `${color}1a` : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${isActive ? `${color}66` : "rgba(255,255,255,0.1)"}`,
+                  borderRadius: "5px", px: 1, py: 0.4, cursor: "pointer",
+                  transition: `all 150ms ${EASE.standard}`,
+                  "&:hover": { borderColor: `${color}66`, color },
+                }}
+              >
+                {cat === "All" ? "ALL" : cat.toUpperCase()}
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      {liked.length > 0 && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.textDim }}>SORT</Typography>
+          {[["newest", "Newest"], ["popular", "Popular"]].map(([value, label]) => (
+            <Box
+              key={value}
+              component="button"
+              onClick={() => setSortBy(value)}
+              sx={{
+                fontFamily: C.fontMono, fontSize: "0.65rem", fontWeight: 700,
+                color: sortBy === value ? C.orange : C.textDim,
+                background: sortBy === value ? "rgba(255,102,0,0.1)" : "transparent",
+                border: `1px solid ${sortBy === value ? "rgba(255,102,0,0.4)" : "transparent"}`,
+                borderRadius: "5px", px: 1, py: 0.3, cursor: "pointer",
+                transition: `all 150ms ${EASE.standard}`,
+              }}
+            >
+              {label}
+            </Box>
+          ))}
+        </Box>
+      )}
+
       {loading ? (
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim }}>
           loading<span className="cursor-blink" />
@@ -648,6 +719,10 @@ export function SavedPanel({ swipeCount, onUnliked }) {
           {filtered.map((a) => {
             const isViewed = viewed.has(String(a.id));
             const isRemoving = removingIds.has(a.id);
+            const categoryColor = a.category ? (CATEGORY_COLORS[a.category] || C.textDim) : null;
+            const isFallbackThumb = !a.image_url;
+            const thumbUrl = isFallbackThumb ? `/hacker_bgs/bg_${a.id % 5}.png` : a.image_url;
+            const hueShift = FALLBACK_HUE_SHIFTS[a.id % FALLBACK_HUE_SHIFTS.length];
             return (
               <Box key={a.id} sx={{
                 p: 1.5, borderRadius: "8px", position: "relative", overflow: "hidden",
@@ -663,42 +738,87 @@ export function SavedPanel({ swipeCount, onUnliked }) {
                 transition: `opacity 350ms ${EASE.standard}, transform 350ms ${EASE.standard}, max-height 380ms ${EASE.standard} 50ms, border-left-color 150ms ease`,
                 "&:hover": isRemoving ? {} : { background: "rgba(255,102,0,0.08)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" },
               }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
-                  <Link
-                    href={a.article_url} target="_blank" rel="noopener noreferrer"
-                    underline="none"
-                    onClick={() => markViewed(a.id)}
-                    sx={{
-                      color: isViewed ? C.textDim : "#ffffff",
-                      fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: isViewed ? 500 : 700, lineHeight: 1.4,
-                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-                      transition: "color 0.2s", flexGrow: 1, pr: 1,
-                      "&:hover": { color: C.orange },
-                    }}
-                  >
-                    {a.title}
-                  </Link>
-                  <Tooltip title="Remove">
-                    <IconButton onClick={() => handleUnlike(a.id)} size="small" aria-label="Remove from saved"
-                      sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: C.error, background: "rgba(248,113,113,0.1)" } }}>
-                      <Delete sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-
-                {isViewed && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>
-                    <Visibility sx={{ fontSize: 10, color: C.textDim }} />
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>VIEWED</Typography>
+                <Box sx={{ display: "flex", gap: 1.25 }}>
+                  <Box sx={{
+                    width: 48, height: 48, borderRadius: "6px", overflow: "hidden",
+                    flexShrink: 0, background: C.bg,
+                  }}>
+                    <Box component="img" src={thumbUrl} alt=""
+                      sx={{
+                        width: "100%", height: "100%", objectFit: "cover",
+                        opacity: isViewed ? 0.5 : 1,
+                        ...(isFallbackThumb && {
+                          filter: `hue-rotate(${hueShift}deg) saturate(1.2) brightness(1.3)`,
+                        }),
+                      }} />
                   </Box>
-                )}
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+                      <Link
+                        href={a.article_url} target="_blank" rel="noopener noreferrer"
+                        underline="none"
+                        onClick={() => markViewed(a.id)}
+                        sx={{
+                          color: isViewed ? C.textDim : "#ffffff",
+                          fontFamily: C.fontUi, fontSize: "0.78rem", fontWeight: isViewed ? 500 : 700, lineHeight: 1.4,
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                          transition: "color 0.2s", flexGrow: 1, pr: 1,
+                          "&:hover": { color: C.orange },
+                        }}
+                      >
+                        {a.title}
+                      </Link>
+                      <Tooltip title="Remove">
+                        <IconButton onClick={() => handleUnlike(a.id)} size="small" aria-label="Remove from saved"
+                          sx={{ color: C.textDim, flexShrink: 0, mt: "-2px", mr: "-4px", "&:hover": { color: C.error, background: "rgba(248,113,113,0.1)" } }}>
+                          <Delete sx={{ fontSize: 13 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+
+                    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75, mt: 0.75 }}>
+                      {a.category && (
+                        <Typography sx={{
+                          fontFamily: C.fontMono, fontSize: "0.58rem", fontWeight: 700, color: categoryColor,
+                          background: `${categoryColor}1a`, border: `1px solid ${categoryColor}4d`,
+                          px: 0.75, py: 0.2, borderRadius: "4px",
+                        }}>
+                          {a.category.toUpperCase()}
+                        </Typography>
+                      )}
+                      {a.source_name && (
+                        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.textDim }}>
+                          {a.source_name}
+                        </Typography>
+                      )}
+                      {a.swipe_time && (
+                        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.textDim }}>
+                          · {formatRelativeTime(a.swipe_time)}
+                        </Typography>
+                      )}
+                      {a.score != null && (
+                        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.orange }}>
+                          · {a.score} pts
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {isViewed && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                        <Visibility sx={{ fontSize: 10, color: C.textDim }} />
+                        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.textDim }}>VIEWED</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
               </Box>
             );
           })}
         </Box>
       ) : (
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim }}>
-          {liked.length === 0 ? "Nothing saved yet. Swipe right to keep a story here." : "No saved stories match your search."}
+          {liked.length === 0 ? "Nothing saved yet. Swipe right to keep a story here." : "No saved stories match your filters."}
         </Typography>
       )}
     </>

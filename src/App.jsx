@@ -39,6 +39,7 @@ export default function App() {
   const navigate = useNavigate();
   const [swipeCount, setSwipeCount] = useState(0);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -268,6 +269,16 @@ export default function App() {
     } catch (err) { console.error("Failed to reset:", err); setIsLoading(false); }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      await api.deleteAccount();
+      logout();
+    } catch (err) {
+      console.error("Failed to delete account:", err);
+      showToast("Couldn't delete your account. Try again.");
+    }
+  };
+
   return (
     <>
 
@@ -322,7 +333,8 @@ export default function App() {
         onUnliked={() => setSwipeCount((p) => p + 1)} 
         handleReset={handleReset}
         onRequestReset={() => setIsResetModalOpen(true)}
-        setShowOnboarding={setShowOnboarding} 
+        onRequestDeleteAccount={() => setIsDeleteAccountModalOpen(true)}
+        setShowOnboarding={setShowOnboarding}
         onLogout={logout}
       />
 
@@ -484,6 +496,26 @@ export default function App() {
           <Button onClick={() => { setIsResetModalOpen(false); handleReset(); }} variant="contained"
             sx={{ background: "#c0392b", fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e74c3c" } }}>
             Reset
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete account modal */}
+      <Dialog open={isDeleteAccountModalOpen} onClose={() => setIsDeleteAccountModalOpen(false)}
+        PaperProps={{ sx: { background: C.card, color: "white", borderRadius: "16px", border: `1px solid ${C.borderHot}` } }}>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontFamily: C.fontUi, fontWeight: 700 }}>
+          <WarningAmber sx={{ color: "#f39c12" }} /> Delete your account?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: C.textDim, fontFamily: C.fontUi }}>
+            This permanently deletes your account, swipe history, and taste profile. This can't be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setIsDeleteAccountModalOpen(false)} sx={{ color: C.textDim, fontFamily: C.fontUi }}>Cancel</Button>
+          <Button onClick={() => { setIsDeleteAccountModalOpen(false); handleDeleteAccount(); }} variant="contained"
+            sx={{ background: "#c0392b", fontFamily: C.fontUi, fontWeight: 700, "&:hover": { background: "#e74c3c" } }}>
+            Delete Account
           </Button>
         </DialogActions>
       </Dialog>

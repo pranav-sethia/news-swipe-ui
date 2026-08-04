@@ -33,6 +33,7 @@ export const register = (email, password) => apiClient.post('/auth/register', { 
 export const loginAsGuest = () => apiClient.post('/auth/guest');
 export const loginWithGoogle = (idToken, nonce) => apiClient.post('/api/auth/google', { idToken, nonce });
 export const forgotPassword = (email) => apiClient.post('/auth/forgot-password', { email });
+export const getPublicStats = async () => { const { data } = await apiClient.get('/api/stats/public'); return data; };
 export const resetPassword = (token, password) => apiClient.post('/auth/reset-password', { token, password });
 export const isResetTokenValid = async (token) => {
   const { data } = await apiClient.get('/auth/reset-token-valid', { params: { token } });

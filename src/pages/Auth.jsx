@@ -24,15 +24,21 @@ const GLITCH_SHADOW = [
 
 const STATUS_LINES = [
   "indexing today's front page...",
-  "computing your taste vector...",
+  "computing your taste profile...",
   "match found: 94% relevance",
 ];
 
+// Each row's bullet mirrors the real per-article AI summary shown on every
+// card - short fragments, no filler - so the demo proves the "know before
+// you click" claim instead of just showing a title sliding across the screen.
+// matchPct mirrors the real card's badge (NewsCard.jsx) - alternating with
+// null (rendered as DISCOVERY) so the preview honestly shows both states
+// instead of implying every story is always a strong match.
 const DEMO_ROWS = [
-  { title: "Show HN: I built a CRDT from scratch", pts: 412 },
-  { title: "The case against microservices", pts: 891 },
-  { title: "Why Rust's borrow checker finally clicked", pts: 234 },
-  { title: "Ask HN: How do you review your own PRs?", pts: 156 },
+  { title: "Show HN: I built a CRDT from scratch", pts: 412, bullet: "No server needed, syncs across tabs offline", matchPct: 93 },
+  { title: "The case against microservices", pts: 891, bullet: "One team's monolith outperformed 40 services", matchPct: null },
+  { title: "Why Rust's borrow checker finally clicked", pts: 234, bullet: "Mental model that finally made it click", matchPct: 85 },
+  { title: "Ask HN: How do you review your own PRs?", pts: 156, bullet: "Real review checklists from working devs", matchPct: null },
 ];
 
 function SwipeStackDemo() {
@@ -55,7 +61,7 @@ function SwipeStackDemo() {
   const visible = [0, 1, 2].map((offset) => DEMO_ROWS[(index + offset) % DEMO_ROWS.length]);
 
   return (
-    <Box sx={{ position: "relative", height: 190 }}>
+    <Box sx={{ position: "relative", height: 135 }}>
       <Box sx={{
         position: "absolute", inset: "-30px -40px", borderRadius: "24px",
         background: "radial-gradient(circle at 30% 40%, rgba(255,102,0,0.16), transparent 65%)",
@@ -76,13 +82,17 @@ function SwipeStackDemo() {
             border: `1px solid ${isTop ? "rgba(255,102,0,0.3)" : C.border}`, borderRadius: "12px", p: 2,
             boxShadow: isTop ? "0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,102,0,0.05)" : "none",
           }}>
-            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#fff", fontWeight: 600, lineHeight: 1.4 }}>{row.title}</Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.8 }}>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#fff", fontWeight: 600, lineHeight: 1.4, pr: 8 }}>{row.title}</Typography>
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, mt: 1 }}>
+              <Typography sx={{ color: C.orange, fontSize: "0.7rem", mt: "1px" }}>▸</Typography>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(220,220,220,0.75)", lineHeight: 1.4 }}>{row.bullet}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.9 }}>
               <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, fontWeight: 700 }}>{row.pts} pts</Typography>
               <Box sx={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
               <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}>news.ycombinator.com</Typography>
             </Box>
-            {isTop && exiting && (
+            {isTop && exiting ? (
               <Box sx={{
                 position: "absolute", top: 12, right: 12,
                 color: direction === "right" ? C.success : C.error,
@@ -92,6 +102,25 @@ function SwipeStackDemo() {
               }}>
                 {direction === "right" ? "LIKED" : "SKIP"}
               </Box>
+            ) : row.matchPct ? (
+              <Typography sx={{
+                position: "absolute", top: 12, right: 12,
+                fontFamily: C.fontMono, fontSize: "0.55rem", color: row.matchPct >= 95 ? C.rareMatchGold : C.teal,
+                background: row.matchPct >= 95 ? "rgba(255,215,0,0.12)" : "rgba(0,255,204,0.1)",
+                border: `1px solid ${row.matchPct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.3)"}`,
+                px: 0.8, py: 0.3, borderRadius: "4px",
+              }}>
+                {row.matchPct >= 95 ? `★ ${row.matchPct}% RARE MATCH` : `${row.matchPct}% MATCH`}
+              </Typography>
+            ) : (
+              <Typography sx={{
+                position: "absolute", top: 12, right: 12,
+                fontFamily: C.fontMono, fontSize: "0.55rem", color: "#a0a0a0",
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                px: 0.8, py: 0.3, borderRadius: "4px",
+              }}>
+                DISCOVERY
+              </Typography>
             )}
           </Box>
         );
@@ -110,6 +139,14 @@ export default function Auth() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [articleCount, setArticleCount] = useState(null);
+
+  // A real, honest proof-of-life number instead of an invented one - fails
+  // silently if the request doesn't come back, since this is a nice-to-have
+  // credibility line, not something worth ever showing an error for.
+  useEffect(() => {
+    api.getPublicStats().then((data) => setArticleCount(data.articleCount)).catch(() => {});
+  }, []);
   // Lazy initializer so this is already true on the very first render, before
   // paint - otherwise the full landing page (hero + form) flashes on screen
   // for a moment after the Google redirect lands back here, before the async
@@ -275,7 +312,7 @@ export default function Auth() {
 
   return (
     <Box sx={{
-      minHeight: "100vh", width: "100%", display: "flex", flexDirection: { xs: "column", md: "row" }, position: "relative", overflow: { xs: "visible", md: "hidden" },
+      minHeight: "100vh", width: "100%", display: "flex", flexDirection: { xs: "column", md: "row" }, position: "relative", overflow: "visible",
       background: C.bg,
       backgroundImage: `radial-gradient(900px circle at 15% 12%, rgba(255,102,0,0.14), transparent 55%), radial-gradient(700px circle at 85% 85%, rgba(0,255,204,0.06), transparent 55%), linear-gradient(rgba(255,102,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,102,0,0.04) 1px, transparent 1px)`,
       backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px",
@@ -284,62 +321,77 @@ export default function Auth() {
       <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.4)`, borderLeft: `2px solid rgba(255,102,0,0.4)`, borderTopLeftRadius: "4px", display: { xs: "none", md: "block" } }} />
       <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.2)`, borderRight: `2px solid rgba(0,255,204,0.2)`, borderBottomRightRadius: "4px", display: { xs: "none", md: "block" } }} />
 
+      {/* Shared bounded row: the outer page Box stays full-bleed for the
+          background texture, but the two content panels are wrapped here so
+          they read as one composed unit on wide viewports instead of a left
+          island and a right island with a growing void between them. */}
+      <Box sx={{
+        display: "flex", flexDirection: { xs: "column", md: "row" },
+        width: "100%", maxWidth: 1240, mx: "auto", position: "relative",
+        gap: { md: 6 },
+      }}>
+
       {/* Left: value proposition. Visible on every viewport now - a phone
           visitor arriving via a shared link should see the actual pitch, not
           a dead end, even though the swipe app itself stays desktop-only. */}
       <Box sx={{
         display: "flex", flexDirection: "column", justifyContent: "center",
-        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 0 }, position: "relative",
+        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 4.5 }, position: "relative",
       }}>
-        <Box sx={{ maxWidth: 480, mx: { xs: "auto", md: 0 }, position: "relative" }}>
+        <Box sx={{ maxWidth: 540, mx: { xs: "auto", md: 0 }, position: "relative" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
-            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.6rem", color: C.orange, letterSpacing: "0.1em" }}>
+            <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
+            <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.7rem", color: C.orange, letterSpacing: "0.1em" }}>
               HACKERSWIPE
             </Typography>
           </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(232,232,232,0.65)", letterSpacing: "0.15em", mb: 3.5 }}>
-            AI-POWERED HACKER NEWS DISCOVERY
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "rgba(232,232,232,0.8)", letterSpacing: "0.15em", mb: 2 }}>
+            A SHARPER WAY TO READ HACKER NEWS
           </Typography>
           <Typography sx={{
-            fontFamily: C.fontMono, fontSize: { xs: "2.1rem", md: "3rem" }, fontWeight: 700, color: "#f2f2f2",
-            lineHeight: 1.05, mb: 1.5, letterSpacing: "0.01em", textTransform: "uppercase",
+            fontFamily: C.fontMono, fontSize: { xs: "2.4rem", md: "3.4rem" }, fontWeight: 700, color: "#f9f9f9",
+            lineHeight: 1.08, mb: 2, letterSpacing: "0.01em", textTransform: "uppercase",
             textShadow: GLITCH_SHADOW,
           }}>
-            Stop<br />scrolling.<br />
-            Start{" "}
-            <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>swiping.</Box>
+            Know before<br />
+            <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>you click.</Box>
           </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.95rem", color: "rgba(232,232,232,0.6)", lineHeight: 1.5, mb: 4, maxWidth: 380 }}>
-            Hacker News, filtered by an algorithm that actually learns your taste.
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.78)", lineHeight: 1.5, mb: 2.5, maxWidth: 460 }}>
+            Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 4 }}>
+          {/* Proof comes right after the claim, before three more paragraphs
+              of elaboration - the demo is the strongest evidence on the page,
+              so it shouldn't be buried below the bullets that describe it. */}
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange, letterSpacing: "0.1em", mb: 1 }}>
+            [ LIVE PREVIEW ]
+          </Typography>
+          <SwipeStackDemo />
+
+          {/* Plain rows (no boxed chrome) so the copy itself - the actual
+              differentiators - can run at a real reading size instead of
+              competing with border/background decoration for space. */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2, mt: 2, mb: 2 }}>
             {[
-              ["SWIPE", "Right to like, left to skip. Two seconds per story."],
-              ["LEARN", "Every swipe sharpens what the feed shows you next."],
-              ["DIGEST", "Ask the AI to boil a long thread down to one paragraph."],
+              ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
+              ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],
+              ["BY TOPIC", "AI, security, startups, hardware, and more. Read what you're into, skip the rest."],
             ].map(([tag, body]) => (
-              <Box key={tag} sx={{
-                display: "flex", gap: 1.5, alignItems: "baseline",
-                px: 1.5, py: 1.1, borderRadius: "8px",
-                background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)",
-              }}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, flexShrink: 0, width: 56, fontWeight: 700 }}>[{tag}]</Typography>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.5, textWrap: "pretty" }}>{body}</Typography>
+              <Box key={tag} sx={{ display: "flex", gap: 1.5, alignItems: "baseline" }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange, flexShrink: 0, width: 82, fontWeight: 700 }}>[{tag}]</Typography>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.98rem", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, textWrap: "pretty" }}>{body}</Typography>
               </Box>
             ))}
           </Box>
 
-          <SwipeStackDemo />
-
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "rgba(232,232,232,0.7)", mt: 4, mb: 2 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.85rem", color: "rgba(232,232,232,0.8)", mb: 1.5 }}>
             {"> "}{displayed}
             <span className="cursor-blink" />
           </Typography>
 
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}>
-            Built on real Hacker News data. Not a clone, a better way to read it.
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(255,255,255,0.45)" }}>
+            Real Hacker News stories. A sharper way to read them.
+            {articleCount != null ? ` ${articleCount.toLocaleString()}+ indexed so far.` : ""}
           </Typography>
 
           {isMobile && (
@@ -358,28 +410,47 @@ export default function Auth() {
         </Box>
       </Box>
 
+      {/* A faint vertical seam tying the two panels into one composition
+          instead of a blank gap between two unrelated blocks - fades out top
+          and bottom rather than reading as a hard divider line. */}
+      {!isMobile && (
+        <Box sx={{
+          display: { xs: "none", md: "block" }, width: "1px", flexShrink: 0, alignSelf: "stretch", my: 8,
+          background: `linear-gradient(180deg, transparent, ${C.border} 30%, ${C.border} 70%, transparent)`,
+        }} />
+      )}
+
       {/* Right: auth form, a floating glass panel on the same shared canvas
           rather than a competing full-height block. Hidden on mobile - see
           the notice above instead - since the app itself is desktop-only. */}
       {!isMobile && (
       <Box sx={{
         display: "flex", alignItems: "center",
-        width: { xs: "100%", md: 460 }, flexShrink: 0,
+        width: { xs: "100%", md: 440 }, flexShrink: 0,
         p: { xs: 3, md: 0 },
-        my: { md: 5 }, mr: { md: 5 },
+        my: { md: 6 },
       }}>
         <Box sx={{
           width: "100%", maxHeight: "100%", overflowY: "auto",
           px: { xs: 3, md: 4.5 }, py: { xs: 4, md: 5 },
           borderRadius: "20px",
-          background: "linear-gradient(165deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.92) 100%)",
+          // Lighter than before and tinted with the same border/glow tokens
+          // as the rest of the page (C.border, not a generic white opacity)
+          // so the ambient grid/glow bleeds through faintly and this reads
+          // as the same surface as the left panel, not a card pasted on top.
+          background: "linear-gradient(165deg, rgba(20,20,20,0.78) 0%, rgba(10,10,10,0.82) 100%)",
           border: `1px solid ${C.border}`,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
-          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255,102,0,0.22)",
+          boxShadow: "0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
+          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
         }}>
         <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", justifyContent: "center", mb: 4 }}>
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.1em" }}>HACKERSWIPE</Typography>
         </Box>
+
+        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.1em", mb: 2, display: { xs: "none", md: "block" } }}>
+          [ GET STARTED ]
+        </Typography>
 
         {sessionExpired && (
           <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
@@ -500,6 +571,7 @@ export default function Auth() {
         </Box>
       </Box>
       )}
+      </Box>
     </Box>
   );
 }

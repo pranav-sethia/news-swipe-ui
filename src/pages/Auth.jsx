@@ -353,7 +353,7 @@ export default function Auth() {
             lineHeight: 1.02, mb: 1.5, letterSpacing: "0.01em", textTransform: "uppercase",
             textShadow: GLITCH_SHADOW,
           }}>
-            The front page<br />of tech,<br />
+            The front<br />page of tech,<br />
             <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>tuned to you.</Box>
           </Typography>
           <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.78)", lineHeight: 1.5, mb: 2, maxWidth: 460 }}>

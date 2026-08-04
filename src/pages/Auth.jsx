@@ -61,7 +61,7 @@ function SwipeStackDemo() {
   const visible = [0, 1, 2].map((offset) => DEMO_ROWS[(index + offset) % DEMO_ROWS.length]);
 
   return (
-    <Box sx={{ position: "relative", height: 135 }}>
+    <Box sx={{ position: "relative", height: 125 }}>
       <Box sx={{
         position: "absolute", inset: "-30px -40px", borderRadius: "24px",
         background: "radial-gradient(circle at 30% 40%, rgba(255,102,0,0.16), transparent 65%)",
@@ -336,27 +336,27 @@ export default function Auth() {
           a dead end, even though the swipe app itself stays desktop-only. */}
       <Box sx={{
         display: "flex", flexDirection: "column", justifyContent: "center",
-        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 4.5 }, position: "relative",
+        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 4 }, position: "relative",
       }}>
         <Box sx={{ maxWidth: 540, mx: { xs: "auto", md: 0 }, position: "relative" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
             <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
             <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.7rem", color: C.orange, letterSpacing: "0.1em" }}>
               HACKERSWIPE
             </Typography>
           </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "rgba(232,232,232,0.8)", letterSpacing: "0.15em", mb: 2 }}>
+          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "rgba(232,232,232,0.8)", letterSpacing: "0.15em", mb: 1.5 }}>
             A SHARPER WAY TO READ HACKER NEWS
           </Typography>
           <Typography sx={{
-            fontFamily: C.fontMono, fontSize: { xs: "2.4rem", md: "3.4rem" }, fontWeight: 700, color: "#f9f9f9",
-            lineHeight: 1.08, mb: 2, letterSpacing: "0.01em", textTransform: "uppercase",
+            fontFamily: C.fontMono, fontSize: { xs: "2.2rem", md: "3rem" }, fontWeight: 700, color: "#f9f9f9",
+            lineHeight: 1.02, mb: 1.5, letterSpacing: "0.01em", textTransform: "uppercase",
             textShadow: GLITCH_SHADOW,
           }}>
-            Know before<br />
-            <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>you click.</Box>
+            The front page<br />of tech,<br />
+            <Box component="span" sx={{ color: C.orange, textShadow: GLITCH_SHADOW }}>tuned to you.</Box>
           </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.78)", lineHeight: 1.5, mb: 2.5, maxWidth: 460 }}>
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.78)", lineHeight: 1.5, mb: 2, maxWidth: 460 }}>
             Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
           </Typography>
 
@@ -371,7 +371,7 @@ export default function Auth() {
           {/* Plain rows (no boxed chrome) so the copy itself - the actual
               differentiators - can run at a real reading size instead of
               competing with border/background decoration for space. */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2, mt: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2, mt: 1.5, mb: 1.5 }}>
             {[
               ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
               ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],

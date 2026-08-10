@@ -12,7 +12,7 @@ export const TOUR_STEPS = [
   },
   {
     title: "Swipe to train your AI",
-    body: "Right to save a story and see more like it. Left to dislike and see less. Up to skip neutrally.",
+    body: "Right to save a story and see more like it. Left to dislike and see less. Up to skip neutrally. On a laptop, the ← → ↑ arrow keys do the same thing - no dragging required.",
     targetSelector: "[data-tour='card']",
     placement: "center",
   },

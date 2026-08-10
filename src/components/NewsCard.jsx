@@ -6,7 +6,7 @@ import { C, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
 import { StatBadge } from "./SharedComponents.jsx";
 
-export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards, dataTour }) {
+export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards, dataTour, showDragHint }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
@@ -86,17 +86,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
     else controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
   };
 
-  // A one-time, per-browser-session settle-wiggle on the first interactive
-  // card, so the card itself hints "I move" instead of relying only on the
-  // small "or drag the card" caption text.
-  const [playDragHint, setPlayDragHint] = useState(false);
+  // Shown until the user's very first swipe (showDragHint = swipeCount === 0,
+  // passed down from App.jsx) - a brief settle-wiggle plus persistent fading
+  // arrow-key labels, so the card itself teaches "you can use the keyboard
+  // too" instead of relying only on the small caption text below it. Clears
+  // itself the instant swipeCount ticks to 1, no manual flag bookkeeping.
+  const shouldHint = !!showDragHint && isTop && isInteractive && !isExiting;
+  const [playWiggle, setPlayWiggle] = useState(false);
   useEffect(() => {
-    if (!isTop || !isInteractive || isExiting) return;
-    if (sessionStorage.getItem("hs_seen_drag_hint")) return;
-    sessionStorage.setItem("hs_seen_drag_hint", "1");
-    const id = setTimeout(() => setPlayDragHint(true), 900);
+    if (!shouldHint || playWiggle) return;
+    const id = setTimeout(() => setPlayWiggle(true), 900);
     return () => clearTimeout(id);
-  }, [isTop, isInteractive, isExiting]);
+  }, [shouldHint, playWiggle]);
 
   const [imageFailed, setImageFailed] = useState(false);
   const fallbackBgIndex = article.id ? (article.id % 5) : 0;
@@ -159,7 +160,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         // Layers the one-time drag hint alongside (not instead of) the
         // existing border-pulse glow already applied via the .card-glow
         // class, rather than overriding it.
-        animation: playDragHint ? "border-pulse 3s ease-in-out infinite, cardDragHint 1.1s ease-in-out" : undefined,
+        animation: playWiggle ? "border-pulse 3s ease-in-out infinite, cardDragHint 1.1s ease-in-out" : undefined,
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
@@ -478,6 +479,35 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
           <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>
         </motion.div>
+
+        {/* Arrow-key discoverability hint - persists until the first swipe,
+            reusing the app's own like/dislike color language (green=right,
+            red=left) so it reads as consistent with the LIKE/DISLIKE stamps
+            above rather than an unrelated new color. */}
+        {shouldHint && (
+          <>
+            <Box sx={{
+              position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+              display: "flex", alignItems: "center", gap: 0.5, zIndex: 5, pointerEvents: "none",
+              animation: "arrowHintPulse 1.8s ease-in-out infinite",
+            }}>
+              <ArrowBack sx={{ color: C.error, fontSize: "1.1rem" }} />
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.error, fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 6px rgba(0,0,0,0.8)" }}>
+                LEFT ARROW KEY
+              </Typography>
+            </Box>
+            <Box sx={{
+              position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
+              display: "flex", alignItems: "center", gap: 0.5, zIndex: 5, pointerEvents: "none",
+              animation: "arrowHintPulse 1.8s ease-in-out infinite",
+            }}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.success, fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 6px rgba(0,0,0,0.8)" }}>
+                RIGHT ARROW KEY
+              </Typography>
+              <ArrowForward sx={{ color: C.success, fontSize: "1.1rem" }} />
+            </Box>
+          </>
+        )}
       </Box>
     </Box>
   );

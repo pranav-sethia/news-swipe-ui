@@ -32,6 +32,20 @@ function isGuestUser() {
 }
 
 export default function App() {
+  // The swipe app is the one page in this whole site that needs a hard,
+  // fixed-height, non-scrolling viewport (its card stack is absolutely
+  // positioned and self-contained). That lock used to live directly on
+  // html/body/#root in index.css, applied globally to every route - which
+  // silently broke scrolling on plain-content pages that render outside this
+  // component entirely (Privacy, ForgotPassword, ResetPassword) once their
+  // content grew taller than the viewport. Scoping the lock to only be
+  // active while this component is mounted fixes that at the root instead of
+  // patching each affected page individually.
+  useEffect(() => {
+    document.body.classList.add("swipe-app-active");
+    return () => document.body.classList.remove("swipe-app-active");
+  }, []);
+
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExhausted, setIsExhausted] = useState(false);
@@ -338,7 +352,7 @@ export default function App() {
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.05em" }}>HACKERSWIPE</Typography>
         </Box>
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, letterSpacing: "0.15em", fontWeight: 700, display: { xs: "none", sm: "block" } }}>
-          AI-POWERED HACKER NEWS DISCOVERY
+          HACKER NEWS TUNED TO YOU
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <AuthStatusPill onLogout={logout} />
@@ -394,6 +408,7 @@ export default function App() {
                   stackIndex={globalIndex}
                   totalCards={articles.length}
                   dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
+                  showDragHint={swipeCount === 0}
                 />
               );
             })}

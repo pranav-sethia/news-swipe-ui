@@ -188,6 +188,12 @@ export default function Auth() {
       // isolated account. Clear it here too so a new guest session actually
       // gets a fresh tour, same as the category picker already does.
       localStorage.removeItem("hs_seen_onboarding");
+      // Same story for the 5-like guest-conversion nudge (App.jsx) - it's
+      // meant to fire once per guest session on their 5th like, but the flag
+      // lived in localStorage with nothing ever clearing it, so a second
+      // guest session on the same browser silently never saw it again even
+      // starting from 0 likes. Clear it here too.
+      localStorage.removeItem("hs_seen_like_milestone");
       track("guest_started");
       navigate("/onboarding", { replace: true });
     } catch {

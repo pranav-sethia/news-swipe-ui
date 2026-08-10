@@ -113,6 +113,15 @@ html, body, #root {
   50% { box-shadow: 0 0 35px rgba(255, 102, 0, 0.28), 0 20px 60px rgba(0, 0, 0, 0.8); }
 }
 
+/* First-card-of-session drag affordance hint - a brief settle wiggle so the
+   card itself signals "I move", not just the small caption text below it. */
+@keyframes cardDragHint {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-10px) rotate(-2deg); }
+  45% { transform: translateX(8px) rotate(1.5deg); }
+  70% { transform: translateX(-5px) rotate(-1deg); }
+}
+
 .card-glow {
   animation: border-pulse 3s ease-in-out infinite;
 }

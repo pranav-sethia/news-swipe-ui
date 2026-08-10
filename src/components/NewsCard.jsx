@@ -86,6 +86,18 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
     else controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
   };
 
+  // A one-time, per-browser-session settle-wiggle on the first interactive
+  // card, so the card itself hints "I move" instead of relying only on the
+  // small "or drag the card" caption text.
+  const [playDragHint, setPlayDragHint] = useState(false);
+  useEffect(() => {
+    if (!isTop || !isInteractive || isExiting) return;
+    if (sessionStorage.getItem("hs_seen_drag_hint")) return;
+    sessionStorage.setItem("hs_seen_drag_hint", "1");
+    const id = setTimeout(() => setPlayDragHint(true), 900);
+    return () => clearTimeout(id);
+  }, [isTop, isInteractive, isExiting]);
+
   const [imageFailed, setImageFailed] = useState(false);
   const fallbackBgIndex = article.id ? (article.id % 5) : 0;
   const isFallback = !article.image_url || imageFailed;
@@ -144,6 +156,10 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         boxShadow: isTop
           ? "0 30px 70px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(255,255,255,0.02), 0 0 50px rgba(255,102,0,0.06)"
           : "none",
+        // Layers the one-time drag hint alongside (not instead of) the
+        // existing border-pulse glow already applied via the .card-glow
+        // class, rather than overriding it.
+        animation: playDragHint ? "border-pulse 3s ease-in-out infinite, cardDragHint 1.1s ease-in-out" : undefined,
         borderRadius: "20px",
         overflow: "hidden",
         display: "grid",
@@ -201,7 +217,6 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.border, ml: 1 }}>[{stackIndex + 1}]</Typography>
               </Box>
               
               {article.match_pct ? (
@@ -258,9 +273,22 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                     {article.match_pct >= 95 ? `★ ${article.match_pct}% RARE MATCH` : `${article.match_pct}% MATCH`}
                   </Typography>
                 </Tooltip>
-              ) : (
+              ) : article.discovery_type === "popular" ? (
+                <Tooltip title="One of the biggest stories on HN right now, regardless of your taste match" placement="top">
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.5px", background: "rgba(255,102,0,0.12)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,102,0,0.5)", cursor: "help" }}>
+                    🔥 POPULAR
+                  </Typography>
+                </Tooltip>
+              ) : article.discovery_type === "random" ? (
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
                   DISCOVERY
+                </Typography>
+              ) : (
+                // No taste_vector yet (genuinely new user) - a confident,
+                // on-brand touchpoint for "learns your taste" from swipe one,
+                // instead of a bare, generic label with no personalization signal at all.
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.5px", background: "rgba(255,102,0,0.08)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,102,0,0.35)" }}>
+                  ◆ BUILDING YOUR TASTE
                 </Typography>
               )}
             </Box>
@@ -314,8 +342,11 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               {isTop && !done && <span className="cursor-blink" />}
             </Typography>
 
-            {/* Summary description, fades in only after title is done typing */}
-            <Box sx={{ opacity: done ? 1 : 0, transition: "opacity 0.5s ease" }}>
+            {/* Summary is the substance of the card - shown immediately
+                rather than waiting on the title's typewriter to finish, so a
+                first-time viewer isn't stuck watching an animation on the
+                one card where they're deciding if this is worth their time. */}
+            <Box>
               {(() => {
                 const lines = article.description 
                   ? article.description.split('\n').map(l => l.trim()).filter(l => l.length > 0)
@@ -377,64 +408,62 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             </Box>
           </Box>
 
-          <Box sx={{ 
-            display: "flex", alignItems: "center", gap: 1.5,
-            mt: "auto", pt: 3
-          }}>
+          {/* Two-tier action area: Read Article is the one action that
+              actually matters, so it gets the app's real primary-CTA
+              treatment (filled, full-width) on its own row. Comments/HN are
+              supporting actions, demoted to a smaller, quieter row beneath
+              it instead of competing at equal visual weight. */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto", pt: 3 }}>
             <Button
               component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
-              endIcon={<OpenInNew sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
+              endIcon={<OpenInNew sx={{ fontSize: "0.85rem !important", mb: "1px" }} />}
               onClick={(e) => e.stopPropagation()}
               sx={{
-                flex: 1,
-                fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange,
-                background: "rgba(255,102,0,0.05)",
-                border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "8px", textTransform: "none", py: 1,
+                fontFamily: C.fontMono, fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.03em",
+                color: "#000", background: C.orange, borderRadius: "8px", textTransform: "none", py: 1.2,
+                boxShadow: "0 4px 16px rgba(255,102,0,0.25)",
                 transition: "all 0.2s ease",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
-                "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.15)", transform: "scale(1.02)", boxShadow: "0 0 15px rgba(255,102,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)" },
-                "&:active": { transform: "scale(0.98)" }
+                "&:hover": { background: "#e65c00", transform: "scale(1.01)", boxShadow: "0 6px 20px rgba(255,102,0,0.35)" },
+                "&:active": { transform: "scale(0.99)" }
               }}
             >
               READ ARTICLE
             </Button>
             {article.hn_id && (
-              <Button
-                onClick={(e) => { e.stopPropagation(); if (onOpenComments) onOpenComments(); }}
-                endIcon={<QuestionAnswer sx={{ fontSize: "0.8rem !important", mb: "1px" }} />}
-                sx={{
-                  flex: 1,
-                  fontFamily: C.fontMono, fontSize: "0.65rem", color: "#fff",
-                  background: "rgba(255,255,255,0.05)",
-                  border: `1px solid rgba(255,255,255,0.1)`, borderRadius: "8px", textTransform: "none", py: 1,
-                  transition: "all 0.2s ease",
-                  "&:hover": { borderColor: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", transform: "scale(1.02)" },
-                  "&:active": { transform: "scale(0.98)" }
-                }}
-              >
-                COMMENTS
-              </Button>
-            )}
-            {article.hn_id && (
-              <Tooltip title="Open the real discussion on Hacker News" placement="top">
+              <Box sx={{ display: "flex", gap: 1 }}>
                 <Button
-                  component="a"
-                  href={`https://news.ycombinator.com/item?id=${article.hn_id}`}
-                  target="_blank" rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); if (onOpenComments) onOpenComments(); }}
+                  endIcon={<QuestionAnswer sx={{ fontSize: "0.7rem !important" }} />}
                   sx={{
-                    minWidth: 0, px: 1.2, py: 1,
-                    fontFamily: C.fontMono, fontSize: "0.65rem", fontWeight: 700, color: C.orange,
-                    background: "rgba(255,102,0,0.05)",
-                    border: `1px solid rgba(255,102,0,0.3)`, borderRadius: "8px", textTransform: "none",
+                    flex: 1,
+                    fontFamily: C.fontMono, fontSize: "0.62rem", color: "rgba(255,255,255,0.5)",
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", textTransform: "none", py: 0.6,
                     transition: "all 0.2s ease",
-                    "&:hover": { borderColor: C.orange, background: "rgba(255,102,0,0.15)", transform: "scale(1.05)" },
-                    "&:active": { transform: "scale(0.98)" }
+                    "&:hover": { borderColor: "rgba(255,255,255,0.25)", color: "#fff", background: "rgba(255,255,255,0.04)" },
                   }}
                 >
-                  HN
+                  COMMENTS
                 </Button>
-              </Tooltip>
+                <Tooltip title="Open the real discussion on Hacker News" placement="top">
+                  <Button
+                    component="a"
+                    href={`https://news.ycombinator.com/item?id=${article.hn_id}`}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    sx={{
+                      flex: 1,
+                      fontFamily: C.fontMono, fontSize: "0.62rem", color: "rgba(255,102,0,0.65)",
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", textTransform: "none", py: 0.6,
+                      transition: "all 0.2s ease",
+                      "&:hover": { borderColor: "rgba(255,102,0,0.3)", color: C.orange, background: "rgba(255,102,0,0.04)" },
+                    }}
+                  >
+                    VIEW ON HN
+                  </Button>
+                </Tooltip>
+              </Box>
             )}
           </Box>
         </Box>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, CircularProgress, Link, Tooltip, Button } from "@mui/material";
-import { AccessTime, OpenInNew, QuestionAnswer, ChatBubbleOutline, ArrowBack, ArrowUpward, ArrowForward } from "@mui/icons-material";
+import { AccessTime, OpenInNew, QuestionAnswer, ChatBubbleOutline } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { C, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
@@ -86,11 +86,12 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
     else controls.start({ x: 0, y: 0, rotate: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } });
   };
 
-  // Shown until the user's very first swipe (showDragHint = swipeCount === 0,
-  // passed down from App.jsx) - a brief settle-wiggle plus persistent fading
-  // arrow-key labels, so the card itself teaches "you can use the keyboard
-  // too" instead of relying only on the small caption text below it. Clears
-  // itself the instant swipeCount ticks to 1, no manual flag bookkeeping.
+  // A brief settle-wiggle on the card until the user's very first swipe
+  // (showDragHint = !hasSwiped, passed down from App.jsx - flipped
+  // synchronously the moment a swipe is initiated, not on the async
+  // swipeCount update, so there's no lag). The arrow-key text/icon hints
+  // themselves render in App.jsx now, positioned beside the card rather than
+  // on top of it.
   const shouldHint = !!showDragHint && isTop && isInteractive && !isExiting;
   const [playWiggle, setPlayWiggle] = useState(false);
   useEffect(() => {
@@ -479,35 +480,6 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
         <motion.div style={{ opacity: neutralOpacity, position: "absolute", top: 24, left: "50%", x: "-50%", pointerEvents: "none", zIndex: 10 }}>
           <Box sx={{ border: "3px solid #b0b0b0", borderRadius: "8px", px: 2, py: 0.5, fontFamily: C.fontPixel, fontSize: "0.7rem", color: "#b0b0b0" }}>SKIP</Box>
         </motion.div>
-
-        {/* Arrow-key discoverability hint - persists until the first swipe,
-            reusing the app's own like/dislike color language (green=right,
-            red=left) so it reads as consistent with the LIKE/DISLIKE stamps
-            above rather than an unrelated new color. */}
-        {shouldHint && (
-          <>
-            <Box sx={{
-              position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
-              display: "flex", alignItems: "center", gap: 0.5, zIndex: 5, pointerEvents: "none",
-              animation: "arrowHintPulse 1.8s ease-in-out infinite",
-            }}>
-              <ArrowBack sx={{ color: C.error, fontSize: "1.1rem" }} />
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.error, fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 6px rgba(0,0,0,0.8)" }}>
-                LEFT ARROW KEY
-              </Typography>
-            </Box>
-            <Box sx={{
-              position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
-              display: "flex", alignItems: "center", gap: 0.5, zIndex: 5, pointerEvents: "none",
-              animation: "arrowHintPulse 1.8s ease-in-out infinite",
-            }}>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.success, fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 6px rgba(0,0,0,0.8)" }}>
-                RIGHT ARROW KEY
-              </Typography>
-              <ArrowForward sx={{ color: C.success, fontSize: "1.1rem" }} />
-            </Box>
-          </>
-        )}
       </Box>
     </Box>
   );

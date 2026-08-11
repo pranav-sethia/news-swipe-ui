@@ -11,8 +11,8 @@ export const TOUR_STEPS = [
     placement: "center",
   },
   {
-    title: "Swipe to train your AI",
-    body: "Right to save a story and see more like it. Left to dislike and see less. Up to skip neutrally. On a laptop, the ← → ↑ arrow keys do the same thing - no dragging required.",
+    title: "Sort with arrow keys",
+    body: "→ saves a story and shows you more like it. ← passes and shows less. ↑ skips neutrally. Way less tiring than dragging on a laptop - you can still swipe or tap the buttons if you'd rather.",
     targetSelector: "[data-tour='card']",
     placement: "center",
   },

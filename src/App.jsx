@@ -52,6 +52,11 @@ export default function App() {
   const { logout } = useOutletContext();
   const navigate = useNavigate();
   const [swipeCount, setSwipeCount] = useState(0);
+  // Distinct from swipeCount on purpose: swipeCount only increments once the
+  // sendSwipe network call resolves, but the arrow-key hint needs to hide in
+  // the very same render pass the next card is promoted to top, not one
+  // round-trip later - flipped synchronously at the top of handleSwipe below.
+  const [hasSwiped, setHasSwiped] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -231,6 +236,7 @@ export default function App() {
   }, [articles.length, isLoading, fetchFeed, isExhausted]);
 
   const handleSwipe = useCallback((direction, swipedArticle) => {
+    setHasSwiped(true);
     setIsCommentsOpen(false); // Close comments on swipe
     setLastSwiped({ article: swipedArticle, direction });
     // Synchronous card removal, no async/await.
@@ -408,7 +414,7 @@ export default function App() {
                   stackIndex={globalIndex}
                   totalCards={articles.length}
                   dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
-                  showDragHint={swipeCount === 0}
+                  showDragHint={!hasSwiped}
                 />
               );
             })}
@@ -430,6 +436,54 @@ export default function App() {
           </Box>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>or drag the card</Typography>
         </Box>
+
+        {/* First-swipe arrow-key hint - beside the card, not on top of it, so
+            it never competes with the card's own content. Reuses the same
+            circular key-chip language as the persistent KeyHint legend above
+            (border + tinted glow + icon), just bigger and color-coded to the
+            direction, so it reads as "a real key" instead of a bare icon.
+            hasSwiped flips synchronously in handleSwipe (not the async
+            swipeCount), so this can't linger onto the next card. */}
+        {!hasSwiped && articles.length > 0 && !isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && (
+          <>
+            <Box sx={{
+              // 140, not 24 - the sidebar dock is position:fixed (left:32,
+              // width:72, zIndex:9999) and floats on top of this box rather
+              // than reserving space in the flex layout, so anything left of
+              // ~104px sits underneath it and gets visually swallowed.
+              position: "absolute", left: 140, top: "50%", transform: "translateY(-50%)",
+              display: { xs: "none", md: "flex" }, flexDirection: "column", alignItems: "center", gap: 1,
+              zIndex: 5, pointerEvents: "none", animation: "arrowHintPulse 1.8s ease-in-out infinite",
+            }}>
+              <Box sx={{
+                width: 52, height: 52, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(20,20,20,0.9)", border: `1.5px solid ${C.error}`,
+                boxShadow: "0 0 20px rgba(248,113,113,0.35)", color: C.error,
+              }}>
+                <ArrowBack sx={{ fontSize: "1.5rem" }} />
+              </Box>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.error, fontWeight: 700, letterSpacing: "0.08em" }}>
+                LEFT
+              </Typography>
+            </Box>
+            <Box sx={{
+              position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)",
+              display: { xs: "none", md: "flex" }, flexDirection: "column", alignItems: "center", gap: 1,
+              zIndex: 5, pointerEvents: "none", animation: "arrowHintPulse 1.8s ease-in-out infinite",
+            }}>
+              <Box sx={{
+                width: 52, height: 52, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(20,20,20,0.9)", border: `1.5px solid ${C.success}`,
+                boxShadow: "0 0 20px rgba(74,222,128,0.35)", color: C.success,
+              }}>
+                <ArrowForward sx={{ fontSize: "1.5rem" }} />
+              </Box>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.success, fontWeight: 700, letterSpacing: "0.08em" }}>
+                RIGHT
+              </Typography>
+            </Box>
+          </>
+        )}
       </Box>
 
       {/* Triangular Pull Tab */}

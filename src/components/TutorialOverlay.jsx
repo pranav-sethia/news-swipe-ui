@@ -12,7 +12,7 @@ export const TOUR_STEPS = [
   },
   {
     title: "Sort with arrow keys",
-    body: "→ saves a story and shows you more like it. ← passes and shows less. ↑ skips neutrally. Way less tiring than dragging on a laptop - you can still swipe or tap the buttons if you'd rather.",
+    body: "→ saves a story and shows you more like it. ← passes and shows less. ↑ skips neutrally. Way less tiring than dragging on a laptop.",
     targetSelector: "[data-tour='card']",
     placement: "center",
   },

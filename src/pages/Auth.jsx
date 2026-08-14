@@ -410,171 +410,224 @@ export default function Auth() {
   return (
     <Box sx={{
       height: { xs: "auto", md: "100vh" }, minHeight: "100vh", width: "100%",
-      display: "flex", flexDirection: "column", position: "relative",
+      display: "flex", flexDirection: { xs: "column", md: "row" }, position: "relative",
       overflow: { xs: "visible", md: "hidden" },
       background: C.bg,
     }}>
       {/* Ambient layers - persist across the pitch/form transition rather
-          than resetting, so the background doesn't flicker when switching. */}
-      <Box sx={{
-        position: "absolute", inset: 0, backgroundImage: NOISE_TEXTURE,
-        opacity: 0.035, mixBlendMode: "overlay", pointerEvents: "none", zIndex: 0,
-      }} />
+          than resetting, so the background doesn't flicker when switching.
+          The diagonal grain-textured glow sweep is the primary personality
+          layer (replaces a flat black backdrop); the cursor-glow blobs and
+          corner brackets are secondary, quieter details on top of it. */}
+      <Box sx={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <Box sx={{
+          position: "absolute", top: "-25%", left: "-15%", width: "95%", height: "150%",
+          background: `linear-gradient(115deg, transparent 32%, ${C.orange}1f 47%, ${C.orange}10 55%, transparent 68%)`,
+          filter: "blur(50px)", transform: "rotate(-8deg)",
+        }} />
+        <Box sx={{
+          position: "absolute", bottom: "-35%", right: "-20%", width: "65%", height: "130%",
+          background: `linear-gradient(115deg, transparent 40%, ${C.teal}16 52%, transparent 66%)`,
+          filter: "blur(60px)", transform: "rotate(-8deg)",
+        }} />
+        <Box sx={{ position: "absolute", inset: 0, backgroundImage: NOISE_TEXTURE, opacity: 0.05, mixBlendMode: "overlay" }} />
+      </Box>
       <Box ref={orangeGlowRef} sx={{
         position: "absolute", top: 0, left: 0, width: 900, height: 900,
-        background: "radial-gradient(circle, rgba(255,102,0,0.07), transparent 65%)",
+        background: "radial-gradient(circle, rgba(255,102,0,0.05), transparent 65%)",
         pointerEvents: "none", zIndex: 0, willChange: "transform", display: { xs: "none", md: "block" },
       }} />
       <Box ref={tealGlowRef} sx={{
         position: "absolute", top: 0, left: 0, width: 320, height: 320,
-        background: "radial-gradient(circle, rgba(0,255,204,0.05), transparent 65%)",
+        background: "radial-gradient(circle, rgba(0,255,204,0.04), transparent 65%)",
         pointerEvents: "none", zIndex: 0, willChange: "transform", display: { xs: "none", md: "block" },
       }} />
       <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.25)`, borderLeft: `2px solid rgba(255,102,0,0.25)`, borderTopLeftRadius: "4px", display: { xs: "none", md: "block" } }} />
       <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.12)`, borderRight: `2px solid rgba(0,255,204,0.12)`, borderBottomRightRadius: "4px", display: { xs: "none", md: "block" } }} />
 
-      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 1, px: 3, py: { xs: 6, md: 2 } }}>
+      {/* LEFT - fluid marketing/hero panel. Left-aligned and anchored to a
+          real margin instead of centered - the panel absorbs any extra
+          width as breathing room around the content, not as dead margins
+          on both sides of a narrow centered island. */}
+      <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1, px: { xs: 3, md: 6, lg: 8 }, py: { xs: 6, md: 4 } }}>
+        <Box sx={{ maxWidth: 820, width: "100%" }}>
+          <Box component={motion.div} {...stagger(0)} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.8rem", color: C.orange, letterSpacing: "0.08em" }}>
+              HACKERSWIPE
+            </Typography>
+          </Box>
+
+          <Box component={motion.div} {...stagger(0.08)}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(232,232,232,0.7)", letterSpacing: "0.14em", mb: 1.5 }}>
+              A SHARPER WAY TO READ HACKER NEWS
+            </Typography>
+          </Box>
+
+          <Box component={motion.div} {...stagger(0.16)}>
+            <Typography sx={{
+              fontFamily: C.fontUi, fontSize: { xs: "2.3rem", md: "3.4rem", lg: "3.75rem" }, fontWeight: 700, color: "#f5f5f5",
+              lineHeight: 1.08, mb: 1.5, letterSpacing: "-0.01em",
+            }}>
+              The front page of tech,<br />
+              <Box component="span" sx={{ color: C.orange }}>tuned to you.</Box>
+            </Typography>
+          </Box>
+
+          <Box component={motion.div} {...stagger(0.24)}>
+            <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.5, mb: 2.5, maxWidth: 520 }}>
+              Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
+            </Typography>
+          </Box>
+
+          <Box component={motion.div} {...stagger(0.32)} sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 3, maxWidth: 560 }}>
+            {[
+              ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
+              ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],
+              ["BY TOPIC", "AI, security, startups, hardware, and more. Read what you're into, skip the rest."],
+            ].map(([tag, body]) => (
+              <Box key={tag} sx={{
+                display: "flex", gap: 1.5, alignItems: "baseline", borderRadius: "8px", px: 1, py: 0.35, mx: -1,
+                transition: `background 150ms ${EASE.standard}`,
+                "&:hover": { background: "rgba(255,255,255,0.03)" },
+              }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, flexShrink: 0, width: 80, fontWeight: 700 }}>{tag}</Typography>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.9rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.4, textWrap: "pretty" }}>{body}</Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* The real hero visual - a genuine product-screenshot moment now
+              that it has real width to use, with a few floating accent
+              badges (the app's own real match/category badge language, not
+              generic decoration) so the space around it reads as deliberate
+              rather than empty. */}
+          <Box component={motion.div} {...stagger(0.4)} sx={{ maxWidth: 680 }}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 0.75 }}>
+              LIVE PREVIEW
+            </Typography>
+            <Box sx={{ position: "relative" }}>
+              {/* Floating outside the card's own right edge, not on top of
+                  its live per-row badge (top-right, already occupied by the
+                  real MATCH/DISCOVERY stamp) - describes the product's
+                  capabilities in the abstract, distinct from the demo's own
+                  dynamic per-card state. */}
+              <Box sx={{ position: "absolute", top: 6, right: -108, transform: "rotate(-5deg)", zIndex: 2, display: { xs: "none", lg: "block" } }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.teal, background: "rgba(0,255,204,0.08)", border: "1px solid rgba(0,255,204,0.3)", px: 0.9, py: 0.4, borderRadius: "5px", whiteSpace: "nowrap" }}>
+                  AI-SCORED
+                </Typography>
+              </Box>
+              <Box sx={{ position: "absolute", bottom: 46, right: -122, transform: "rotate(4deg)", zIndex: 2, display: { xs: "none", lg: "block" } }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.6rem", color: C.orange, background: "rgba(255,102,0,0.08)", border: "1px solid rgba(255,102,0,0.3)", px: 0.9, py: 0.4, borderRadius: "5px", whiteSpace: "nowrap" }}>
+                  PRE-SUMMARIZED
+                </Typography>
+              </Box>
+              <BrowserChrome>
+                <SwipeStackDemo />
+              </BrowserChrome>
+            </Box>
+          </Box>
+
+          <Box component={motion.div} {...stagger(0.48)} sx={{ mt: 2.5 }}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
+              Real Hacker News stories.
+              {articleCount != null && <> <NumberTicker value={articleCount} />+ indexed so far.</>}
+            </Typography>
+          </Box>
+
+          {isMobile && (
+            <Box sx={{
+              mt: 4, p: 2, borderRadius: "10px", maxWidth: 460, textAlign: "left",
+              background: "rgba(255,102,0,0.06)", border: `1px solid ${C.border}`,
+            }}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "#fff", fontWeight: 700, mb: 0.5 }}>
+                Laptop or desktop only, for now
+              </Typography>
+              <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(232,232,232,0.65)", lineHeight: 1.5 }}>
+                The swipe experience isn't built for phones yet. Open this link on a laptop to sign in and start swiping.
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
+
+      {/* RIGHT - fixed-width action panel. The permanent "auth module" slot,
+          visually distinct from the marketing panel via a subtle divider and
+          background tint. Only its content swaps between the CTA pitch and
+          the form (the panel itself never moves), mirroring the real
+          split-auth-screen pattern (Clerk, Supabase Auth UI, GitHub
+          Enterprise SSO, and the CopyUI example researched for this pass). */}
+      <Box sx={{
+        width: { xs: "100%", md: 480 }, flexShrink: 0,
+        borderLeft: { md: "1px solid rgba(255,255,255,0.07)" },
+        borderTop: { xs: "1px solid rgba(255,255,255,0.07)", md: "none" },
+        background: "rgba(255,255,255,0.015)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        position: "relative", zIndex: 1, px: 3, py: { xs: 6, md: 4 },
+      }}>
         <AnimatePresence mode="wait">
           {view === "pitch" ? (
-            <Box key="pitch" component={motion.div}
-              initial={reduceMotion ? false : { opacity: 0, x: -40, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={reduceMotion ? {} : { opacity: 0, x: -40, filter: "blur(4px)" }}
-              {...viewTransition}
-              sx={{ maxWidth: 720, width: "100%", textAlign: "center" }}
-            >
-              <Box component={motion.div} {...stagger(0)} sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 1 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
-                <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.8rem", color: C.orange, letterSpacing: "0.08em" }}>
-                  HACKERSWIPE
-                </Typography>
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.08)}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(232,232,232,0.7)", letterSpacing: "0.14em", mb: 1.5 }}>
-                  A SHARPER WAY TO READ HACKER NEWS
-                </Typography>
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.16)}>
-                <Typography sx={{
-                  fontFamily: C.fontUi, fontSize: { xs: "2.1rem", md: "3rem" }, fontWeight: 700, color: "#f5f5f5",
-                  lineHeight: 1.1, mb: 1.5, letterSpacing: "-0.01em",
-                }}>
-                  The front page of tech,<br />
-                  <Box component="span" sx={{ color: C.orange }}>tuned to you.</Box>
-                </Typography>
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.24)}>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "1rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.5, mb: 2, maxWidth: 520, mx: "auto" }}>
-                  Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
-                </Typography>
-              </Box>
-
-              {/* The real hero visual now - wider than the paragraph column
-                  above it, closer to a genuine product-screenshot moment. */}
-              <Box component={motion.div} {...stagger(0.32)} sx={{ maxWidth: 580, mx: "auto", mb: 2 }}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 0.75, textAlign: "left" }}>
-                  LIVE PREVIEW
-                </Typography>
-                <BrowserChrome>
-                  <SwipeStackDemo />
-                </BrowserChrome>
-              </Box>
-
-              {/* The block is centered on the page, but each row's text stays
-                  left-aligned - centered multi-line paragraphs are genuinely
-                  harder to read, not just a style preference. */}
-              <Box component={motion.div} {...stagger(0.4)} sx={{ maxWidth: 520, mx: "auto", display: "flex", flexDirection: "column", gap: 0.75, mb: 2, textAlign: "left" }}>
-                {[
-                  ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
-                  ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],
-                  ["BY TOPIC", "AI, security, startups, hardware, and more. Read what you're into, skip the rest."],
-                ].map(([tag, body]) => (
-                  <Box key={tag} sx={{
-                    display: "flex", gap: 1.5, alignItems: "baseline", borderRadius: "8px", px: 1, py: 0.35, mx: -1,
-                    transition: `background 150ms ${EASE.standard}`,
-                    "&:hover": { background: "rgba(255,255,255,0.03)" },
-                  }}>
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, flexShrink: 0, width: 80, fontWeight: 700 }}>{tag}</Typography>
-                    <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.9rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.4, textWrap: "pretty" }}>{body}</Typography>
-                  </Box>
-                ))}
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.48)} sx={{ maxWidth: 380, mx: "auto" }}>
-                <Box sx={{ position: "relative", overflow: "hidden", borderRadius: "10px" }}>
-                  <Button
-                    fullWidth onClick={handleGuest} disabled={guestLoading}
-                    sx={{
-                      py: 1.3, fontFamily: C.fontMono, fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.05em",
-                      background: C.orange, color: "#000", borderRadius: "10px",
-                      "&:hover": { background: "#e65c00" },
-                      "&:disabled": { background: "rgba(255,102,0,0.4)" },
-                    }}
-                  >
-                    {guestLoading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : "START SWIPING FREE"}
-                  </Button>
-                  {!reduceMotion && (
-                    <Box sx={{
-                      position: "absolute", top: 0, left: 0, width: "40%", height: "100%",
-                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
-                      animation: "ctaShine 1.1s ease-out 1.1s 1 forwards",
-                      pointerEvents: "none",
-                    }} />
-                  )}
-                </Box>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 0.75 }}>
-                  No signup. Explore free for 24 hours.
-                </Typography>
-
-                {error && (
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1 }}>
-                    {error}
-                  </Typography>
-                )}
-
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, mt: 1.5 }}>
-                  <Box component="span" onClick={() => openForm("login")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Sign in</Box>
-                  {"  ·  "}
-                  <Box component="span" onClick={() => openForm("register")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Create account</Box>
-                </Typography>
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.56)} sx={{ mt: 1.5 }}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
-                  Real Hacker News stories.
-                  {articleCount != null && <> <NumberTicker value={articleCount} />+ indexed so far.</>}
-                </Typography>
-              </Box>
-
-              {isMobile && (
-                <Box sx={{
-                  mt: 4, p: 2, borderRadius: "10px", maxWidth: 460, mx: "auto", textAlign: "left",
-                  background: "rgba(255,102,0,0.06)", border: `1px solid ${C.border}`,
-                }}>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "#fff", fontWeight: 700, mb: 0.5 }}>
-                    Laptop or desktop only, for now
-                  </Typography>
-                  <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(232,232,232,0.65)", lineHeight: 1.5 }}>
-                    The swipe experience isn't built for phones yet. Open this link on a laptop to sign in and start swiping.
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          ) : (
-            <Box key="form" component={motion.div}
+            <Box key="pitch-action" component={motion.div}
               initial={reduceMotion ? false : { opacity: 0, x: 40, filter: "blur(4px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={reduceMotion ? {} : { opacity: 0, x: 40, filter: "blur(4px)" }}
               {...viewTransition}
-              sx={{ width: "100%", maxWidth: 440 }}
+              sx={{ width: "100%", maxWidth: 400 }}
+            >
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, letterSpacing: "0.14em", mb: 1.75, textAlign: "center" }}>
+                GET STARTED
+              </Typography>
+              <Box sx={{ position: "relative", overflow: "hidden", borderRadius: "10px" }}>
+                <Button
+                  fullWidth onClick={handleGuest} disabled={guestLoading}
+                  sx={{
+                    py: 1.3, fontFamily: C.fontMono, fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.05em",
+                    background: C.orange, color: "#000", borderRadius: "10px",
+                    "&:hover": { background: "#e65c00" },
+                    "&:disabled": { background: "rgba(255,102,0,0.4)" },
+                  }}
+                >
+                  {guestLoading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : "START SWIPING FREE"}
+                </Button>
+                {!reduceMotion && (
+                  <Box sx={{
+                    position: "absolute", top: 0, left: 0, width: "40%", height: "100%",
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+                    animation: "ctaShine 1.1s ease-out 1.1s 1 forwards",
+                    pointerEvents: "none",
+                  }} />
+                )}
+              </Box>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 0.75, textAlign: "center" }}>
+                No signup. Explore free for 24 hours.
+              </Typography>
+
+              {error && (
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1, textAlign: "center" }}>
+                  {error}
+                </Typography>
+              )}
+
+              <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2.5 }} />
+
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, textAlign: "center" }}>
+                <Box component="span" onClick={() => openForm("login")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Sign in</Box>
+                {"  ·  "}
+                <Box component="span" onClick={() => openForm("register")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Create account</Box>
+              </Typography>
+            </Box>
+          ) : (
+            <Box key="form-action" component={motion.div}
+              initial={reduceMotion ? false : { opacity: 0, x: 40, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={reduceMotion ? {} : { opacity: 0, x: 40, filter: "blur(4px)" }}
+              {...viewTransition}
+              sx={{ width: "100%", maxWidth: 400 }}
             >
               <Box
                 onClick={() => setView("pitch")}
                 sx={{
-                  display: "flex", alignItems: "center", gap: 0.5, mb: 2, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 0.5, mb: 2.5, cursor: "pointer",
                   color: C.textDim, width: "fit-content",
                   "&:hover": { color: "#fff" },
                 }}
@@ -584,19 +637,8 @@ export default function Auth() {
               </Box>
 
               <Box sx={{
-                width: "100%", maxHeight: { md: "calc(100vh - 140px)" }, overflowY: "auto",
-                px: { xs: 3, md: 4.5 }, py: { xs: 4, md: 5 },
-                borderRadius: "20px",
-                background: "rgba(15,15,15,0.9)",
-                border: `1px solid ${C.border}`,
-                boxShadow: "0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
-                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                width: "100%", maxHeight: { md: "calc(100vh - 160px)" }, overflowY: "auto",
               }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 3 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}` }} />
-                  <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.72rem", color: C.orange, letterSpacing: "0.08em" }}>HACKERSWIPE</Typography>
-                </Box>
-
                 {sessionExpired && (
                   <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
                     <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5 }}>

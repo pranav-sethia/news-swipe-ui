@@ -60,6 +60,12 @@ export default function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // True only for the brief window between the feed finishing load and a
+  // fresh tour actually appearing - computed once, synchronously, whether a
+  // tour is even going to show, so a *returning* guest (tour already seen)
+  // never sees this and never gets any added delay.
+  const willShowOnboardingRef = useRef(!localStorage.getItem("hs_seen_onboarding"));
+  const [onboardingDelayActive, setOnboardingDelayActive] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -100,7 +106,10 @@ export default function App() {
     setLastSwiped(null);
     try {
       await api.unlikeArticle(articleToUndo.id);
-      setSwipeCount(p => p + 1);
+      // Undoing a swipe removes it from the backend entirely, so the count
+      // should go down to match - this used to increment instead, which
+      // could fire the swipe_milestone analytics event early/inaccurately.
+      setSwipeCount(p => Math.max(0, p - 1));
       setUndoSuccess(true);
       setTimeout(() => setUndoSuccess(false), 500);
     } catch (err) {
@@ -149,7 +158,7 @@ export default function App() {
     const handler = (e) => {
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
-      const blocked = isResetModalOpen || isDeleteAccountModalOpen || showOnboarding || isSidebarOpen;
+      const blocked = isResetModalOpen || isDeleteAccountModalOpen || showOnboarding || isSidebarOpen || onboardingDelayActive;
       if (e.key === "c" || e.key === "C") {
         if (!blocked) setIsCommentsOpen(prev => !prev);
       }
@@ -159,12 +168,21 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isResetModalOpen, isDeleteAccountModalOpen, showOnboarding, isSidebarOpen, handleUndo]);
+  }, [isResetModalOpen, isDeleteAccountModalOpen, showOnboarding, isSidebarOpen, onboardingDelayActive, handleUndo]);
 
   useEffect(() => {
-    if (!localStorage.getItem("hs_seen_onboarding") && !isLoading && articles.length > 0) {
+    if (!willShowOnboardingRef.current || isLoading || articles.length === 0) return;
+    // A brief pause so the user's real first card is visible before the tour
+    // appears, instead of the tour slamming down the instant the feed loads.
+    // Swiping is blocked for this same window (via onboardingDelayActive,
+    // added to isInteractive below) so nothing can happen to the card before
+    // the app has "decided" a tour is coming.
+    setOnboardingDelayActive(true);
+    const id = setTimeout(() => {
+      setOnboardingDelayActive(false);
       setShowOnboarding(true);
-    }
+    }, 500);
+    return () => clearTimeout(id);
   }, [isLoading, articles.length]);
 
   const dismissOnboarding = () => {
@@ -410,7 +428,7 @@ export default function App() {
                   onSwipe={(dir) => handleSwipe(dir, article)}
                   onOpenComments={() => setIsCommentsOpen(true)}
                   isTop={globalIndex === articles.length - 1}
-                  isInteractive={!isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen}
+                  isInteractive={!isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && !onboardingDelayActive}
                   stackIndex={globalIndex}
                   totalCards={articles.length}
                   dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
@@ -448,7 +466,7 @@ export default function App() {
             rather than reserving space in the flex layout).
             hasSwiped flips synchronously in handleSwipe (not the async
             swipeCount), so this can't linger onto the next card. */}
-        {!hasSwiped && articles.length > 0 && !isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && (
+        {!hasSwiped && articles.length > 0 && !isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && !onboardingDelayActive && (
           <>
             <Box sx={{
               position: "absolute",
@@ -671,7 +689,7 @@ export default function App() {
               </Typography>
               <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
                 <Button
-                  onClick={() => { setShowLikeBanner(false); navigate("/register"); }}
+                  onClick={() => { setShowLikeBanner(false); navigate("/register", { state: { formIntent: true } }); }}
                   sx={{
                     background: C.orange, color: "#000", fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.7rem",
                     px: 2, py: 0.8, borderRadius: "8px", letterSpacing: "0.05em",

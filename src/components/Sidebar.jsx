@@ -648,7 +648,7 @@ export function SavedPanel({ swipeCount, onUnliked }) {
 
   return (
     <>
-      <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`SAVED STORIES (${liked.length})`} color={C.error} />
+      <SectionHeader icon={<Bookmark sx={{ fontSize: 16 }} />} label={`SAVED STORIES (${liked.length})`} />
       <Box sx={{ mt: 1.5, mb: 1.5 }}>
         <Box sx={{
           display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)",

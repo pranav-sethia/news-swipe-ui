@@ -4,7 +4,7 @@ import DOMPurify from "dompurify";
 import { Drawer, Box, Typography, CircularProgress, Button, IconButton, Tooltip } from "@mui/material";
 import { QuestionAnswer, AutoAwesome, LockOutlined } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
-import { getCommentSummary } from "./api.js";
+import { getCommentSummary, getRawComments } from "./api.js";
 import { useNavigate } from "react-router-dom";
 import { C } from "./theme.js";
 import { EASE } from "./motion.js";
@@ -75,8 +75,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
     setSummary(null);
     setSummaryError(null);
     
-    fetch(`https://hn.algolia.com/api/v1/items/${hnId}`)
-      .then(res => res.json())
+    getRawComments(hnId)
       .then(data => {
         if (!isMounted) return;
         // Take top 8 top-level comments that actually have text
@@ -127,7 +126,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
           <QuestionAnswer sx={{ color: C.orange, fontSize: 20 }} />
           <Typography sx={{ fontFamily: C.fontUi, fontWeight: 700, fontSize: "1.1rem" }}>Top Comments</Typography>
         </Box>
-        <Button onClick={onClose} sx={{ minWidth: 0, p: 1, color: C.textDim, "&:hover": { color: "white" } }}>✕</Button>
+        <Button onClick={onClose} aria-label="Close" sx={{ minWidth: 0, p: 1, color: C.textDim, "&:hover": { color: "white" } }}>✕</Button>
       </Box>
 
       {/* AI Summary Section */}
@@ -309,7 +308,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
               {/* Top ambient glow, AI-feature accent per the reserved teal convention */}
               <Box sx={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', width: 200, height: 100, background: 'rgba(0,255,204,0.12)', filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
-              <IconButton onClick={() => setShowAuthModal(false)} sx={{ position: 'absolute', top: 12, right: 12, color: C.textDim, '&:hover': { color: 'white', background: 'rgba(255,255,255,0.1)' } }}>✕</IconButton>
+              <IconButton onClick={() => setShowAuthModal(false)} aria-label="Close" sx={{ position: 'absolute', top: 12, right: 12, color: C.textDim, '&:hover': { color: 'white', background: 'rgba(255,255,255,0.1)' } }}>✕</IconButton>
 
               <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: C.tealDim, display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5, border: '1px solid rgba(0,255,204,0.3)' }}>
                 <LockOutlined sx={{ color: C.teal, fontSize: 26 }} />
@@ -322,7 +321,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
 
               <Button
                 fullWidth variant="contained"
-                onClick={() => { setShowAuthModal(false); navigate('/register'); onClose(); }}
+                onClick={() => { setShowAuthModal(false); navigate('/register', { state: { formIntent: true } }); onClose(); }}
                 sx={{
                   background: C.orange, color: '#000', fontFamily: C.fontMono, fontWeight: 700, py: 1.5, borderRadius: '10px',
                   fontSize: '0.8rem', letterSpacing: '0.05em', mb: 1.5,
@@ -333,7 +332,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 CREATE ACCOUNT
               </Button>
               <Typography
-                onClick={() => { setShowAuthModal(false); navigate('/login'); onClose(); }}
+                onClick={() => { setShowAuthModal(false); navigate('/login', { state: { formIntent: true } }); onClose(); }}
                 sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, cursor: 'pointer', '&:hover': { color: 'white' } }}
               >
                 Already have an account? Sign in

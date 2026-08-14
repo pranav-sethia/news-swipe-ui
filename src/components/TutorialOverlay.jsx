@@ -177,7 +177,7 @@ export function TutorialOverlay({ onDismiss }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
             sx={{
               position: "fixed",
               top: rect.top, left: rect.left, width: rect.width, height: rect.height,
@@ -199,7 +199,7 @@ export function TutorialOverlay({ onDismiss }) {
           initial={{ opacity: 0, scale: 0.93, y: -6 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.93 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
           onClick={e => e.stopPropagation()}
           sx={{
             position: "fixed",

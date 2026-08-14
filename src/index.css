@@ -136,6 +136,14 @@ body.swipe-app-active, body.swipe-app-active #root {
   50% { opacity: 1; }
 }
 
+/* Landing page primary CTA - a single light sweep on mount, once, never
+   looping. Deliberately restrained: one highlight on the one action that
+   matters most, not an ambient glow competing with everything else. */
+@keyframes ctaShine {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to { transform: translateX(220%) skewX(-20deg); }
+}
+
 .card-glow {
   animation: border-pulse 3s ease-in-out infinite;
 }

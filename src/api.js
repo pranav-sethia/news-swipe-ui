@@ -55,6 +55,11 @@ export const getCommentSummary = async (hnId) => {
   return data;
 };
 
+export const getRawComments = async (hnId) => {
+  const { data } = await apiClient.get(`/api/comments/${hnId}/raw`);
+  return data;
+};
+
 export const getTasteProfile = async () => {
   const res = await apiClient.get('/api/taste-profile');
   return res.data;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, TextField, Button, Divider, CircularProgress } from "@mui/material";
-import { ArrowForward, Check, Close } from "@mui/icons-material";
+import { ArrowForward, ArrowBack, Check, Close } from "@mui/icons-material";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as api from "../api.js";
 import { C } from "../theme.js";
@@ -8,6 +9,17 @@ import { EASE } from "../motion.js";
 import { GOOGLE_CLIENT_ID } from "../config.js";
 import { useIsMobile } from "../hooks.js";
 import { track } from "../analytics.js";
+
+// A static (non-animated) grain layer - the tactile depth premium dark UIs
+// lean on instead of a flat fill, without reading as a visible pattern the
+// way the old tiled grid did. Deliberately not animated: moving grain reads
+// as TV static, not depth.
+const NOISE_TEXTURE = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'>
+    <filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter>
+    <rect width='100%' height='100%' filter='url(#n)'/>
+  </svg>`
+)}")`;
 
 // Each row's bullet mirrors the real per-article AI summary shown on every
 // card - short fragments, no filler - so the demo proves the "know before
@@ -29,7 +41,11 @@ function SwipeStackDemo() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setDirection(Math.random() > 0.25 ? "right" : "left");
+      // Deterministic, not random: alternating by row index guarantees both
+      // a LIKED and a DISLIKED stamp show up within one 2-row cycle, instead
+      // of leaving it to a 75/25 coin flip that could show "liked" for the
+      // entire time someone actually watches the demo.
+      setDirection(index % 2 === 0 ? "right" : "left");
       setExiting(true);
       setTimeout(() => {
         setIndex((i) => (i + 1) % DEMO_ROWS.length);
@@ -37,23 +53,27 @@ function SwipeStackDemo() {
       }, 450);
     }, 2600);
     return () => clearInterval(id);
-  }, []);
+  }, [index]);
 
   const visible = [0, 1, 2].map((offset) => DEMO_ROWS[(index + offset) % DEMO_ROWS.length]);
 
   return (
-    <Box sx={{ position: "relative", height: 135 }}>
+    <Box sx={{ position: "relative", height: 115, perspective: "900px" }}>
       {visible.map((row, i) => {
         const isTop = i === 0;
-        // A slight rotation on the back cards, not just a flat offset, reads
-        // as a loose stack of real cards rather than a rigid pile of layers.
-        const backRotate = i === 1 ? -1.5 : i === 2 ? 1.5 : 0;
+        // Real depth via perspective + translateZ + scale (not just a flat
+        // 2D offset) - the back cards genuinely recede instead of merely
+        // sitting a few pixels off to the side.
+        const backRotate = i === 1 ? -0.75 : i === 2 ? 0.75 : 0;
+        const depthScale = 1 - i * 0.04;
+        const translateZ = -i * 24;
         return (
           <Box key={`${row.title}-${index}-${i}`} sx={{
             position: "absolute", top: i * 12, left: i * 8, right: i * 8,
+            transformStyle: "preserve-3d",
             transform: isTop && exiting
               ? `translateX(${direction === "right" ? 160 : -160}px) rotate(${direction === "right" ? 10 : -10}deg)`
-              : `rotate(${backRotate}deg)`,
+              : `translateZ(${translateZ}px) scale(${depthScale}) rotate(${backRotate}deg)`,
             opacity: isTop && exiting ? 0 : 1 - i * 0.25,
             transition: `all 450ms ${EASE.standard}`,
             zIndex: 3 - i,
@@ -129,10 +149,37 @@ function BrowserChrome({ children }) {
   );
 }
 
+// Counts up from 0 to `value` once, on mount - ties an effect to a real,
+// honest number instead of pure decoration. Collapses to the final value
+// instantly under reduced motion.
+function NumberTicker({ value }) {
+  const [display, setDisplay] = useState(0);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (value == null) return;
+    if (reduceMotion) { setDisplay(value); return; }
+    let start = null;
+    let raf;
+    const duration = 1200;
+    const step = (ts) => {
+      if (start === null) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setDisplay(Math.round(progress * value));
+      if (progress < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, reduceMotion]);
+
+  return display.toLocaleString();
+}
+
 export default function Auth() {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState(location.pathname === "/register" ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -140,6 +187,13 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [articleCount, setArticleCount] = useState(null);
+  const sessionExpired = new URLSearchParams(location.search).get("expired") === "true";
+  // Two cases skip straight to the form, no pitch first: a lapsed session
+  // (the user needs the form immediately, not the pitch again) and in-app
+  // callers that already know the user wants to convert (the guest-nudge
+  // banner, the comments-drawer auth prompt) - both pass this via router
+  // state rather than showing the pitch to someone who already uses the product.
+  const [view, setView] = useState(() => (sessionExpired || location.state?.formIntent) ? "form" : "pitch");
 
   // A real, honest proof-of-life number instead of an invented one - fails
   // silently if the request doesn't come back, since this is a nice-to-have
@@ -154,7 +208,6 @@ export default function Auth() {
   const [googleCallbackPending, setGoogleCallbackPending] = useState(() =>
     typeof window !== "undefined" && window.location.hash.includes("id_token=")
   );
-  const sessionExpired = new URLSearchParams(location.search).get("expired") === "true";
 
   useEffect(() => {
     setMode(location.pathname === "/register" ? "register" : "login");
@@ -188,6 +241,13 @@ export default function Auth() {
     setError("");
     setMode(next);
     navigate(next === "register" ? "/register" : "/login", { replace: true });
+  };
+
+  // Opens the form pre-set to a given mode - used by the pitch view's quiet
+  // "Sign in / Create account" links.
+  const openForm = (next) => {
+    switchMode(next);
+    setView("form");
   };
 
   const handleGuest = async () => {
@@ -332,15 +392,34 @@ export default function Auth() {
     );
   }
 
+  // Entrance stagger for the pitch view's content - a deliberate "the page is
+  // arriving" moment instead of everything popping in at once. Box+motion.div
+  // only (never Typography swapped to a motion component - that combination
+  // silently failed to animate in an earlier attempt on this exact page;
+  // wrapping plain Typography in a motion Box sidesteps it entirely).
+  const stagger = (delay) => reduceMotion ? {} : {
+    initial: { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: "easeOut" },
+  };
+
+  const viewTransition = reduceMotion
+    ? { initial: false, animate: {}, exit: {} }
+    : { transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } };
+
   return (
     <Box sx={{
       height: { xs: "auto", md: "100vh" }, minHeight: "100vh", width: "100%",
-      display: "flex", flexDirection: { xs: "column", md: "row" }, position: "relative",
+      display: "flex", flexDirection: "column", position: "relative",
       overflow: { xs: "visible", md: "hidden" },
       background: C.bg,
     }}>
-      {/* Ambient cursor-following glow layers - fixed size, moved only via
-          transform (GPU compositing, no layout/repaint cost per frame). */}
+      {/* Ambient layers - persist across the pitch/form transition rather
+          than resetting, so the background doesn't flicker when switching. */}
+      <Box sx={{
+        position: "absolute", inset: 0, backgroundImage: NOISE_TEXTURE,
+        opacity: 0.035, mixBlendMode: "overlay", pointerEvents: "none", zIndex: 0,
+      }} />
       <Box ref={orangeGlowRef} sx={{
         position: "absolute", top: 0, left: 0, width: 900, height: 900,
         background: "radial-gradient(circle, rgba(255,102,0,0.07), transparent 65%)",
@@ -351,260 +430,293 @@ export default function Auth() {
         background: "radial-gradient(circle, rgba(0,255,204,0.05), transparent 65%)",
         pointerEvents: "none", zIndex: 0, willChange: "transform", display: { xs: "none", md: "block" },
       }} />
-
-      {/* Decorative corner brackets, terminal-window framing - dialed down to
-          a quiet detail rather than a UI-kit flourish. */}
       <Box sx={{ position: "absolute", top: 32, left: 32, width: 22, height: 22, borderTop: `2px solid rgba(255,102,0,0.25)`, borderLeft: `2px solid rgba(255,102,0,0.25)`, borderTopLeftRadius: "4px", display: { xs: "none", md: "block" } }} />
       <Box sx={{ position: "absolute", bottom: 32, right: 32, width: 22, height: 22, borderBottom: `2px solid rgba(0,255,204,0.12)`, borderRight: `2px solid rgba(0,255,204,0.12)`, borderBottomRightRadius: "4px", display: { xs: "none", md: "block" } }} />
 
-      {/* Shared bounded row: the outer page Box stays full-bleed for the
-          background texture, but the two content panels are wrapped here so
-          they read as one composed unit on wide viewports instead of a left
-          island and a right island with a growing void between them. */}
-      <Box sx={{
-        display: "flex", flexDirection: { xs: "column", md: "row" },
-        width: "100%", maxWidth: 1240, mx: "auto", position: "relative", zIndex: 1,
-        gap: { md: 6 },
-      }}>
-
-      {/* Left: value proposition. Visible on every viewport now - a phone
-          visitor arriving via a shared link should see the actual pitch, not
-          a dead end, even though the swipe app itself stays desktop-only. */}
-      <Box sx={{
-        display: "flex", flexDirection: "column", justifyContent: "center",
-        flex: 1, minWidth: 0, px: { xs: 3, md: 8 }, py: { xs: 6, md: 4 }, position: "relative",
-      }}>
-        <Box sx={{ maxWidth: 560, mx: { xs: "auto", md: 0 }, position: "relative" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
-            <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.8rem", color: C.orange, letterSpacing: "0.08em" }}>
-              HACKERSWIPE
-            </Typography>
-          </Box>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(232,232,232,0.7)", letterSpacing: "0.14em", mb: 2.5 }}>
-            A SHARPER WAY TO READ HACKER NEWS
-          </Typography>
-          <Typography sx={{
-            fontFamily: C.fontUi, fontSize: { xs: "2rem", md: "3rem" }, fontWeight: 700, color: "#f5f5f5",
-            lineHeight: 1.18, mb: 2, letterSpacing: "-0.01em",
-          }}>
-            The front page of tech,<br />
-            <Box component="span" sx={{ color: C.orange }}>tuned to you.</Box>
-          </Typography>
-          <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.6, mb: 3, maxWidth: 460 }}>
-            Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
-          </Typography>
-
-          {/* Proof comes right after the claim, before three more paragraphs
-              of elaboration - the demo is the strongest evidence on the page,
-              so it shouldn't be buried below the bullets that describe it. */}
-          <Box>
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 1 }}>
-              LIVE PREVIEW
-            </Typography>
-            <BrowserChrome>
-              <SwipeStackDemo />
-            </BrowserChrome>
-          </Box>
-
-          {/* Plain rows (no boxed chrome) so the copy itself - the actual
-              differentiators - can run at a real reading size instead of
-              competing with border/background decoration for space. */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2, mt: 2.5, mb: 2 }}>
-            {[
-              ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
-              ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],
-              ["BY TOPIC", "AI, security, startups, hardware, and more. Read what you're into, skip the rest."],
-            ].map(([tag, body]) => (
-              <Box key={tag} sx={{ display: "flex", gap: 1.5, alignItems: "baseline" }}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, flexShrink: 0, width: 80, fontWeight: 700 }}>{tag}</Typography>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.95rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.5, textWrap: "pretty" }}>{body}</Typography>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 1, px: 3, py: { xs: 6, md: 2 } }}>
+        <AnimatePresence mode="wait">
+          {view === "pitch" ? (
+            <Box key="pitch" component={motion.div}
+              initial={reduceMotion ? false : { opacity: 0, x: -40, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={reduceMotion ? {} : { opacity: 0, x: -40, filter: "blur(4px)" }}
+              {...viewTransition}
+              sx={{ maxWidth: 720, width: "100%", textAlign: "center" }}
+            >
+              <Box component={motion.div} {...stagger(0)} sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 1 }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: C.orange, boxShadow: `0 0 10px ${C.orange}`, animation: "brandPulse 2s ease-in-out infinite" }} />
+                <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.8rem", color: C.orange, letterSpacing: "0.08em" }}>
+                  HACKERSWIPE
+                </Typography>
               </Box>
-            ))}
-          </Box>
 
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
-            Real Hacker News stories.
-            {articleCount != null ? ` ${articleCount.toLocaleString()}+ indexed so far.` : ""}
-          </Typography>
+              <Box component={motion.div} {...stagger(0.08)}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(232,232,232,0.7)", letterSpacing: "0.14em", mb: 1.5 }}>
+                  A SHARPER WAY TO READ HACKER NEWS
+                </Typography>
+              </Box>
 
-          {isMobile && (
-            <Box sx={{
-              mt: 4, p: 2, borderRadius: "10px",
-              background: "rgba(255,102,0,0.06)", border: `1px solid ${C.border}`,
-            }}>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "#fff", fontWeight: 700, mb: 0.5 }}>
-                Laptop or desktop only, for now
-              </Typography>
-              <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(232,232,232,0.65)", lineHeight: 1.5 }}>
-                The swipe experience isn't built for phones yet. Open this link on a laptop to sign in and start swiping.
-              </Typography>
+              <Box component={motion.div} {...stagger(0.16)}>
+                <Typography sx={{
+                  fontFamily: C.fontUi, fontSize: { xs: "2.1rem", md: "3rem" }, fontWeight: 700, color: "#f5f5f5",
+                  lineHeight: 1.1, mb: 1.5, letterSpacing: "-0.01em",
+                }}>
+                  The front page of tech,<br />
+                  <Box component="span" sx={{ color: C.orange }}>tuned to you.</Box>
+                </Typography>
+              </Box>
+
+              <Box component={motion.div} {...stagger(0.24)}>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "1rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.5, mb: 2, maxWidth: 520, mx: "auto" }}>
+                  Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
+                </Typography>
+              </Box>
+
+              {/* The real hero visual now - wider than the paragraph column
+                  above it, closer to a genuine product-screenshot moment. */}
+              <Box component={motion.div} {...stagger(0.32)} sx={{ maxWidth: 580, mx: "auto", mb: 2 }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 0.75, textAlign: "left" }}>
+                  LIVE PREVIEW
+                </Typography>
+                <BrowserChrome>
+                  <SwipeStackDemo />
+                </BrowserChrome>
+              </Box>
+
+              {/* The block is centered on the page, but each row's text stays
+                  left-aligned - centered multi-line paragraphs are genuinely
+                  harder to read, not just a style preference. */}
+              <Box component={motion.div} {...stagger(0.4)} sx={{ maxWidth: 520, mx: "auto", display: "flex", flexDirection: "column", gap: 0.75, mb: 2, textAlign: "left" }}>
+                {[
+                  ["NO DUDS", "Every story comes pre-chewed into three bullets. Know before you click."],
+                  ["TAILORED", "Like something, and the feed remembers. Every swipe sharpens what's next."],
+                  ["BY TOPIC", "AI, security, startups, hardware, and more. Read what you're into, skip the rest."],
+                ].map(([tag, body]) => (
+                  <Box key={tag} sx={{
+                    display: "flex", gap: 1.5, alignItems: "baseline", borderRadius: "8px", px: 1, py: 0.35, mx: -1,
+                    transition: `background 150ms ${EASE.standard}`,
+                    "&:hover": { background: "rgba(255,255,255,0.03)" },
+                  }}>
+                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, flexShrink: 0, width: 80, fontWeight: 700 }}>{tag}</Typography>
+                    <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.9rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.4, textWrap: "pretty" }}>{body}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Box component={motion.div} {...stagger(0.48)} sx={{ maxWidth: 380, mx: "auto" }}>
+                <Box sx={{ position: "relative", overflow: "hidden", borderRadius: "10px" }}>
+                  <Button
+                    fullWidth onClick={handleGuest} disabled={guestLoading}
+                    sx={{
+                      py: 1.3, fontFamily: C.fontMono, fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.05em",
+                      background: C.orange, color: "#000", borderRadius: "10px",
+                      "&:hover": { background: "#e65c00" },
+                      "&:disabled": { background: "rgba(255,102,0,0.4)" },
+                    }}
+                  >
+                    {guestLoading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : "START SWIPING FREE"}
+                  </Button>
+                  {!reduceMotion && (
+                    <Box sx={{
+                      position: "absolute", top: 0, left: 0, width: "40%", height: "100%",
+                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+                      animation: "ctaShine 1.1s ease-out 1.1s 1 forwards",
+                      pointerEvents: "none",
+                    }} />
+                  )}
+                </Box>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim, mt: 0.75 }}>
+                  No signup. Explore free for 24 hours.
+                </Typography>
+
+                {error && (
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1 }}>
+                    {error}
+                  </Typography>
+                )}
+
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, mt: 1.5 }}>
+                  <Box component="span" onClick={() => openForm("login")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Sign in</Box>
+                  {"  ·  "}
+                  <Box component="span" onClick={() => openForm("register")} sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}>Create account</Box>
+                </Typography>
+              </Box>
+
+              <Box component={motion.div} {...stagger(0.56)} sx={{ mt: 1.5 }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
+                  Real Hacker News stories.
+                  {articleCount != null && <> <NumberTicker value={articleCount} />+ indexed so far.</>}
+                </Typography>
+              </Box>
+
+              {isMobile && (
+                <Box sx={{
+                  mt: 4, p: 2, borderRadius: "10px", maxWidth: 460, mx: "auto", textAlign: "left",
+                  background: "rgba(255,102,0,0.06)", border: `1px solid ${C.border}`,
+                }}>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: "#fff", fontWeight: 700, mb: 0.5 }}>
+                    Laptop or desktop only, for now
+                  </Typography>
+                  <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.82rem", color: "rgba(232,232,232,0.65)", lineHeight: 1.5 }}>
+                    The swipe experience isn't built for phones yet. Open this link on a laptop to sign in and start swiping.
+                  </Typography>
+                </Box>
+              )}
             </Box>
-          )}
-        </Box>
-      </Box>
-
-      {/* A faint vertical seam tying the two panels into one composition
-          instead of a blank gap between two unrelated blocks - fades out top
-          and bottom rather than reading as a hard divider line. */}
-      {!isMobile && (
-        <Box sx={{
-          display: { xs: "none", md: "block" }, width: "1px", flexShrink: 0, alignSelf: "stretch", my: 8,
-          background: `linear-gradient(180deg, transparent, ${C.border} 30%, ${C.border} 70%, transparent)`,
-        }} />
-      )}
-
-      {/* Right: auth form, a floating glass panel on the same shared canvas
-          rather than a competing full-height block. Hidden on mobile - see
-          the notice above instead - since the app itself is desktop-only. */}
-      {!isMobile && (
-      <Box sx={{
-        display: "flex", alignItems: "center",
-        width: { xs: "100%", md: 440 }, flexShrink: 0,
-        p: { xs: 3, md: 0 },
-        my: { md: 6 },
-      }}>
-        <Box sx={{
-          width: "100%", maxHeight: "100%", overflowY: "auto",
-          px: { xs: 3, md: 4.5 }, py: { xs: 4, md: 5 },
-          borderRadius: "20px",
-          // Lighter than before and tinted with the same border/glow tokens
-          // as the rest of the page (C.border, not a generic white opacity)
-          // so the ambient grid/glow bleeds through faintly and this reads
-          // as the same surface as the left panel, not a card pasted on top.
-          background: "linear-gradient(165deg, rgba(20,20,20,0.78) 0%, rgba(10,10,10,0.82) 100%)",
-          border: `1px solid ${C.border}`,
-          borderTop: "1px solid rgba(255,102,0,0.22)",
-          boxShadow: "0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
-          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-        }}>
-        <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", justifyContent: "center", mb: 4 }}>
-          <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.75rem", color: C.orange, letterSpacing: "0.08em" }}>HACKERSWIPE</Typography>
-        </Box>
-
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.1em", mb: 2, display: { xs: "none", md: "block" } }}>
-          GET STARTED
-        </Typography>
-
-        {sessionExpired && (
-          <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
-            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5 }}>
-              Your guest session ended. Create an account to keep a saved taste profile, or start a new guest session below.
-            </Typography>
-          </Box>
-        )}
-
-        <Box sx={{ display: "flex", mb: 4, borderRadius: "10px", border: `1px solid ${C.border}`, p: "3px" }}>
-          {["login", "register"].map((m) => (
-            <Box
-              key={m}
-              onClick={() => switchMode(m)}
-              sx={{
-                flex: 1, textAlign: "center", py: 1, borderRadius: "8px", cursor: "pointer",
-                fontFamily: C.fontMono, fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em",
-                color: mode === m ? "#000" : C.textDim,
-                background: mode === m ? C.orange : "transparent",
-                transition: `all 200ms ${EASE.standard}`,
-              }}
-            >
-              {m === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
-            </Box>
-          ))}
-        </Box>
-
-        <Button
-          fullWidth variant="outlined" onClick={handleGoogleLogin}
-          sx={{
-            mb: 3, py: 1.4, color: "#fff", borderColor: "rgba(255,255,255,0.2)",
-            fontFamily: C.fontUi, fontSize: "0.85rem", fontWeight: 600,
-            borderRadius: "10px", textTransform: "none",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5,
-            background: "rgba(255,255,255,0.02)",
-            "&:hover": { background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.4)" },
-            "&:active": { transform: "scale(0.99)" },
-            transition: `all 200ms ${EASE.standard}`,
-          }}
-        >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: 18, height: 18 }} />
-          Continue with Google
-        </Button>
-
-        <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 3 }}>
-          <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, px: 1 }}>or</Typography>
-        </Divider>
-
-        <form onSubmit={handleSubmit}>
-          <TextField label="Email" type="email" variant="outlined" fullWidth margin="normal"
-            value={email} onChange={(e) => setEmail(e.target.value)} required sx={inputSx} />
-          <TextField label="Password" type="password" variant="outlined" fullWidth margin="normal"
-            value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
-
-          {mode === "login" && (
-            <Typography
-              onClick={() => navigate("/forgot-password")}
-              sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "right", mt: 1, cursor: "pointer", "&:hover": { color: "#fff" } }}
-            >
-              Forgot password?
-            </Typography>
-          )}
-
-          {error && (
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1.5, textAlign: "center" }}>
-              {error}
-            </Typography>
-          )}
-
-          <Button type="submit" variant="contained" fullWidth disabled={loading}
-            sx={{
-              mt: 2.5, mb: 3, py: 1.5,
-              fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em",
-              background: C.orange, color: "#000", borderRadius: "10px",
-              "&:hover": { background: "#e65c00" },
-              "&:disabled": { background: "rgba(255,102,0,0.4)" },
-            }}>
-            {loading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : (mode === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
-          </Button>
-          {mode === "register" && (
-            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textAlign: "center", mt: -1.5, mb: 2 }}>
-              By creating an account you agree to our{" "}
-              <Box component="span" onClick={() => navigate("/privacy")} sx={{ color: C.textDim, cursor: "pointer", "&:hover": { color: "#fff" } }}>
-                Privacy Policy
-              </Box>.
-            </Typography>
-          )}
-        </form>
-
-        <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 3 }} />
-
-        <Button
-          fullWidth onClick={handleGuest} disabled={guestLoading}
-          endIcon={!guestLoading && <ArrowForward sx={{ fontSize: "1rem !important" }} />}
-          sx={{
-            py: 1.3, borderRadius: "10px", textTransform: "none",
-            border: "1.5px dashed rgba(255,255,255,0.25)",
-            background: "rgba(255,255,255,0.02)",
-            display: "flex", flexDirection: "column", gap: 0.3,
-            "&:hover": { borderColor: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)" },
-            "&:active": { transform: "scale(0.99)" },
-            transition: `all 200ms ${EASE.standard}`,
-          }}
-        >
-          {guestLoading ? (
-            <CircularProgress size={18} sx={{ color: C.textDim }} />
           ) : (
-            <>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.04em", color: "#fff" }}>
-                CONTINUE AS GUEST
-              </Typography>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim }}>
-                No signup. Explore free for 24 hours.
-              </Typography>
-            </>
+            <Box key="form" component={motion.div}
+              initial={reduceMotion ? false : { opacity: 0, x: 40, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={reduceMotion ? {} : { opacity: 0, x: 40, filter: "blur(4px)" }}
+              {...viewTransition}
+              sx={{ width: "100%", maxWidth: 440 }}
+            >
+              <Box
+                onClick={() => setView("pitch")}
+                sx={{
+                  display: "flex", alignItems: "center", gap: 0.5, mb: 2, cursor: "pointer",
+                  color: C.textDim, width: "fit-content",
+                  "&:hover": { color: "#fff" },
+                }}
+              >
+                <ArrowBack sx={{ fontSize: "1rem" }} />
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem" }}>Back</Typography>
+              </Box>
+
+              <Box sx={{
+                width: "100%", maxHeight: { md: "calc(100vh - 140px)" }, overflowY: "auto",
+                px: { xs: 3, md: 4.5 }, py: { xs: 4, md: 5 },
+                borderRadius: "20px",
+                background: "rgba(15,15,15,0.9)",
+                border: `1px solid ${C.border}`,
+                boxShadow: "0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
+                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+              }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 3 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}` }} />
+                  <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.72rem", color: C.orange, letterSpacing: "0.08em" }}>HACKERSWIPE</Typography>
+                </Box>
+
+                {sessionExpired && (
+                  <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
+                    <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5 }}>
+                      Your guest session ended. Create an account to keep a saved taste profile, or start a new guest session below.
+                    </Typography>
+                  </Box>
+                )}
+
+                <Box sx={{ display: "flex", mb: 4, borderRadius: "10px", border: `1px solid ${C.border}`, p: "3px" }}>
+                  {["login", "register"].map((m) => (
+                    <Box
+                      key={m}
+                      onClick={() => switchMode(m)}
+                      sx={{
+                        flex: 1, textAlign: "center", py: 1, borderRadius: "8px", cursor: "pointer",
+                        fontFamily: C.fontMono, fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em",
+                        color: mode === m ? "#000" : C.textDim,
+                        background: mode === m ? C.orange : "transparent",
+                        transition: `all 200ms ${EASE.standard}`,
+                      }}
+                    >
+                      {m === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
+                    </Box>
+                  ))}
+                </Box>
+
+                <Button
+                  fullWidth variant="outlined" onClick={handleGoogleLogin}
+                  sx={{
+                    mb: 3, py: 1.4, color: "#fff", borderColor: "rgba(255,255,255,0.2)",
+                    fontFamily: C.fontUi, fontSize: "0.85rem", fontWeight: 600,
+                    borderRadius: "10px", textTransform: "none",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5,
+                    background: "rgba(255,255,255,0.02)",
+                    "&:hover": { background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.4)" },
+                    "&:active": { transform: "scale(0.99)" },
+                    transition: `all 200ms ${EASE.standard}`,
+                  }}
+                >
+                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: 18, height: 18 }} />
+                  Continue with Google
+                </Button>
+
+                <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 3 }}>
+                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, px: 1 }}>or</Typography>
+                </Divider>
+
+                <form onSubmit={handleSubmit}>
+                  <TextField label="Email" type="email" variant="outlined" fullWidth margin="normal"
+                    value={email} onChange={(e) => setEmail(e.target.value)} required sx={inputSx} />
+                  <TextField label="Password" type="password" variant="outlined" fullWidth margin="normal"
+                    value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
+
+                  {mode === "login" && (
+                    <Typography
+                      onClick={() => navigate("/forgot-password")}
+                      sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "right", mt: 1, cursor: "pointer", "&:hover": { color: "#fff" } }}
+                    >
+                      Forgot password?
+                    </Typography>
+                  )}
+
+                  {error && (
+                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1.5, textAlign: "center" }}>
+                      {error}
+                    </Typography>
+                  )}
+
+                  <Button type="submit" variant="contained" fullWidth disabled={loading}
+                    sx={{
+                      mt: 2.5, mb: 3, py: 1.5,
+                      fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em",
+                      background: C.orange, color: "#000", borderRadius: "10px",
+                      "&:hover": { background: "#e65c00" },
+                      "&:disabled": { background: "rgba(255,102,0,0.4)" },
+                    }}>
+                    {loading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : (mode === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
+                  </Button>
+                  {mode === "register" && (
+                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textAlign: "center", mt: -1.5, mb: 2 }}>
+                      By creating an account you agree to our{" "}
+                      <Box component="span" onClick={() => navigate("/privacy")} sx={{ color: C.textDim, cursor: "pointer", "&:hover": { color: "#fff" } }}>
+                        Privacy Policy
+                      </Box>.
+                    </Typography>
+                  )}
+                </form>
+
+                <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 3 }} />
+
+                <Button
+                  fullWidth onClick={handleGuest} disabled={guestLoading}
+                  endIcon={!guestLoading && <ArrowForward sx={{ fontSize: "1rem !important" }} />}
+                  sx={{
+                    py: 1.3, borderRadius: "10px", textTransform: "none",
+                    border: "1.5px dashed rgba(255,255,255,0.25)",
+                    background: "rgba(255,255,255,0.02)",
+                    display: "flex", flexDirection: "column", gap: 0.3,
+                    "&:hover": { borderColor: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)" },
+                    "&:active": { transform: "scale(0.99)" },
+                    transition: `all 200ms ${EASE.standard}`,
+                  }}
+                >
+                  {guestLoading ? (
+                    <CircularProgress size={18} sx={{ color: C.textDim }} />
+                  ) : (
+                    <>
+                      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.04em", color: "#fff" }}>
+                        CONTINUE AS GUEST
+                      </Typography>
+                      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.textDim }}>
+                        No signup. Explore free for 24 hours.
+                      </Typography>
+                    </>
+                  )}
+                </Button>
+              </Box>
+            </Box>
           )}
-        </Button>
-        </Box>
-      </Box>
-      )}
+        </AnimatePresence>
       </Box>
     </Box>
   );

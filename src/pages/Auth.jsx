@@ -27,128 +27,37 @@ const NOISE_TEXTURE = `url("data:image/svg+xml;utf8,${encodeURIComponent(
 // you click" claim instead of just showing a title sliding across the screen.
 // matchPct mirrors the real card's badge (NewsCard.jsx) - alternating with
 // null (rendered as DISCOVERY) so the preview honestly shows both states
-// instead of implying every story is always a strong match.
+// instead of implying every story is always a strong match. category drives
+// the reactive taste-readout below the demo - only even-index rows ever get
+// "liked" (see the alternation below), so AI/Software Engineering are the
+// only two categories that ever become the readout's leader, alternating
+// lap over lap - a small, honest proof that the readout is really watching
+// the cycle rather than decorative.
 const DEMO_ROWS = [
-  { title: "Show HN: I built a CRDT from scratch", pts: 412, bullet: "No server needed, syncs across tabs offline", matchPct: 93 },
-  { title: "The case against microservices", pts: 891, bullet: "One team's monolith outperformed 40 services", matchPct: null },
-  { title: "Why Rust's borrow checker finally clicked", pts: 234, bullet: "Mental model that finally made it click", matchPct: 85 },
-  { title: "Ask HN: How do you review your own PRs?", pts: 156, bullet: "Real review checklists from working devs", matchPct: null },
+  { title: "Show HN: I built a CRDT from scratch", pts: 412, bullet: "No server needed, syncs across tabs offline", matchPct: 93, category: "Artificial Intelligence" },
+  { title: "The case against microservices", pts: 891, bullet: "One team's monolith outperformed 40 services", matchPct: null, category: "Cybersecurity" },
+  { title: "Why Rust's borrow checker finally clicked", pts: 234, bullet: "Mental model that finally made it click", matchPct: 85, category: "Software Engineering" },
+  { title: "Ask HN: How do you review your own PRs?", pts: 156, bullet: "Real review checklists from working devs", matchPct: null, category: "Startups & VC" },
 ];
 
-function SwipeStackDemo() {
-  const [index, setIndex] = useState(0);
-  const [exiting, setExiting] = useState(false);
-  const [direction, setDirection] = useState("right");
+// Short display forms for the taste-readout label - only the two categories
+// that ever get "liked" in DEMO_ROWS actually appear here, the rest exist so
+// the map isn't a landmine if DEMO_ROWS categories ever change.
+const SHORT_CATEGORY = {
+  "Artificial Intelligence": "AI",
+  "Software Engineering": "SWE",
+  "Startups & VC": "STARTUPS",
+  "Cybersecurity": "SECURITY",
+  "Hardware & Systems": "HARDWARE",
+  "Science & Space": "SCIENCE",
+  "Business & Finance": "BUSINESS",
+  "Design & UI/UX": "DESIGN",
+};
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      // Deterministic, not random: alternating by row index guarantees both
-      // a LIKED and a DISLIKED stamp show up within one 2-row cycle, instead
-      // of leaving it to a 75/25 coin flip that could show "liked" for the
-      // entire time someone actually watches the demo.
-      setDirection(index % 2 === 0 ? "right" : "left");
-      setExiting(true);
-      setTimeout(() => {
-        setIndex((i) => (i + 1) % DEMO_ROWS.length);
-        setExiting(false);
-      }, 450);
-    }, 2600);
-    return () => clearInterval(id);
-  }, [index]);
-
-  const visible = [0, 1, 2].map((offset) => DEMO_ROWS[(index + offset) % DEMO_ROWS.length]);
-
-  return (
-    <Box sx={{ position: "relative", height: 190, perspective: "900px" }}>
-      {visible.map((row, i) => {
-        const isTop = i === 0;
-        // Real depth via perspective + translateZ + scale (not just a flat
-        // 2D offset) - the back cards genuinely recede instead of merely
-        // sitting a few pixels off to the side.
-        const backRotate = i === 1 ? -0.75 : i === 2 ? 0.75 : 0;
-        const depthScale = 1 - i * 0.04;
-        const translateZ = -i * 24;
-        return (
-          <Box key={`${row.title}-${index}-${i}`} sx={{
-            position: "absolute", top: i * 18, left: i * 10, right: i * 10,
-            transformStyle: "preserve-3d",
-            transform: isTop && exiting
-              ? `translateX(${direction === "right" ? 160 : -160}px) rotate(${direction === "right" ? 10 : -10}deg)`
-              : `translateZ(${translateZ}px) scale(${depthScale}) rotate(${backRotate}deg)`,
-            opacity: isTop && exiting ? 0 : 1 - i * 0.25,
-            transition: `all 450ms ${EASE.standard}`,
-            zIndex: 3 - i,
-            background: "linear-gradient(160deg, rgba(30,30,30,0.95), rgba(16,16,16,0.95))",
-            border: `1px solid ${isTop ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)"}`, borderRadius: "10px", p: 2,
-            boxShadow: isTop ? "0 12px 28px rgba(0,0,0,0.45)" : "none",
-          }}>
-            <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.85rem", color: "#fff", fontWeight: 600, lineHeight: 1.4, pr: 8 }}>{row.title}</Typography>
-            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, mt: 1 }}>
-              <Typography sx={{ color: C.orange, fontSize: "0.7rem", mt: "1px" }}>▸</Typography>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(220,220,220,0.75)", lineHeight: 1.4 }}>{row.bullet}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.9 }}>
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, fontWeight: 700 }}>{row.pts} pts</Typography>
-              <Box sx={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
-              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}>news.ycombinator.com</Typography>
-            </Box>
-            {isTop && exiting ? (
-              <Box sx={{
-                position: "absolute", top: 10, right: 10, width: 26, height: 26, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: direction === "right" ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)",
-                border: `1.5px solid ${direction === "right" ? C.success : C.error}`,
-                color: direction === "right" ? C.success : C.error,
-              }}>
-                {direction === "right" ? <Check sx={{ fontSize: "0.95rem" }} /> : <Close sx={{ fontSize: "0.95rem" }} />}
-              </Box>
-            ) : row.matchPct ? (
-              <Typography sx={{
-                position: "absolute", top: 12, right: 12,
-                fontFamily: C.fontMono, fontSize: "0.55rem", color: row.matchPct >= 95 ? C.rareMatchGold : C.teal,
-                background: row.matchPct >= 95 ? "rgba(255,215,0,0.12)" : "rgba(0,255,204,0.1)",
-                border: `1px solid ${row.matchPct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.3)"}`,
-                px: 0.8, py: 0.3, borderRadius: "4px",
-              }}>
-                {row.matchPct >= 95 ? `★ ${row.matchPct}% RARE MATCH` : `${row.matchPct}% MATCH`}
-              </Typography>
-            ) : (
-              <Typography sx={{
-                position: "absolute", top: 12, right: 12,
-                fontFamily: C.fontMono, fontSize: "0.55rem", color: "#a0a0a0",
-                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                px: 0.8, py: 0.3, borderRadius: "4px",
-              }}>
-                DISCOVERY
-              </Typography>
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
-
-// A minimal "browser window" frame around the demo - three muted dots and a
-// thin border, like a real screenshot rather than a UI floating in a glow
-// halo. Makes the live preview read as "this is the actual app," calmly.
-function BrowserChrome({ children }) {
-  return (
-    <Box sx={{
-      borderRadius: "14px", overflow: "hidden",
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(14,14,14,0.6)",
-      boxShadow: "0 24px 48px rgba(0,0,0,0.35)",
-    }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, px: 1.5, py: 1, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        {[0, 1, 2].map((i) => (
-          <Box key={i} sx={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.14)" }} />
-        ))}
-      </Box>
-      <Box sx={{ p: 2 }}>{children}</Box>
-    </Box>
-  );
-}
+const ANNOTATION_SX = {
+  fontFamily: C.fontMono, fontSize: "0.66rem", color: "rgba(255,255,255,0.4)",
+  whiteSpace: "nowrap", letterSpacing: "0.01em",
+};
 
 // Counts up from 0 to `value` once, on mount - ties an effect to a real,
 // honest number instead of pure decoration. Collapses to the final value
@@ -176,61 +85,6 @@ function NumberTicker({ value }) {
   return display.toLocaleString();
 }
 
-const SAVED_DEMO_ROWS = [
-  { title: "Rust's async runtime internals, explained", category: "Software Engineering", source: "blog.rust-lang.org", time: "2h", points: 341 },
-  { title: "New attention variant claims 4x inference speedup", category: "Artificial Intelligence", source: "arxiv.org", time: "5h", points: 512 },
-];
-
-// Mirrors the real SavedPanel row treatment (Sidebar.jsx) - same thumbnail
-// proportions, left-border category accent, and category-chip styling - so
-// this reads as an honest preview of the feature, not an invented mockup.
-function SavedStoriesMiniDemo() {
-  return (
-    <Box sx={{ flex: 1, minWidth: 0, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", p: 1.5 }}>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.textDim, letterSpacing: "0.08em", mb: 1 }}>
-        SAVED FOR LATER
-      </Typography>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {SAVED_DEMO_ROWS.map((row) => {
-          const categoryColor = CATEGORY_COLORS[row.category];
-          return (
-            <Box key={row.title} sx={{
-              display: "flex", gap: 1.25, p: 1, borderRadius: "6px",
-              background: "rgba(255,102,0,0.03)", border: "1px solid rgba(255,255,255,0.05)",
-              borderLeft: `3px solid ${categoryColor}`,
-            }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "6px", flexShrink: 0,
-                background: `linear-gradient(160deg, ${categoryColor}44, ${categoryColor}11)`,
-              }} />
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography sx={{
-                  fontFamily: C.fontUi, fontSize: "0.68rem", fontWeight: 700, color: "#fff", lineHeight: 1.3,
-                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-                }}>
-                  {row.title}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mt: 0.5, flexWrap: "wrap" }}>
-                  <Typography sx={{
-                    fontFamily: C.fontMono, fontSize: "0.55rem", fontWeight: 700, color: categoryColor,
-                    background: `${categoryColor}1a`, border: `1px solid ${categoryColor}4d`,
-                    px: 0.75, py: 0.2, borderRadius: "4px",
-                  }}>
-                    {row.category.toUpperCase()}
-                  </Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.58rem", color: C.textDim }}>{row.source}</Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.58rem", color: C.textDim }}>· {row.time}</Typography>
-                  <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.58rem", color: C.orange }}>· {row.points} pts</Typography>
-                </Box>
-              </Box>
-            </Box>
-          );
-        })}
-      </Box>
-    </Box>
-  );
-}
-
 const TASTE_DEMO_PROFILE = [
   { category: "Artificial Intelligence", percentage: 38 },
   { category: "Software Engineering", percentage: 27 },
@@ -242,54 +96,198 @@ const TASTE_DEMO_PROFILE = [
   { category: "Design & UI/UX", percentage: 1 },
 ];
 
-// A smaller version of the real TasteRadar chart (Sidebar.jsx ProfilePanel) -
-// same construction (concentric grid + one filled/stroked data polygon), at
-// a scale where per-axis code labels would clip past the SVG's edge, so only
-// the "STRONGEST" line (the one piece of copy that matters at a glance) is
-// kept.
-function TasteProfileMiniDemo() {
-  const size = 130, cx = size / 2, cy = size / 2, R = 45;
+// A boxless shrink of the real TasteRadar chart (Sidebar.jsx ProfilePanel) -
+// same concentric-grid + filled-polygon construction and the same fixed
+// baseline shape (TASTE_DEMO_PROFILE) - only the stroke/fill color and label
+// react to `topCategory`, so the shape itself never has to be recomputed
+// live (simpler and lower-risk than animating the polygon's geometry).
+function MiniRadarGlyph({ topCategory }) {
+  const size = 44, cx = size / 2, cy = size / 2, R = 17;
   const maxPct = Math.max(...TASTE_DEMO_PROFILE.map((p) => p.percentage));
   const axisPoint = (i, frac) => {
     const angle = (i / TASTE_DEMO_PROFILE.length) * 2 * Math.PI - Math.PI / 2;
     return [cx + R * frac * Math.cos(angle), cy + R * frac * Math.sin(angle)];
   };
   const dataPoints = TASTE_DEMO_PROFILE.map((p, i) => axisPoint(i, p.percentage / maxPct).join(",")).join(" ");
-  const ring = (frac) => TASTE_DEMO_PROFILE.map((_, i) => axisPoint(i, frac).join(",")).join(" ");
-  const top = TASTE_DEMO_PROFILE.reduce((m, p) => (p.percentage > m.percentage ? p : m), TASTE_DEMO_PROFILE[0]);
-  const strokeColor = CATEGORY_COLORS[top.category];
+  const color = CATEGORY_COLORS[topCategory] || C.orange;
 
   return (
-    <Box sx={{
-      flex: 1, minWidth: 0, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.02)", p: 1.5, display: "flex", flexDirection: "column", alignItems: "center",
-    }}>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.textDim, letterSpacing: "0.08em", mb: 1, alignSelf: "flex-start" }}>
-        YOUR TASTE PROFILE
-      </Typography>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.85 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <defs>
-          <radialGradient id="miniRadarFill" cx="50%" cy="50%" r="65%">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.38" />
-            <stop offset="100%" stopColor={strokeColor} stopOpacity="0.06" />
-          </radialGradient>
-        </defs>
-        {[0.5, 1].map((f) => (
-          <polygon key={f} points={ring(f)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-        ))}
-        {TASTE_DEMO_PROFILE.map((p, i) => {
-          const [x2, y2] = axisPoint(i, 1);
-          return <line key={p.category} x1={cx} y1={cy} x2={x2} y2={y2} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />;
-        })}
-        <polygon points={dataPoints} fill="url(#miniRadarFill)" stroke={strokeColor} strokeWidth="1.75" strokeLinejoin="round" />
-        {TASTE_DEMO_PROFILE.map((p, i) => {
-          const [vx, vy] = axisPoint(i, p.percentage / maxPct);
-          return <circle key={p.category} cx={vx} cy={vy} r="2" fill={strokeColor} />;
-        })}
+        <polygon
+          points={dataPoints} fill={`${color}26`} stroke={color} strokeWidth="1.5" strokeLinejoin="round"
+          style={{ transition: `fill 400ms ${EASE.standard}, stroke 400ms ${EASE.standard}` }}
+        />
       </svg>
-      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: strokeColor, letterSpacing: "0.05em", mt: 0.5 }}>
-        STRONGEST: {top.category.toUpperCase()}
+      <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color, transition: `color 400ms ${EASE.standard}` }}>
+        TASTE · {SHORT_CATEGORY[topCategory] || topCategory.toUpperCase()}
       </Typography>
+    </Box>
+  );
+}
+
+// The hero's single centerpiece demo - one big auto-cycling card (no drag:
+// there's nothing real for a visitor to teach a static demo, so dragging
+// would be theater) with dev-inspector-style mono annotations naming the
+// literal values driving what's on screen, connected by a hairline down to a
+// live readout strip that reacts in sync with the same cycle - saved-stories
+// and taste-profile read as the *result* of the demo playing, not two more
+// unrelated boxes next to it.
+function HeroDemoSystem() {
+  const reduceMotion = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const [exiting, setExiting] = useState(false);
+  const [direction, setDirection] = useState("right");
+  const [savedCount, setSavedCount] = useState(1);
+  const [topCategory, setTopCategory] = useState(DEMO_ROWS[0].category);
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // Deterministic, not random: alternating by row index guarantees both
+      // a LIKED and a DISLIKED stamp show up within one lap, instead of
+      // leaving it to a coin flip. Only "liked" (even-index) rows move the
+      // readout below - the odd rows are honestly shown as passed-on.
+      const liked = index % 2 === 0;
+      setDirection(liked ? "right" : "left");
+      if (liked) {
+        // Resets to 1 at the start of each lap (index 0) instead of growing
+        // forever - a visitor who leaves the tab open for a while should see
+        // a small, believable number, not "SAVED · 214".
+        setSavedCount((c) => (index === 0 ? 1 : c + 1));
+        setTopCategory(DEMO_ROWS[index].category);
+        setPulse(true);
+        setTimeout(() => setPulse(false), 700);
+      }
+      setExiting(true);
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % DEMO_ROWS.length);
+        setExiting(false);
+      }, reduceMotion ? 0 : 450);
+    }, 3200);
+    return () => clearInterval(id);
+  }, [index, reduceMotion]);
+
+  const row = DEMO_ROWS[index];
+  const categoryColor = CATEGORY_COLORS[row.category];
+
+  return (
+    <Box sx={{ width: "100%", maxWidth: 480 }}>
+      <Box sx={{ position: "relative" }}>
+        {/* Annotation rail - fixed to the right of the card, not measured
+            against the card's internals live, so it can't drift out of
+            alignment if card content ever reflows. */}
+        <Box sx={{
+          position: "absolute", left: "100%", top: 34, ml: 2.5, width: 190,
+          display: { xs: "none", lg: "flex" }, flexDirection: "column", gap: 0.5,
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ width: 14, height: "1px", background: "rgba(255,255,255,0.18)" }} />
+            <Typography sx={ANNOTATION_SX}>
+              match_pct → "{row.matchPct != null ? `${row.matchPct}% MATCH` : "DISCOVERY"}"
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{
+          position: "absolute", left: "100%", top: 140, ml: 2.5, width: 190,
+          display: { xs: "none", lg: "flex" }, flexDirection: "column", gap: 0.5,
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ width: 14, height: "1px", background: "rgba(255,255,255,0.18)" }} />
+            <Typography sx={ANNOTATION_SX}>ai_summary[0] → pre-chewed, no fluff</Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{
+          position: "relative", height: 300, borderRadius: "18px", overflow: "hidden",
+          background: "linear-gradient(160deg, rgba(30,30,30,0.95), rgba(16,16,16,0.95))",
+          border: `1px solid ${categoryColor}4d`,
+          p: { xs: 3, md: 3.5 }, display: "flex", flexDirection: "column",
+          animation: reduceMotion ? "none" : "border-pulse 3.4s ease-in-out infinite",
+          transform: exiting
+            ? `translateX(${direction === "right" ? 280 : -280}px) rotate(${direction === "right" ? 14 : -14}deg)`
+            : "translateX(0) rotate(0deg)",
+          opacity: exiting ? 0 : 1,
+          transition: reduceMotion ? `opacity 200ms linear` : `all 450ms ${EASE.standard}`,
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: categoryColor }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: categoryColor, letterSpacing: "0.08em" }}>
+              {row.category.toUpperCase()}
+            </Typography>
+          </Box>
+
+          <Typography sx={{ fontFamily: C.fontUi, fontSize: { xs: "1.15rem", md: "1.35rem" }, color: "#fff", fontWeight: 700, lineHeight: 1.35, pr: 6 }}>
+            {row.title}
+          </Typography>
+
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mt: 2 }}>
+            <Typography sx={{ color: C.orange, fontSize: "0.85rem", mt: "1px" }}>▸</Typography>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.85rem", color: "rgba(225,225,225,0.75)", lineHeight: 1.5 }}>
+              {row.bullet}
+            </Typography>
+          </Box>
+
+          <Box sx={{ flex: 1 }} />
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.82rem", color: C.orange, fontWeight: 700 }}>{row.pts} pts</Typography>
+            <Box sx={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+            <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>news.ycombinator.com</Typography>
+          </Box>
+
+          {exiting ? (
+            <Box sx={{
+              position: "absolute", top: 22, right: 22, width: 38, height: 38, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: direction === "right" ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)",
+              border: `1.5px solid ${direction === "right" ? C.success : C.error}`,
+              color: direction === "right" ? C.success : C.error,
+            }}>
+              {direction === "right" ? <Check sx={{ fontSize: "1.3rem" }} /> : <Close sx={{ fontSize: "1.3rem" }} />}
+            </Box>
+          ) : row.matchPct ? (
+            <Typography sx={{
+              position: "absolute", top: 22, right: 22,
+              fontFamily: C.fontMono, fontSize: "0.68rem", color: row.matchPct >= 95 ? C.rareMatchGold : C.teal,
+              background: row.matchPct >= 95 ? "rgba(255,215,0,0.12)" : "rgba(0,255,204,0.1)",
+              border: `1px solid ${row.matchPct >= 95 ? "rgba(255,215,0,0.5)" : "rgba(0,255,204,0.3)"}`,
+              px: 1, py: 0.4, borderRadius: "6px",
+            }}>
+              {row.matchPct >= 95 ? `★ ${row.matchPct}% RARE MATCH` : `${row.matchPct}% MATCH`}
+            </Typography>
+          ) : (
+            <Typography sx={{
+              position: "absolute", top: 22, right: 22,
+              fontFamily: C.fontMono, fontSize: "0.68rem", color: "#a0a0a0",
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+              px: 1, py: 0.4, borderRadius: "6px",
+            }}>
+              DISCOVERY
+            </Typography>
+          )}
+        </Box>
+      </Box>
+
+      {/* Connector + reactive readout - the visible consequence of the cycle
+          playing, not a separate demo. Centered under the card itself (not
+          the wider annotation rail beside it). */}
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Box sx={{ width: "1px", height: 26, background: `linear-gradient(${C.orange}80, transparent)` }} />
+        <Box sx={{
+          display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, borderRadius: "999px",
+          border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)",
+        }}>
+          <Typography sx={{
+            fontFamily: C.fontMono, fontSize: "0.72rem", fontWeight: 700,
+            color: pulse ? "#fff" : C.textDim, transition: `color 300ms ${EASE.standard}`,
+          }}>
+            SAVED · {savedCount}
+          </Typography>
+          <Box sx={{ width: "1px", height: 12, background: "rgba(255,255,255,0.12)" }} />
+          <MiniRadarGlyph topCategory={topCategory} />
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -618,14 +616,21 @@ export default function Auth() {
           </Box>
         </Box>
 
-        {/* HERO ROW */}
+        {/* HERO ROW - asymmetric, top-anchored: both columns start at the
+            same top edge instead of each independently vertically centering
+            (the old justifyContent:"center" per-column pattern is exactly
+            what read as "blocky, empty, accidental" - a real content column
+            next to a real visual, not two islands). */}
         <Box sx={{
           flex: 1, minHeight: 0, display: "flex", flexDirection: { xs: "column", md: "row" },
-          px: { xs: 3, md: 6, lg: 8 }, py: { xs: 4, md: 2 }, gap: { xs: 4, md: 0 },
+          px: { xs: 3, md: 6, lg: 8 }, py: { xs: 4, md: 3.5 }, gap: { xs: 4, md: 5 },
         }}>
-          {/* LEFT - headline, subhead, features, proof stat */}
-          <Box sx={{ flex: { md: "1 1 46%" }, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Box sx={{ maxWidth: 600, width: "100%" }}>
+          {/* LEFT - lean pitch: eyebrow, headline, one-sentence subhead, a
+              real hero-level CTA (previously only lived in the thin nav
+              bar), and a bottom-pinned proof stat + category strip using the
+              height freed up by cutting the old 3-bullet block. */}
+          <Box sx={{ flex: { md: "0 0 440px" }, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <Box sx={{ width: "100%" }}>
               <Box component={motion.div} {...stagger(0)}>
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: "rgba(232,232,232,0.7)", letterSpacing: "0.14em", mb: 1.5 }}>
                   A SHARPER WAY TO READ HACKER NEWS
@@ -634,41 +639,50 @@ export default function Auth() {
 
               <Box component={motion.div} {...stagger(0.08)}>
                 <Typography sx={{
-                  fontFamily: C.fontUi, fontSize: { xs: "2.2rem", md: "2.4rem", lg: "2.75rem" }, fontWeight: 700, color: "#f5f5f5",
-                  lineHeight: 1.1, mb: 1.5, letterSpacing: "-0.01em",
+                  fontFamily: C.fontUi, fontSize: { xs: "2.1rem", md: "2.3rem", lg: "2.6rem" }, fontWeight: 700, color: "#f5f5f5",
+                  lineHeight: 1.18, mb: 1.75, letterSpacing: "-0.01em",
                 }}>
                   The front page of tech,<br />
-                  <Box component="span" sx={{ color: C.orange }}>tuned to you.</Box>
+                  <Box
+                    component="span"
+                    sx={{
+                      fontFamily: C.fontMono, color: C.orange, fontSize: "0.85em",
+                      background: "rgba(255,102,0,0.1)", border: "1px solid rgba(255,102,0,0.3)",
+                      borderRadius: "6px", px: 0.85, py: "2px", mr: 0.5,
+                    }}
+                  >
+                    tuned
+                  </Box>
+                  to you.
                 </Typography>
               </Box>
 
               <Box component={motion.div} {...stagger(0.16)}>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.05rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.5, mb: 2.5, maxWidth: 520 }}>
-                  Hacker News, but tailored to you. Every story previewed, personalized, and sorted by what you're actually into.
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "1.02rem", color: "rgba(240,240,240,0.72)", lineHeight: 1.55, mb: 3, maxWidth: 440 }}>
+                  Every story arrives pre-chewed into three bullets and ranked against your taste — not what's trending for everyone else.
                 </Typography>
               </Box>
 
-              <Box component={motion.div} {...stagger(0.24)} sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 3 }}>
-                {[
-                  ["NO DUDS", "Every story pre-chewed into three bullets before you click."],
-                  ["TAILORED", "Like something, and the feed remembers instantly."],
-                  ["BY TOPIC", "AI, security, startups, hardware, and more."],
-                ].map(([tag, body]) => (
-                  <Box key={tag} sx={{
-                    display: "flex", gap: 1.5, alignItems: "baseline", borderRadius: "8px", px: 1, py: 0.35, mx: -1,
-                    transition: `background 150ms ${EASE.standard}`,
-                    "&:hover": { background: "rgba(255,255,255,0.03)" },
-                  }}>
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.orange, flexShrink: 0, width: 80, fontWeight: 700 }}>{tag}</Typography>
-                    <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.9rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.4 }}>{body}</Typography>
-                  </Box>
-                ))}
-              </Box>
-
-              <Box component={motion.div} {...stagger(0.4)}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
-                  Real Hacker News stories.
-                  {articleCount != null && <> <NumberTicker value={articleCount} />+ indexed so far.</>}
+              <Box component={motion.div} {...stagger(0.24)} sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2.5 }}>
+                <Button
+                  onClick={() => openAuthModal("register")}
+                  sx={{
+                    py: 1.3, px: 3, fontFamily: C.fontMono, fontSize: "0.82rem", fontWeight: 700, letterSpacing: "0.05em",
+                    background: C.orange, color: "#000", borderRadius: "10px",
+                    "&:hover": { background: "#e65c00" },
+                  }}
+                >
+                  START SWIPING →
+                </Button>
+                <Typography
+                  onClick={guestLoading ? undefined : handleGuest}
+                  sx={{
+                    fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim,
+                    cursor: guestLoading ? "default" : "pointer",
+                    "&:hover": { color: guestLoading ? C.textDim : "#fff" },
+                  }}
+                >
+                  {guestLoading ? "Starting…" : "or explore as guest"}
                 </Typography>
               </Box>
 
@@ -686,25 +700,35 @@ export default function Auth() {
                 </Box>
               )}
             </Box>
+
+            <Box component={motion.div} {...stagger(0.4)}>
+              <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)", mb: 1.5 }}>
+                Real Hacker News stories.
+                {articleCount != null && <> <NumberTicker value={articleCount} />+ indexed so far.</>}
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.12em", mr: 0.5 }}>
+                  TRACKING
+                </Typography>
+                {["Artificial Intelligence", "Software Engineering", "Startups & VC", "Cybersecurity", "Hardware & Systems"].map((cat) => (
+                  <Box key={cat} title={cat} sx={{ width: 7, height: 7, borderRadius: "50%", background: CATEGORY_COLORS[cat] }} />
+                ))}
+              </Box>
+            </Box>
           </Box>
 
-          {/* RIGHT - bento stack of three demos: the big primary swipe-stack
-              demo, then a row of two smaller mini-demos mirroring real
-              in-app panels (saved stories, taste profile). */}
-          <Box sx={{ flex: { md: "1 1 54%" }, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <Box sx={{ maxWidth: 620, width: "100%" }}>
+          {/* RIGHT - one dominant demo instead of a bento of three boxes:
+              a single big auto-cycling card, dev-inspector annotations, and
+              a connector down to a live readout that reacts to the cycle. */}
+          <Box sx={{ flex: { md: "1 1 auto" }, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <Box sx={{ maxWidth: 720, width: "100%" }}>
               <Box component={motion.div} {...stagger(0.16)}>
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 0.75 }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.68rem", color: "rgba(255,102,0,0.75)", letterSpacing: "0.1em", mb: 1.5 }}>
                   LIVE PREVIEW
                 </Typography>
-                <BrowserChrome>
-                  <SwipeStackDemo />
-                </BrowserChrome>
               </Box>
-
-              <Box component={motion.div} {...stagger(0.32)} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1.5, mt: 2, alignItems: "stretch" }}>
-                <SavedStoriesMiniDemo />
-                <TasteProfileMiniDemo />
+              <Box component={motion.div} {...stagger(0.3)}>
+                <HeroDemoSystem />
               </Box>
             </Box>
           </Box>

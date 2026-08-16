@@ -157,14 +157,6 @@ body.auth-modal-open {
   50% { opacity: 1; }
 }
 
-/* Landing page primary CTA - a single light sweep on mount, once, never
-   looping. Deliberately restrained: one highlight on the one action that
-   matters most, not an ambient glow competing with everything else. */
-@keyframes ctaShine {
-  from { transform: translateX(-120%) skewX(-20deg); }
-  to { transform: translateX(220%) skewX(-20deg); }
-}
-
 .card-glow {
   animation: border-pulse 3s ease-in-out infinite;
 }
@@ -204,18 +196,6 @@ body.auth-modal-open {
 @keyframes radarBreathe {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.82; }
-}
-
-/* Landing page demo "pipe" - a brief traveling dash-flow pulse along a
-   connector line when a card is liked/disliked, standing in for something
-   moving through it without a literal ball/dot element. Dash pattern is set
-   inline per-use (stroke-dasharray); this just drives it along the path and
-   fades it in/out at the ends. */
-@keyframes pipeDashFlow {
-  0% { stroke-dashoffset: 0; opacity: 0; }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { stroke-dashoffset: -160; opacity: 0; }
 }
 
 /* Skeleton loading placeholder */

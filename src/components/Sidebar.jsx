@@ -4,7 +4,6 @@ import {
   ArrowBack, Search, Visibility, Settings as SettingsIcon, Bookmark, Psychology,
   Delete, PersonOutline, Person, LocalFireDepartment, Lock,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
 import * as api from "../api.js";
 import { C, CATEGORY_COLORS, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { EASE } from "../motion.js";
@@ -50,14 +49,13 @@ function decodeToken(token) {
   try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
 }
 
-export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onRequestDeleteAccount, setShowOnboarding, onLogout, onActiveTabChange }) {
+export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onRequestDeleteAccount, setShowOnboarding, onLogout, onRequestAuth, onActiveTabChange }) {
   const [activeTab, setActiveTab] = useState(null);
   const [renderedTab, setRenderedTab] = useState(null);
   const [panelMounted, setPanelMounted] = useState(false);
   const closeTimeoutRef = useRef(null);
   const sidebarRef = useRef(null);
   const iconColRef = useRef(null);
-  const navigate = useNavigate();
 
   // Measure the icon column's real content height instead of hand-calculating
   // a pixel guess, so the collapsed dock can't drift out of proportion as nav
@@ -221,7 +219,7 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onReq
               <ArrowBack sx={{ fontSize: 18 }} />
             </IconButton>
 
-            {renderedTab === "profile" && <ProfilePanel swipeCount={swipeCount} user={user} isGuest={isGuest} token={token} navigate={navigate} onLogout={onLogout} />}
+            {renderedTab === "profile" && <ProfilePanel swipeCount={swipeCount} user={user} isGuest={isGuest} token={token} onLogout={onLogout} onRequestAuth={onRequestAuth} />}
             {renderedTab === "saved" && <SavedPanel swipeCount={swipeCount} onUnliked={onUnliked} />}
             {renderedTab === "settings" && (
               <Box>
@@ -371,7 +369,7 @@ function TasteRadar({ profile }) {
   );
 }
 
-export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLogout }) {
+export function ProfilePanel({ swipeCount, user, isGuest, token, onLogout, onRequestAuth }) {
   const [profile, setProfile] = useState([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ total: 0, likes: 0, dislikes: 0, skips: 0, streak: 0 });
@@ -553,7 +551,7 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, navigate, onLog
             )}
             <Button
               fullWidth variant="contained"
-              onClick={() => navigate("/register")}
+              onClick={() => onRequestAuth("register")}
               sx={{
                 background: `linear-gradient(45deg, ${C.orange} 0%, #ff8c00 100%)`,
                 color: "#000", fontFamily: C.fontMono, fontWeight: 700,

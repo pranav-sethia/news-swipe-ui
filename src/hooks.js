@@ -1,5 +1,61 @@
 import { useState, useEffect, useRef } from 'react';
 import { MOBILE_BREAKPOINT } from './theme.js';
+import * as api from './api.js';
+import { track } from './analytics.js';
+
+function decodeToken(token) {
+  try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
+}
+
+// Shared by AuthModal's own guest button and the landing page hero's "or
+// explore as guest" shortcut (Auth.jsx), which bypasses the modal entirely -
+// both need the exact same fix, so this lives in one place rather than two.
+// Guests get a real backing account with a visible expiry countdown, so a
+// still-valid one should be resumed rather than silently replaced - minting
+// a new guest here used to unconditionally overwrite the token in
+// localStorage, permanently orphaning the previous guest's swipe history
+// (the row itself was never deleted, just no longer referenced anywhere).
+export function useGuestSession(onAuthenticated) {
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [guestError, setGuestError] = useState("");
+
+  const handleGuest = async () => {
+    setGuestLoading(true);
+    setGuestError("");
+    try {
+      const existingToken = localStorage.getItem("token");
+      const decoded = existingToken ? decodeToken(existingToken) : null;
+      if (decoded?.user?.isGuest && decoded.exp * 1000 > Date.now()) {
+        onAuthenticated?.({ action: "guest", resumedExistingGuest: true });
+        return;
+      }
+      const res = await api.loginAsGuest();
+      localStorage.setItem("token", res.data.token);
+      localStorage.removeItem("hs_onboarding_done");
+      // hs_seen_onboarding gates the separate in-app tutorial overlay (the
+      // swipe walkthrough on the feed) and was never cleared anywhere - once
+      // any guest on this browser saw it once, every later guest session
+      // silently skipped it forever, even though each new guest is a fresh,
+      // isolated account. Clear it here too so a new guest session actually
+      // gets a fresh tour, same as the category picker already does.
+      localStorage.removeItem("hs_seen_onboarding");
+      // Same story for the 5-like guest-conversion nudge (App.jsx) - it's
+      // meant to fire once per guest session on their 5th like, but the flag
+      // lived in localStorage with nothing ever clearing it, so a second
+      // guest session on the same browser silently never saw it again even
+      // starting from 0 likes. Clear it here too.
+      localStorage.removeItem("hs_seen_like_milestone");
+      track("guest_started");
+      onAuthenticated?.({ action: "guest", resumedExistingGuest: false });
+    } catch {
+      setGuestError("Failed to start guest session. Please try again.");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  return { handleGuest, guestLoading, guestError };
+}
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import { C } from "../theme.js";
 import { EASE } from "../motion.js";
 
@@ -16,11 +15,10 @@ function formatCountdown(ms) {
   return h > 0 ? `${h}H ${m}M LEFT` : `${m}M LEFT`;
 }
 
-export default function AuthStatusPill({ onLogout }) {
+export default function AuthStatusPill({ onLogout, onRequestAuth }) {
   const [open, setOpen] = useState(false);
   const [remaining, setRemaining] = useState(null);
   const containerRef = useRef(null);
-  const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
   const decoded = token ? decodeToken(token) : null;
@@ -101,13 +99,13 @@ export default function AuthStatusPill({ onLogout }) {
               </Typography>
               <Button
                 fullWidth variant="contained"
-                onClick={() => { setOpen(false); navigate("/register"); }}
+                onClick={() => { setOpen(false); onRequestAuth("register"); }}
                 sx={{ background: C.orange, color: "#000", fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.75rem", py: 1.1, mb: 1.2, "&:hover": { background: "#e65c00" } }}
               >
                 CREATE FREE ACCOUNT
               </Button>
               <Typography
-                onClick={() => { setOpen(false); navigate("/login"); }}
+                onClick={() => { setOpen(false); onRequestAuth("login"); }}
                 sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "center", cursor: "pointer", "&:hover": { color: "#fff" } }}
               >
                 Already have an account? Sign in

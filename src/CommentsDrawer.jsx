@@ -5,11 +5,10 @@ import { Drawer, Box, Typography, CircularProgress, Button, IconButton, Tooltip 
 import { QuestionAnswer, AutoAwesome, LockOutlined } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCommentSummary, getRawComments } from "./api.js";
-import { useNavigate } from "react-router-dom";
 import { C } from "./theme.js";
 import { EASE } from "./motion.js";
 
-export default function CommentsDrawer({ open, onClose, hnId }) {
+export default function CommentsDrawer({ open, onClose, hnId, onRequestAuth }) {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -18,7 +17,6 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
   const [summaryError, setSummaryError] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
-  const navigate = useNavigate();
 
   const isGuestUser = () => {
     try {
@@ -321,7 +319,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
 
               <Button
                 fullWidth variant="contained"
-                onClick={() => { setShowAuthModal(false); navigate('/register', { state: { formIntent: true } }); onClose(); }}
+                onClick={() => { setShowAuthModal(false); onRequestAuth("register"); }}
                 sx={{
                   background: C.orange, color: '#000', fontFamily: C.fontMono, fontWeight: 700, py: 1.5, borderRadius: '10px',
                   fontSize: '0.8rem', letterSpacing: '0.05em', mb: 1.5,
@@ -332,7 +330,7 @@ export default function CommentsDrawer({ open, onClose, hnId }) {
                 CREATE ACCOUNT
               </Button>
               <Typography
-                onClick={() => { setShowAuthModal(false); navigate('/login', { state: { formIntent: true } }); onClose(); }}
+                onClick={() => { setShowAuthModal(false); onRequestAuth("login"); }}
                 sx={{ fontFamily: C.fontMono, fontSize: '0.7rem', color: C.textDim, cursor: 'pointer', '&:hover': { color: 'white' } }}
               >
                 Already have an account? Sign in

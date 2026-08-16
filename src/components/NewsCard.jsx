@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Typography, CircularProgress, Link, Tooltip, Button } from "@mui/material";
+import { Box, Typography, CircularProgress, Tooltip, Button } from "@mui/material";
 import { AccessTime, OpenInNew, QuestionAnswer, ChatBubbleOutline } from "@mui/icons-material";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { C, FALLBACK_HUE_SHIFTS } from "../theme.js";
@@ -496,7 +496,7 @@ export function TerminalLoader() {
   );
 }
 
-export function ExhaustedCard({ onReset }) {
+export function ExhaustedCard({ onReset, onRequestAuth }) {
   const isGuest = (() => {
     try {
       const token = localStorage.getItem("token");
@@ -517,7 +517,7 @@ export function ExhaustedCard({ onReset }) {
       </Button>
       {isGuest && (
         <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.textDim, mt: 3 }}>
-          Guest tip: <Link href="/register" sx={{ color: C.orange, cursor: "pointer" }}>create an account</Link> to keep unlocking fresh matches from a saved profile.
+          Guest tip: <Box component="span" onClick={() => onRequestAuth("register")} sx={{ color: C.orange, cursor: "pointer" }}>create an account</Box> to keep unlocking fresh matches from a saved profile.
         </Typography>
       )}
     </Box>

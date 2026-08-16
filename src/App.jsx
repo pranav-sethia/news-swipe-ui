@@ -19,6 +19,7 @@ import { ExpandableSidebar } from "./components/Sidebar.jsx";
 import AuthStatusPill from "./components/AuthStatusPill.jsx";
 import { TutorialOverlay, TOUR_STEPS } from "./components/TutorialOverlay.jsx";
 import CommentsDrawer from "./CommentsDrawer.jsx";
+import AuthModal from "./components/AuthModal.jsx";
 import { track } from "./analytics.js";
 
 function isGuestUser() {
@@ -59,6 +60,12 @@ export default function App() {
   const [hasSwiped, setHasSwiped] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  // Drives the shared AuthModal from anywhere in the app (nav, sidebar,
+  // comments drawer, exhausted card, the like-milestone banner) so "Sign
+  // in"/"Create account" opens right here on the feed instead of navigating
+  // away to the landing page - only the logo itself is a real navigation.
+  const [authPrompt, setAuthPrompt] = useState({ open: false, mode: "register" });
+  const onRequestAuth = (mode) => setAuthPrompt({ open: true, mode });
   const [showOnboarding, setShowOnboarding] = useState(false);
   // True only for the brief window between the feed finishing load and a
   // fresh tour actually appearing - computed once, synchronously, whether a
@@ -367,24 +374,35 @@ export default function App() {
         background: "radial-gradient(circle, rgba(0,255,204,0.05), transparent 60%)",
         pointerEvents: "none", zIndex: 0, willChange: "transform",
       }} />
-      {/* Nav */}
+      {/* Nav - position:relative so the tagline can be truly centered via
+          absolute positioning below, independent of the left/right groups'
+          widths (a plain 3-child space-between row only equalizes the gaps
+          between items, not the middle item's actual position - since the
+          right group's width varies with guest-vs-signed-in state, that made
+          the tagline visibly drift left or right depending on auth state). */}
       <Box sx={{
-        display: "flex", alignItems: "center",
+        display: "flex", alignItems: "center", position: "relative",
         justifyContent: "space-between", px: 4, height: "64px", flexShrink: 0,
         background: "linear-gradient(90deg, rgba(12,12,12,0.95) 0%, rgba(18,18,18,0.85) 50%, rgba(12,12,12,0.95) 100%)",
         backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", zIndex: 150,
         borderBottom: `1px solid rgba(255, 102, 0, 0.15)`,
         boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
       }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          onClick={() => navigate("/register")}
+          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer" }}
+        >
           <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, boxShadow: `0 0 12px ${C.orange}` }} />
           <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.05em" }}>HACKERSWIPE</Typography>
         </Box>
-        <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, letterSpacing: "0.15em", fontWeight: 700, display: { xs: "none", sm: "block" } }}>
+        <Typography sx={{
+          position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+          fontFamily: C.fontMono, fontSize: "0.75rem", color: C.textDim, letterSpacing: "0.15em", fontWeight: 700, display: { xs: "none", sm: "block" },
+        }}>
           HACKER NEWS TUNED TO YOU
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <AuthStatusPill onLogout={logout} />
+          <AuthStatusPill onLogout={logout} onRequestAuth={onRequestAuth} />
           <Tooltip title="Tutorial">
             <MagneticBox>
               <IconButton data-tour="help" onClick={() => setShowOnboarding(true)} size="small" sx={{ color: C.textDim, "&:hover": { color: C.orange, background: C.orangeDim } }}><HelpOutline fontSize="small" /></IconButton>
@@ -393,14 +411,15 @@ export default function App() {
         </Box>
       </Box>
 
-      <ExpandableSidebar 
-        swipeCount={swipeCount} 
-        onUnliked={() => setSwipeCount((p) => p + 1)} 
+      <ExpandableSidebar
+        swipeCount={swipeCount}
+        onUnliked={() => setSwipeCount((p) => p + 1)}
         handleReset={handleReset}
         onRequestReset={() => setIsResetModalOpen(true)}
         onRequestDeleteAccount={() => setIsDeleteAccountModalOpen(true)}
         setShowOnboarding={setShowOnboarding}
         onLogout={logout}
+        onRequestAuth={onRequestAuth}
         onActiveTabChange={setIsSidebarOpen}
       />
 
@@ -420,7 +439,7 @@ export default function App() {
                 RETRY CONNECTION
               </Button>
             </Box>
-          ) : isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} />
+          ) : isLoading ? <TerminalLoader /> : <ExhaustedCard onReset={() => setIsResetModalOpen(true)} onRequestAuth={onRequestAuth} />
         ) : (
           <AnimatePresence mode="popLayout">
             {/* Only render top 3 cards, rest stay invisible until they become top 3 */}
@@ -550,10 +569,22 @@ export default function App() {
       </AnimatePresence>
 
       {/* Comments Drawer */}
-      <CommentsDrawer 
-        open={isCommentsOpen} 
-        onClose={() => setIsCommentsOpen(false)} 
-        hnId={topCard?.hn_id} 
+      <CommentsDrawer
+        open={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        hnId={topCard?.hn_id}
+        onRequestAuth={onRequestAuth}
+      />
+
+      {/* Sign in / create account, opened in place from anywhere in the app -
+          reloads on success (rather than navigating) so every piece of app
+          state - feed, taste vector, swipe history - refreshes cleanly under
+          the new/upgraded identity without having to hand-refresh each one. */}
+      <AuthModal
+        open={authPrompt.open}
+        onClose={() => setAuthPrompt((p) => ({ ...p, open: false }))}
+        initialMode={authPrompt.mode}
+        onAuthenticated={() => window.location.reload()}
       />
 
       {/* Undo button */}
@@ -694,7 +725,7 @@ export default function App() {
               </Typography>
               <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
                 <Button
-                  onClick={() => { setShowLikeBanner(false); navigate("/register", { state: { formIntent: true } }); }}
+                  onClick={() => { setShowLikeBanner(false); onRequestAuth("register"); }}
                   sx={{
                     background: C.orange, color: "#000", fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.7rem",
                     px: 2, py: 0.8, borderRadius: "8px", letterSpacing: "0.05em",

@@ -12,8 +12,6 @@ import ResetPassword from './pages/ResetPassword.jsx';
 import AuthRoute from './components/AuthRoute.jsx';
 import MobileGate from './components/MobileGate.jsx';
 import './index.css';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { GOOGLE_CLIENT_ID } from './config.js';
 import { C } from './theme.js';
 import { initAnalytics } from './analytics.js';
 
@@ -79,11 +77,9 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <ThemeProvider theme={darkTheme}>
-        <CssBaseline />
-        <RouterProvider router={router} />
-      </ThemeProvider>
-    </GoogleOAuthProvider>
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <RouterProvider router={router} />
+    </ThemeProvider>
   </React.StrictMode>,
 );

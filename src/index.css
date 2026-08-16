@@ -67,6 +67,27 @@ body.swipe-app-active, body.swipe-app-active #root {
   }
 }
 
+/* Native CSS scroll-snap was tried here across two rounds (proximity, then
+   mandatory) and produced no felt difference - it only affects where a
+   scroll gesture rests, not the feel of scrolling itself. Replaced by the
+   Lenis smooth-scroll library (Auth.jsx), which actually smooths every
+   scroll input plus a custom settle-assist near section boundaries.
+
+   Locks the background page while the sign-in/create-account popup is open.
+   Plain overflow:hidden on body (even paired with #root) turned out to
+   collapse the page's scrollable height to zero, which snapped the user back
+   to the top the instant the modal opened - so this uses the standard
+   position:fixed body-scroll-lock technique instead: Auth.jsx sets `top` to
+   the negative of the scroll position it captured right before adding this
+   class, which visually freezes the exact same view without moving anything,
+   then restores real scroll position on close via `window.scrollTo`. */
+body.auth-modal-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+
 /* Scanline overlay on the root for CRT effect */
 #root::before {
   content: '';
@@ -217,4 +238,65 @@ body.swipe-app-active, body.swipe-app-active #root {
   50% {
     box-shadow: 0 0 24px 8px rgba(0,255,204,0.55), inset 0 0 30px rgba(0,255,204,0.08);
   }
+}
+
+/* Landing page hero orb - soft halo breathing behind the pixel-art disc */
+@keyframes orbHalo {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Landing page hero orb - the pixel disc itself brightening/dimming, so it
+   reads as the light source the ambient glow below is reacting to. */
+@keyframes orbBright {
+  0%, 100% { filter: brightness(0.92); }
+  50% { filter: brightness(1.22); }
+}
+
+/* Landing page ambient background glow - breathes in sync with orbHalo/
+   orbBright (same 3.6s timing) so the whole page reads as lit by the orb,
+   not just the orb animating in isolation. */
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Landing page hero-only ray-burst behind the orb - slow continuous
+   rotation, independent of the orb's own halo pulse. */
+@keyframes heroRaysRotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Landing page hero-only ray-burst brightness breathing. */
+@keyframes heroRaysPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Features section, controls column - a keycap's quick scale-bounce,
+   played in a staggered sequence across the keys on column hover (each
+   keycap sets its own animation-delay; this just supplies the motion). */
+@keyframes kcPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Features section, saved column - a saved row's accent bar lighting up,
+   played in a top-to-bottom cascade across the 4 rows on column hover.
+   Brightness only, no transform - a scale here (even just on this small
+   decorative bar) reads as the whole column shaking. */
+@keyframes svPulse {
+  0%, 100% { filter: brightness(1); }
+  40% { filter: brightness(2.1); }
+}
+
+/* Features section, taste column - a bar lighting up alongside the number
+   decode above it. Never changes shape/width/position, only brightness and
+   a soft glow (color:currentColor set inline, matching the bar's own fill)
+   so the bar itself reads as staying completely still. */
+@keyframes tasteBarGlow {
+  0%, 100% { filter: brightness(1); box-shadow: none; }
+  45% { filter: brightness(1.7); box-shadow: 0 0 10px currentColor; }
 }

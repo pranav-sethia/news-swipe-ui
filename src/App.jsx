@@ -187,6 +187,11 @@ export default function App() {
 
   const dismissOnboarding = () => {
     localStorage.setItem("hs_seen_onboarding", "true");
+    // Without this, the ref stays true for the rest of the session (it's
+    // only ever computed once, at mount) - the show-tour effect above reads
+    // it on every swipe (articles.length is one of its deps), so a stale
+    // true here re-opened the tour after every single swipe.
+    willShowOnboardingRef.current = false;
     setShowOnboarding(false);
   };
 

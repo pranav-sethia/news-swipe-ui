@@ -27,6 +27,73 @@ import { track } from "./analytics.js";
 // on both sides, so hoisted to one shared constant.
 const KEEP_TOP = 2;
 
+// Must stay in sync with the same-named constant in news-swipe-api's
+// routes/feed.js. Used only to drive the live, client-side progress badge
+// below (see badgePhase/likeProgress) - never to gate which cards actually
+// get real match percentages, which remains entirely server-decided.
+const LIKES_NEEDED_FOR_MATCHES = 3;
+
+// The two states of the reserved badge slot above the card stack (see the
+// "Center" layout in App below). Rendered as siblings of the card, never
+// layered over it - and the slot they live in has a fixed height regardless
+// of which of these (or neither) is showing, so the card never shifts.
+function ProgressPill({ likeProgress }) {
+  const remaining = Math.max(0, LIKES_NEEDED_FOR_MATCHES - likeProgress);
+  return (
+    <Tooltip title={`Skipping or disliking doesn't count here - only liking does. ${remaining} more to unlock your matches.`} placement="bottom">
+      <Box component={motion.div}
+        initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        sx={{
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 0.8,
+          px: 2.5, py: 1.2, borderRadius: "12px", cursor: "help",
+          background: "rgba(20,20,20,0.8)", border: `1px solid rgba(255,102,0,0.3)`,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        }}
+      >
+        <Typography sx={{
+          fontFamily: C.fontPixel, fontSize: "0.52rem", color: C.orange,
+          letterSpacing: "0.04em", textAlign: "center", whiteSpace: "nowrap",
+        }}>
+          {remaining > 0 ? `LIKE ${remaining} MORE ${remaining === 1 ? "CARD" : "CARDS"} TO UNLOCK MATCHES` : "BUILDING YOUR TASTE"}
+        </Typography>
+        <Box sx={{ display: "flex", gap: "6px" }}>
+          {Array.from({ length: LIKES_NEEDED_FOR_MATCHES }).map((_, i) => (
+            <Box key={i} sx={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: i < likeProgress ? C.orange : "rgba(255,255,255,0.15)",
+              boxShadow: i < likeProgress ? `0 0 6px ${C.orange}` : "none",
+              transition: "background 0.3s ease, box-shadow 0.3s ease",
+            }} />
+          ))}
+        </Box>
+      </Box>
+    </Tooltip>
+  );
+}
+
+function CelebratePill() {
+  return (
+    <Box component={motion.div}
+      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      sx={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 0.3,
+        px: 2.5, py: 1.2, borderRadius: "12px",
+        background: "rgba(20,20,20,0.8)", border: `1px solid ${C.tealDim}`,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,204,0.08)",
+      }}
+    >
+      <Typography sx={{ fontFamily: C.fontPixel, fontSize: "0.55rem", color: C.teal, letterSpacing: "0.04em" }}>
+        MATCHES UNLOCKED
+      </Typography>
+      <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.7rem", color: "rgba(232,232,232,0.7)" }}>
+        Here's what we think you'll like
+      </Typography>
+    </Box>
+  );
+}
+
 function isGuestUser() {
   try {
     const token = localStorage.getItem("token");
@@ -91,6 +158,30 @@ export default function App() {
     toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
   }, []);
 
+  // Live "N more to unlock matches" progress badge. Tracked entirely
+  // client-side and updated synchronously the instant a like swipe happens -
+  // deliberately NOT derived from whichever card happens to be on top of the
+  // stack. Per-card taste_progress/swipes_until_matches fields are baked in
+  // at fetch time and go stale for up to KEEP_TOP+BATCH_SIZE swipes (see
+  // fetchFeed's replaceStale branch), so a badge driven by the current top
+  // card can sit un-updated through 2+ real likes. This counter can't go
+  // stale the same way because nothing about it depends on fetch timing.
+  const [badgePhase, setBadgePhase] = useState("progress"); // "progress" | "celebrate" | "done"
+  const [likeProgress, setLikeProgress] = useState(0);
+  const badgePhaseRef = useRef("progress");
+  useEffect(() => { badgePhaseRef.current = badgePhase; }, [badgePhase]);
+  const badgeSeededRef = useRef(false);
+  const celebrateTimeoutRef = useRef(null);
+
+  const triggerMatchesUnlocked = useCallback(() => {
+    setBadgePhase((prev) => (prev === "done" ? prev : "celebrate"));
+    localStorage.setItem("hs_seen_matches_unlocked", "1");
+    if (celebrateTimeoutRef.current) clearTimeout(celebrateTimeoutRef.current);
+    celebrateTimeoutRef.current = setTimeout(() => setBadgePhase("done"), 3500);
+  }, []);
+
+  useEffect(() => () => { if (celebrateTimeoutRef.current) clearTimeout(celebrateTimeoutRef.current); }, []);
+
   // One-time nudge for guests once their feed has genuinely had a chance to
   // improve, rather than leaning solely on the session countdown to convert.
   const LIKE_MILESTONE = 5;
@@ -116,6 +207,12 @@ export default function App() {
     const articleToUndo = lastSwiped.article;
     setArticles(prev => [...prev, articleToUndo]);
     setLastSwiped(null);
+    // Mirror the live progress counter: undoing a like that hasn't yet
+    // unlocked matches gives back its progress, same as the existing "only
+    // liking counts" rule already applies going forward.
+    if (lastSwiped.direction === "right" && badgePhaseRef.current === "progress") {
+      setLikeProgress((p) => Math.max(0, p - 1));
+    }
     try {
       await api.unlikeArticle(articleToUndo.id);
       // Undoing a swipe removes it from the backend entirely, so the count
@@ -236,17 +333,28 @@ export default function App() {
       // either all taste-building (taste_progress set) or all past it -
       // this single check is a reliable signal for the whole batch.
       const matchesUnlocked = data.length > 0 && data.every((c) => c.taste_progress == null);
-      // One-time celebration the moment real matches actually unlock - until
-      // now there was no in-product signal at all for this transition beyond
-      // the card badge itself quietly switching from orange taste-building
-      // dots to a teal match percentage, easy to miss entirely.
-      if (!localStorage.getItem("hs_seen_matches_unlocked") && data.some((c) => c.match_pct != null)) {
-        localStorage.setItem("hs_seen_matches_unlocked", "1");
-        showToast("Matches unlocked - here's what we think you'll like.");
+      // Reconciliation safety net for the live progress badge (see its
+      // declaration above): if the server reports matches already unlocked
+      // while our locally-tracked counter hasn't caught up - e.g. a swipe
+      // write failed so the optimistic increment in handleSwipe never ran,
+      // or this is a resumed session - self-correct here instead of leaving
+      // the badge stuck mid-progress. Never the PRIMARY trigger, so this
+      // can't reintroduce the network-timing staleness being fixed.
+      if (matchesUnlocked && badgePhaseRef.current === "progress") {
+        triggerMatchesUnlocked();
       }
       if (isReset) {
         setArticles(data);
         setIsExhausted(data.length === 0);
+        if (!badgeSeededRef.current) {
+          badgeSeededRef.current = true;
+          if (matchesUnlocked || localStorage.getItem("hs_seen_matches_unlocked")) {
+            setBadgePhase("done");
+          } else {
+            setLikeProgress(data[0]?.taste_progress ?? 0);
+            setBadgePhase("progress");
+          }
+        }
       } else {
         if (data.length === 0) setIsExhausted(true);
         // Prepend new articles. Filter out any IDs already in the current stack
@@ -310,6 +418,18 @@ export default function App() {
     // This prevents rapid-swipe freeze caused by piling up concurrent async promises.
     setArticles((prev) => prev.filter((a) => a.id !== swipedArticle.id));
 
+    // Live progress badge: incremented synchronously, in this same swipe -
+    // not inside the .then() below, which only resolves after a network
+    // round-trip. Waiting on that round-trip is exactly the staleness bug
+    // this counter exists to avoid.
+    if (direction === "right" && badgePhaseRef.current === "progress") {
+      setLikeProgress((p) => {
+        const next = p + 1;
+        if (next >= LIKES_NEEDED_FOR_MATCHES) triggerMatchesUnlocked();
+        return next;
+      });
+    }
+
     // Background API call. No blocking.
     const likedValue = direction === "right" ? true : (direction === "left" ? false : null);
     api.sendSwipe(swipedArticle.id, likedValue)
@@ -340,11 +460,18 @@ export default function App() {
       })
       .catch(() => {
         // If the swipe fails to save, we just log it instead of jarringly reverting the UI state
+        // Roll back the optimistic progress increment too, so the badge
+        // can't drift ahead of what the server actually recorded. Only while
+        // still mid-progress - if this swipe already triggered the unlock
+        // celebration, leave it be rather than yanking it back into progress.
+        if (direction === "right" && badgePhaseRef.current === "progress") {
+          setLikeProgress((p) => Math.max(0, p - 1));
+        }
         setLastSwiped(null); // Clear undo state for this failed swipe
         console.error("Failed to save swipe.");
         showToast("That swipe didn't save. Check your connection.");
       });
-  }, [fetchFeed, showToast]);
+  }, [fetchFeed, showToast, triggerMatchesUnlocked]);
 
   const handleReset = async () => {
     try {
@@ -465,7 +592,21 @@ export default function App() {
       />
 
       {/* Center */}
-      <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", px: 3, overflow: "hidden" }}>
+      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", overflow: "hidden" }}>
+        {/* Reserved badge slot, ABOVE the card stack, in normal document flow -
+            not layered over the card. Fixed height regardless of which (if
+            either) of ProgressPill/CelebratePill is showing, so mounting,
+            switching, or unmounting the badge never shifts the card below it. */}
+        <Box sx={{ flexShrink: 0, width: "100%", height: 88, display: "flex", alignItems: "center", justifyContent: "center", px: 3, pt: 1 }}>
+          <AnimatePresence mode="wait">
+            {badgePhase === "progress" && articles.length > 0 && (
+              <ProgressPill key="progress" likeProgress={likeProgress} />
+            )}
+            {badgePhase === "celebrate" && <CelebratePill key="celebrate" />}
+          </AnimatePresence>
+        </Box>
+
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", width: "100%", px: 3, overflow: "hidden" }}>
         {/* Only fall back to a full-screen state when there are truly no cards on
             screen. A background prefetch failing must never blank out cards the
             user still has to swipe (hasError alone used to gate this, which did
@@ -573,6 +714,7 @@ export default function App() {
             </Box>
           </>
         )}
+        </Box>
       </Box>
 
       {/* Triangular Pull Tab */}
@@ -793,10 +935,16 @@ export default function App() {
       {/* Toast: surfaces failures that used to be silent (swipe/undo not saving) */}
       {toast && (
         <Box sx={{
-          position: "fixed", bottom: 90, left: "50%",
+          position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
           background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px",
           px: 3, py: 1.5, zIndex: 200, boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-          animation: "toastIn 0.25s ease-out",
+          // fill-mode forwards: without it, the toastIn keyframes' own
+          // translate(-50%, ...) only applies while the 0.25s entrance
+          // animation is actually running - once it finishes, the element
+          // snaps back to this static sx's transform. That static transform
+          // used to be absent entirely, so the toast visibly jumped off-
+          // center for the rest of its ~4s lifetime. Now it just matches.
+          animation: "toastIn 0.25s ease-out forwards",
         }}>
           <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.8rem", color: C.textDim }}>{toast}</Typography>
         </Box>

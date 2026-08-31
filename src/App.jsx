@@ -42,7 +42,7 @@ function ProgressPill({ likeProgress }) {
   return (
     <Tooltip title={`Skipping or disliking doesn't count here - only liking does. ${remaining} more to unlock your matches.`} placement="bottom">
       <Box component={motion.div}
-        initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
         sx={{
           display: "flex", flexDirection: "column", alignItems: "center", gap: 0.8,
@@ -360,31 +360,33 @@ export default function App() {
         // Prepend new articles. Filter out any IDs already in the current stack
         // to prevent duplicates caused by race conditions between swipe DB writes and feed fetches.
         setArticles((prev) => {
-          const existingIds = new Set(prev.map((a) => a.id));
+          // Once matches have actually unlocked (global state, not just this
+          // one response - badgePhaseRef, not the local matchesUnlocked flag,
+          // so this can't miss an empty/off-batch response), no card still
+          // carrying onboarding-era taste_progress fields may survive - it
+          // would render with no badge at all once the global "building your
+          // taste" pill disappears, since nothing else ever revises an
+          // already-fetched card's fields. Applied here, once, to `prev`
+          // itself before either merge branch below runs, so both branches
+          // share the same guarantee instead of only one of them having it.
+          const base = badgePhaseRef.current === "done" ? prev.filter((c) => c.taste_progress == null) : prev;
+          const existingIds = new Set(base.map((a) => a.id));
           const fresh = data.filter((a) => !existingIds.has(a.id));
-          
+
           if (replaceStale) {
             // Option B (Seamless UX): We just updated our taste profile!
             // The cards sitting underneath the top ones are STALE.
             // Keep the top KEEP_TOP cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
-            // Exception: a kept card that still carries taste_progress (baked
-            // in before matches unlocked) must NOT survive once matches have
-            // actually unlocked - otherwise it keeps showing a stale
-            // "N more to unlock" badge forever, since nothing else ever
-            // revises an already-fetched card's fields. Drop it and let a
-            // fresh, correctly-badged card take its place instead.
-            if (prev.length <= KEEP_TOP) {
-              const kept = matchesUnlocked ? prev.filter((c) => c.taste_progress == null) : prev;
-              return [...fresh, ...kept];
+            if (base.length <= KEEP_TOP) {
+              return [...fresh, ...base];
             } else {
-              let topCards = prev.slice(prev.length - KEEP_TOP);
-              if (matchesUnlocked) topCards = topCards.filter((c) => c.taste_progress == null);
+              const topCards = base.slice(base.length - KEEP_TOP);
               return [...fresh, ...topCards];
             }
           }
-          
+
           // Default behavior: just prepend to the bottom of the stack
-          return [...fresh, ...prev];
+          return [...fresh, ...base];
         });
       }
       setHasError(false);
@@ -591,22 +593,41 @@ export default function App() {
         onActiveTabChange={setIsSidebarOpen}
       />
 
-      {/* Center */}
-      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", overflow: "hidden" }}>
-        {/* Reserved badge slot, ABOVE the card stack, in normal document flow -
-            not layered over the card. Fixed height regardless of which (if
-            either) of ProgressPill/CelebratePill is showing, so mounting,
-            switching, or unmounting the badge never shifts the card below it. */}
-        <Box sx={{ flexShrink: 0, width: "100%", height: 88, display: "flex", alignItems: "center", justifyContent: "center", px: 3, pt: 1 }}>
-          <AnimatePresence mode="wait">
-            {badgePhase === "progress" && articles.length > 0 && (
-              <ProgressPill key="progress" likeProgress={likeProgress} />
-            )}
-            {badgePhase === "celebrate" && <CelebratePill key="celebrate" />}
-          </AnimatePresence>
+      {/* Center - position:absolute,inset:0 rather than a flex child of the
+          nav-inclusive column above, so the card centers on the TRUE full
+          viewport height, same reference frame the sidebar dock and comments
+          pull-tab already use (both position:fixed, centered at true vh/2,
+          ignoring the nav bar entirely). Centering inside a flex child of the
+          nav column instead pulled the card's center down by the nav's
+          height - a small, unnoticed offset before the badge existed, and a
+          real regression (overlapping the keyboard hints) once it did.
+          zIndex kept below the nav's (150) so the nav still paints on top,
+          exactly as it already visually does today. */}
+      <Box sx={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", px: 3 }}>
+        {/* Badge pill - floats independently just below the nav, deliberately
+            NOT part of the card-centering flex math above (an earlier version
+            reserved flow space for it here, which both pulled the card's
+            center off true vh/2 again AND - worse - placed the reserved slot
+            inside the nav's own [0,64] range, where the nav's opaque,
+            higher-zIndex background painted over it, making it invisible
+            despite rendering "correctly" per every DOM measurement). A fixed
+            offset below the nav is safe here because there's always
+            substantial headroom between the nav and the card's own top edge
+            at any realistic viewport height (confirmed live down to a ~745px
+            window, the shortest this dev machine's screen allows - 90px+ to
+            spare there, and only more at taller viewports, since the card's
+            own height is capped while this offset stays constant). */}
+        <Box sx={{ position: "absolute", top: 76, left: "50%", transform: "translateX(-50%)", zIndex: 3, width: "100%", display: "flex", justifyContent: "center", px: 3, pointerEvents: "none" }}>
+          <Box sx={{ pointerEvents: "auto" }}>
+            <AnimatePresence mode="wait">
+              {badgePhase === "progress" && articles.length > 0 && (
+                <ProgressPill key="progress" likeProgress={likeProgress} />
+              )}
+              {badgePhase === "celebrate" && <CelebratePill key="celebrate" />}
+            </AnimatePresence>
+          </Box>
         </Box>
 
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", width: "100%", px: 3, overflow: "hidden" }}>
         {/* Only fall back to a full-screen state when there are truly no cards on
             screen. A background prefetch failing must never blank out cards the
             user still has to swipe (hasError alone used to gate this, which did
@@ -714,7 +735,6 @@ export default function App() {
             </Box>
           </>
         )}
-        </Box>
       </Box>
 
       {/* Triangular Pull Tab */}

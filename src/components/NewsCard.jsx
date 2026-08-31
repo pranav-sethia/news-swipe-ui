@@ -150,7 +150,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
       <Box className="card-glow" sx={{
-        width: "100%", height: { xs: "75vh", sm: "min(540px, 56vh)", md: "min(520px, 56vh)" },
+        width: "100%", height: { xs: "75vh", sm: "min(540px, 56vh)", md: "min(500px, 48vh)" },
         background: "rgba(12, 12, 12, 0.95)", // High opacity to prevent bleed-through
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",

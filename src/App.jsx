@@ -231,6 +231,11 @@ export default function App() {
       const currentIds = articlesRef.current.map((a) => a.id);
       const excludeIds = replaceStale ? currentIds.slice(-KEEP_TOP) : currentIds;
       const data = await api.getFeed(excludeIds);
+      // The backend gates every card in a single response on the same
+      // badgeEligible check, so all cards in one fetch are consistently
+      // either all taste-building (taste_progress set) or all past it -
+      // this single check is a reliable signal for the whole batch.
+      const matchesUnlocked = data.length > 0 && data.every((c) => c.taste_progress == null);
       // One-time celebration the moment real matches actually unlock - until
       // now there was no in-product signal at all for this transition beyond
       // the card badge itself quietly switching from orange taste-building
@@ -254,10 +259,18 @@ export default function App() {
             // Option B (Seamless UX): We just updated our taste profile!
             // The cards sitting underneath the top ones are STALE.
             // Keep the top KEEP_TOP cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
+            // Exception: a kept card that still carries taste_progress (baked
+            // in before matches unlocked) must NOT survive once matches have
+            // actually unlocked - otherwise it keeps showing a stale
+            // "N more to unlock" badge forever, since nothing else ever
+            // revises an already-fetched card's fields. Drop it and let a
+            // fresh, correctly-badged card take its place instead.
             if (prev.length <= KEEP_TOP) {
-              return [...fresh, ...prev];
+              const kept = matchesUnlocked ? prev.filter((c) => c.taste_progress == null) : prev;
+              return [...fresh, ...kept];
             } else {
-              const topCards = prev.slice(prev.length - KEEP_TOP);
+              let topCards = prev.slice(prev.length - KEEP_TOP);
+              if (matchesUnlocked) topCards = topCards.filter((c) => c.taste_progress == null);
               return [...fresh, ...topCards];
             }
           }

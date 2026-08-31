@@ -285,38 +285,9 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
                   DISCOVERY
                 </Typography>
-              ) : article.taste_progress != null ? (
-                // Fewer than LIKES_NEEDED_FOR_MATCHES real likes so far - a
-                // literal, honest gate (never a fabricated percentage), but
-                // shown as visible, filling progress rather than a static
-                // "nothing yet" label, plus an explicit countdown so a user
-                // who's only skipping/disliking understands why the dots
-                // aren't moving (they advance on likes only).
-                <Tooltip title={`Skipping or disliking doesn't count here - only liking does. ${article.swipes_until_matches} more to unlock your matches.`} placement="top">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, cursor: "help" }}>
-                    <Box sx={{ display: "flex", gap: "3px" }}>
-                      {Array.from({ length: (article.taste_progress || 0) + (article.swipes_until_matches || 0) }).map((_, i) => (
-                        <Box key={i} sx={{
-                          width: 5, height: 5, borderRadius: "50%",
-                          background: i < article.taste_progress ? C.orange : "rgba(255,255,255,0.15)",
-                          boxShadow: i < article.taste_progress ? `0 0 4px ${C.orange}` : "none",
-                        }} />
-                      ))}
-                    </Box>
-                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.orange, letterSpacing: "0.3px" }}>
-                      {article.swipes_until_matches > 0 ? `${article.swipes_until_matches} MORE TO UNLOCK` : "BUILDING YOUR TASTE"}
-                    </Typography>
-                  </Box>
-                </Tooltip>
-              ) : (
-                // True zero-signal fallback (no taste_progress field at all -
-                // e.g. an older cached response) - a confident, on-brand
-                // touchpoint for "learns your taste" from swipe one, instead
-                // of a bare, generic label with no personalization signal.
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.5px", background: "rgba(255,102,0,0.08)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,102,0,0.35)" }}>
-                  ◆ BUILDING YOUR TASTE
-                </Typography>
-              )}
+              ) : null /* Pre-milestone (taste_progress set) cards get their own
+                          centered top-of-card overlay below instead of a header
+                          badge - see the "Building your taste" overlay. */}
             </Box>
 
             {/* Metadata Tags */}
@@ -493,6 +464,48 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
             )}
           </Box>
         </Box>
+
+        {/* "Building your taste" overlay - the one consistent treatment for
+            every pre-milestone card, regardless of which pool it came from
+            (see NewsCard's header ternary above and feed.js's badge gating).
+            Lives outside the content panel so it can sit centered over the
+            whole card, not just the content half, and is gated on isTop so
+            it doesn't double up across the background of the card stack. */}
+        {isTop && article.taste_progress != null && (
+          <Box sx={{
+            position: "absolute", top: { xs: 16, md: 22 }, left: "50%", transform: "translateX(-50%)",
+            zIndex: 6, maxWidth: "88%",
+          }}>
+            <Tooltip title={`Skipping or disliking doesn't count here - only liking does. ${article.swipes_until_matches} more to unlock your matches.`} placement="top">
+              <Box sx={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+                px: 2.5, py: 1.5, borderRadius: "12px", cursor: "help",
+                background: "rgba(13,13,13,0.75)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                border: `1px solid rgba(255,102,0,0.35)`,
+                boxShadow: "0 6px 24px rgba(0,0,0,0.4)",
+              }}>
+                <Typography sx={{
+                  fontFamily: C.fontPixel, fontSize: { xs: "0.5rem", md: "0.58rem" }, color: C.orange,
+                  letterSpacing: "0.04em", textAlign: "center", lineHeight: 1.7, whiteSpace: "normal",
+                }}>
+                  {article.swipes_until_matches > 0
+                    ? `LIKE ${article.swipes_until_matches} MORE ${article.swipes_until_matches === 1 ? "CARD" : "CARDS"} TO UNLOCK MATCHES`
+                    : "BUILDING YOUR TASTE"}
+                </Typography>
+                <Box sx={{ display: "flex", gap: "7px" }}>
+                  {Array.from({ length: (article.taste_progress || 0) + (article.swipes_until_matches || 0) }).map((_, i) => (
+                    <Box key={i} sx={{
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: i < article.taste_progress ? C.orange : "rgba(255,255,255,0.15)",
+                      boxShadow: i < article.taste_progress ? `0 0 8px ${C.orange}` : "none",
+                      transition: "background 0.3s ease, box-shadow 0.3s ease",
+                    }} />
+                  ))}
+                </Box>
+              </Box>
+            </Tooltip>
+          </Box>
+        )}
 
         {/* Swipe feedback overlays */}
         <motion.div style={{ opacity: likeOpacity, position: "absolute", top: 24, right: 24, pointerEvents: "none", zIndex: 10 }}>

@@ -22,6 +22,11 @@ import CommentsDrawer from "./CommentsDrawer.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import { track } from "./analytics.js";
 
+// Cards kept on-screen (unswiped) across a replaceStale refresh - see
+// fetchFeed's excludeIds logic and the replaceStale branch below. Must match
+// on both sides, so hoisted to one shared constant.
+const KEEP_TOP = 2;
+
 function isGuestUser() {
   try {
     const token = localStorage.getItem("token");
@@ -206,6 +211,12 @@ export default function App() {
   const isFetchingRef = useRef(false); // Use a ref to avoid stale closures causing deadlocks
   const fetchTimeoutRef = useRef(null);
   const topCard = articles[articles.length - 1] ?? null;
+  // Mirrors `articles` state for fetchFeed's excludeIds computation, which
+  // needs the current stack without becoming a dependency of that callback
+  // (it intentionally has no deps, to avoid the stale-closure deadlocks
+  // called out below).
+  const articlesRef = useRef([]);
+  useEffect(() => { articlesRef.current = articles; }, [articles]);
 
   const fetchFeed = useCallback(async (isReset = false, replaceStale = false) => {
     // Use ref guard: state-based guard causes stale closure deadlocks
@@ -213,7 +224,21 @@ export default function App() {
     isFetchingRef.current = true;
     setIsLoading(true);
     try {
-      const data = await api.getFeed();
+      // Tell the server which cards are currently kept on-screen (unswiped)
+      // so its diversity checks (run-length cap, portfolio cap, near-dup
+      // filter) aren't blind to them - matters most on a replaceStale fetch,
+      // where KEEP_TOP cards stay put while everything else is replaced.
+      const currentIds = articlesRef.current.map((a) => a.id);
+      const excludeIds = replaceStale ? currentIds.slice(-KEEP_TOP) : currentIds;
+      const data = await api.getFeed(excludeIds);
+      // One-time celebration the moment real matches actually unlock - until
+      // now there was no in-product signal at all for this transition beyond
+      // the card badge itself quietly switching from orange taste-building
+      // dots to a teal match percentage, easy to miss entirely.
+      if (!localStorage.getItem("hs_seen_matches_unlocked") && data.some((c) => c.match_pct != null)) {
+        localStorage.setItem("hs_seen_matches_unlocked", "1");
+        showToast("Matches unlocked - here's what we think you'll like.");
+      }
       if (isReset) {
         setArticles(data);
         setIsExhausted(data.length === 0);
@@ -227,9 +252,8 @@ export default function App() {
           
           if (replaceStale) {
             // Option B (Seamless UX): We just updated our taste profile!
-            // The cards sitting underneath the top ones are STALE. 
-            // Keep the top 2 cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
-            const KEEP_TOP = 2;
+            // The cards sitting underneath the top ones are STALE.
+            // Keep the top KEEP_TOP cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
             if (prev.length <= KEEP_TOP) {
               return [...fresh, ...prev];
             } else {
@@ -283,11 +307,15 @@ export default function App() {
           else if ([5, 10, 25, 50, 100].includes(next)) track("swipe_milestone", { count: next });
           return next;
         });
-        if (direction === "right") {
-          // Immediately pull fresh matches generated from the new taste vector
-          // and seamlessly replace the stale tail-end of the queue!
-          fetchFeed(false, true);
+        // Immediately pull a fresh batch reflecting this swipe and seamlessly
+        // replace the stale tail-end of the queue. Every direction, not just
+        // likes: dislikes and skips now carry real signal too (the
+        // skip-cooldown rule, the disliked-category exclusion) that's meant
+        // to react within the current session, not wait for the next
+        // "3 cards remain" refetch.
+        fetchFeed(false, true);
 
+        if (direction === "right") {
           if (isGuestUser() && localStorage.getItem("hs_seen_like_milestone") !== "1") {
             likeCountRef.current += 1;
             if (likeCountRef.current >= LIKE_MILESTONE) {

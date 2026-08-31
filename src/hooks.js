@@ -45,6 +45,17 @@ export function useGuestSession(onAuthenticated) {
       // guest session on the same browser silently never saw it again even
       // starting from 0 likes. Clear it here too.
       localStorage.removeItem("hs_seen_like_milestone");
+      // Same story for the sidebar's one-time archetype-reveal animation
+      // (Sidebar.jsx) - missed in the same cleanup above, so a second guest
+      // on this browser who reaches the archetype threshold again wouldn't
+      // get the reveal animation, even though the archetype itself is still
+      // correctly recomputed for their fresh account.
+      localStorage.removeItem("hs_archetype_revealed");
+      // Same story for the one-time "matches unlocked" celebration toast
+      // (App.jsx) - a fresh guest starts back at 0 likes and should see it
+      // again once they re-earn it, not have it permanently silenced by a
+      // previous guest session on the same browser.
+      localStorage.removeItem("hs_seen_matches_unlocked");
       track("guest_started");
       onAuthenticated?.({ action: "guest", resumedExistingGuest: false });
     } catch {

@@ -221,7 +221,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.72rem", color: C.orange }}>HACKER NEWS</Typography>
               </Box>
               
-              {article.match_pct ? (
+              {article.match_pct != null ? (
                 <Tooltip
                   title={
                     article.match_reason ? (
@@ -285,10 +285,34 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
                   DISCOVERY
                 </Typography>
+              ) : article.taste_progress != null ? (
+                // Fewer than LIKES_NEEDED_FOR_MATCHES real likes so far - a
+                // literal, honest gate (never a fabricated percentage), but
+                // shown as visible, filling progress rather than a static
+                // "nothing yet" label, plus an explicit countdown so a user
+                // who's only skipping/disliking understands why the dots
+                // aren't moving (they advance on likes only).
+                <Tooltip title={`Skipping or disliking doesn't count here - only liking does. ${article.swipes_until_matches} more to unlock your matches.`} placement="top">
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, cursor: "help" }}>
+                    <Box sx={{ display: "flex", gap: "3px" }}>
+                      {Array.from({ length: (article.taste_progress || 0) + (article.swipes_until_matches || 0) }).map((_, i) => (
+                        <Box key={i} sx={{
+                          width: 5, height: 5, borderRadius: "50%",
+                          background: i < article.taste_progress ? C.orange : "rgba(255,255,255,0.15)",
+                          boxShadow: i < article.taste_progress ? `0 0 4px ${C.orange}` : "none",
+                        }} />
+                      ))}
+                    </Box>
+                    <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.62rem", color: C.orange, letterSpacing: "0.3px" }}>
+                      {article.swipes_until_matches > 0 ? `${article.swipes_until_matches} MORE TO UNLOCK` : "BUILDING YOUR TASTE"}
+                    </Typography>
+                  </Box>
+                </Tooltip>
               ) : (
-                // No taste_vector yet (genuinely new user) - a confident,
-                // on-brand touchpoint for "learns your taste" from swipe one,
-                // instead of a bare, generic label with no personalization signal at all.
+                // True zero-signal fallback (no taste_progress field at all -
+                // e.g. an older cached response) - a confident, on-brand
+                // touchpoint for "learns your taste" from swipe one, instead
+                // of a bare, generic label with no personalization signal.
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: C.orange, letterSpacing: "0.5px", background: "rgba(255,102,0,0.08)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,102,0,0.35)" }}>
                   ◆ BUILDING YOUR TASTE
                 </Typography>

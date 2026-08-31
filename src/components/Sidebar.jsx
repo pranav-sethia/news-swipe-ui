@@ -453,7 +453,7 @@ export function ProfilePanel({ swipeCount, user, isGuest, token, onLogout, onReq
               Still Forming
             </Typography>
             <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.78rem", color: C.textDim, mb: 1.5 }}>
-              You've liked {total} {total === 1 ? "story" : "stories"} so far. A few more and your archetype locks in.
+              You've liked {total} {total === 1 ? "story" : "stories"} so far - {ARCHETYPE_UNLOCK_THRESHOLD - total} more and your reader archetype locks in. This is separate from your matches, which already started.
             </Typography>
             <Box sx={{ display: "flex", gap: 0.6 }}>
               {Array.from({ length: ARCHETYPE_UNLOCK_THRESHOLD }).map((_, i) => (

@@ -17,6 +17,11 @@ export const TOUR_STEPS = [
     placement: "center",
   },
   {
+    title: "Building your taste",
+    body: "Your first few cards have orange dots instead of a match percentage - that's us learning what you like. Like 3 stories and real match percentages start showing up.",
+    placement: "center",
+  },
+  {
     title: "Undo and Discuss",
     body: "Press 'Z' to undo your last swipe. Press 'C' or tap the comments button to read community discussions.",
     targetSelector: "[data-tour='undo']",

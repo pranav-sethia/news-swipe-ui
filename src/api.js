@@ -41,7 +41,14 @@ export const isResetTokenValid = async (token) => {
 };
 
 // --- Feed ---
-export const getFeed = async () => { const { data } = await apiClient.get('/api/feed'); return data; };
+// excludeIds: ids of cards currently kept on-screen (unswiped), so the
+// server's diversity checks aren't blind to what the user is about to see
+// next - see replaceStale's KEEP_TOP logic in App.jsx.
+export const getFeed = async (excludeIds) => {
+  const params = excludeIds && excludeIds.length ? { excludeIds: excludeIds.join(',') } : undefined;
+  const { data } = await apiClient.get('/api/feed', { params });
+  return data;
+};
 export const sendSwipe = (articleId, liked) => apiClient.post('/api/swipe', { articleId, liked });
 export const unlikeArticle = (articleId) => apiClient.delete(`/api/swipe/${articleId}`);
 export const resetSwipes = () => apiClient.post('/api/reset');

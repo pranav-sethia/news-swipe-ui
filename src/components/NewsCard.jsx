@@ -150,7 +150,22 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
       whileTap={{ cursor: isTop && !isExiting ? "grabbing" : "default" }}
     >
       <Box className="card-glow" sx={{
-        width: "100%", height: { xs: "75vh", sm: "min(540px, 56vh)", md: "min(520px, 60vh)" },
+        width: "100%",
+        // minHeight, not height: this is a TARGET size for the common case
+        // (a typical short article), not a hard box the content must be
+        // forced into. A fixed height here paired with genuinely unbounded
+        // content (the title has no line-clamp; each bullet clamps
+        // individually to 3 lines, so total content height was never
+        // actually bounded) is what caused the Read Article/Comments/View
+        // on HN row to get squeezed out on longer articles - tuning the
+        // exact height number twice already just moved where that same
+        // mismatch reappeared. Letting the card grow with its own content
+        // removes the mismatch instead of re-guessing the number a third
+        // time. maxHeight is a generous, rarely-if-ever-hit outer bound
+        // (not a target) so a truly pathological wall of text can't grow
+        // the card past the viewport or up into the badge above it.
+        minHeight: { xs: "75vh", sm: "min(540px, 56vh)", md: "min(520px, 56vh)" },
+        maxHeight: { xs: "88vh", sm: "min(650px, 78vh)", md: "min(650px, 78vh)" },
         background: "rgba(12, 12, 12, 0.95)", // High opacity to prevent bleed-through
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
@@ -213,7 +228,14 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
           opacity: isTop ? 1 : 0, // FIX: Hides text on background cards to prevent double-vision bleed
           transition: "opacity 0.2s ease"
         }}>
-          <Box>
+          {/* flex:1/minHeight:0/overflowY:auto: only actually engages once the
+              card has grown all the way to its maxHeight ceiling above and
+              content STILL doesn't fit (a genuinely pathological case, not
+              the common one) - at that point this scrolls internally rather
+              than clipping, so nothing is ever silently cut off. Combined
+              with the button row's flexShrink:0 below, that row is
+              guaranteed to always render in full regardless. */}
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {/* Header: source dot + label + algorithm badge */}
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -410,7 +432,7 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
               treatment (filled, full-width) on its own row. Comments/HN are
               supporting actions, demoted to a smaller, quieter row beneath
               it instead of competing at equal visual weight. */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto", pt: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto", pt: 3, flexShrink: 0 }}>
             <Button
               component="a" href={article.article_url} target="_blank" rel="noopener noreferrer"
               endIcon={<OpenInNew sx={{ fontSize: "0.85rem !important", mb: "1px" }} />}

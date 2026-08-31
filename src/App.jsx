@@ -360,33 +360,34 @@ export default function App() {
         // Prepend new articles. Filter out any IDs already in the current stack
         // to prevent duplicates caused by race conditions between swipe DB writes and feed fetches.
         setArticles((prev) => {
-          // Once matches have actually unlocked (global state, not just this
-          // one response - badgePhaseRef, not the local matchesUnlocked flag,
-          // so this can't miss an empty/off-batch response), no card still
-          // carrying onboarding-era taste_progress fields may survive - it
-          // would render with no badge at all once the global "building your
-          // taste" pill disappears, since nothing else ever revises an
-          // already-fetched card's fields. Applied here, once, to `prev`
-          // itself before either merge branch below runs, so both branches
-          // share the same guarantee instead of only one of them having it.
-          const base = badgePhaseRef.current === "done" ? prev.filter((c) => c.taste_progress == null) : prev;
-          const existingIds = new Set(base.map((a) => a.id));
+          // No active purge of stale (pre-milestone) cards here on purpose -
+          // an earlier version of this filtered them out of `prev` once
+          // matches unlocked, but that ran over the WHOLE array with no
+          // concept of "currently on screen," so it could (and did) remove
+          // the card the user was actively looking at mid-view, unmounting
+          // and replacing it. Stale cards are instead handled passively: a
+          // card still carrying onboarding-era taste_progress fields just
+          // renders NewsCard's graceful "matches unlocked but this one
+          // predates that" fallback badge (see the matchesUnlocked prop)
+          // until the user naturally swipes past it and a fresh,
+          // correctly-badged card takes its place from the next fetch.
+          const existingIds = new Set(prev.map((a) => a.id));
           const fresh = data.filter((a) => !existingIds.has(a.id));
 
           if (replaceStale) {
             // Option B (Seamless UX): We just updated our taste profile!
             // The cards sitting underneath the top ones are STALE.
             // Keep the top KEEP_TOP cards to avoid visual jank, but overwrite everything underneath it with the new fresh smart matches.
-            if (base.length <= KEEP_TOP) {
-              return [...fresh, ...base];
+            if (prev.length <= KEEP_TOP) {
+              return [...fresh, ...prev];
             } else {
-              const topCards = base.slice(base.length - KEEP_TOP);
+              const topCards = prev.slice(prev.length - KEEP_TOP);
               return [...fresh, ...topCards];
             }
           }
 
           // Default behavior: just prepend to the bottom of the stack
-          return [...fresh, ...base];
+          return [...fresh, ...prev];
         });
       }
       setHasError(false);
@@ -652,6 +653,7 @@ export default function App() {
                 <NewsCard
                   key={article.id}
                   article={article}
+                  matchesUnlocked={badgePhase !== "progress"}
                   onSwipe={(dir) => handleSwipe(dir, article)}
                   onOpenComments={() => setIsCommentsOpen(true)}
                   isTop={globalIndex === articles.length - 1}

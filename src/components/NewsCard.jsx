@@ -6,7 +6,7 @@ import { C, FALLBACK_HUE_SHIFTS } from "../theme.js";
 import { useTypewriter } from "../hooks.js";
 import { StatBadge } from "./SharedComponents.jsx";
 
-export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards, dataTour, showDragHint }) {
+export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractive, stackIndex, totalCards, dataTour, showDragHint, matchesUnlocked }) {
   const [isExiting, setIsExiting] = useState(false);
   const controls = useAnimation();
   const x = useMotionValue(0);
@@ -303,13 +303,20 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
                     🔥 POPULAR
                   </Typography>
                 </Tooltip>
-              ) : article.discovery_type === "random" ? (
+              ) : article.discovery_type === "random" || matchesUnlocked ? (
+                // The `matchesUnlocked` fallback covers a card that was
+                // fetched before the user's matches actually unlocked (still
+                // carrying onboarding-era taste_progress, no real match_pct
+                // of its own) but is now being shown after that global
+                // transition - it doesn't have a personalized score yet, so
+                // this is an honest placeholder rather than showing nothing.
+                // Genuinely pre-milestone cards never hit this branch: the
+                // global "building your taste" pill (App.jsx) covers them
+                // instead while matchesUnlocked is still false.
                 <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "#a0a0a0", letterSpacing: "0.5px", background: "rgba(255,255,255,0.05)", px: 1, py: 0.5, borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)" }}>
                   DISCOVERY
                 </Typography>
-              ) : null /* Pre-milestone (taste_progress set) cards get their own
-                          centered top-of-card overlay below instead of a header
-                          badge - see the "Building your taste" overlay. */}
+              ) : null}
             </Box>
 
             {/* Metadata Tags */}

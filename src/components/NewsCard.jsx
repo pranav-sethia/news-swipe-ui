@@ -189,6 +189,13 @@ export function NewsCard({ article, onSwipe, onOpenComments, isTop, isInteractiv
           <Box component="img" src={imageUrl} alt={article.title}
             onError={() => setImageFailed(true)}
             sx={{
+              // position:absolute+inset:0 (not a normal in-flow child) so the
+              // image's own intrinsic aspect ratio never contributes to this
+              // grid row's auto-height calc - otherwise a tall/portrait
+              // source image (a headshot, a vertically-cropped screenshot)
+              // pulls the whole card taller to match it, independent of how
+              // much actual text content the card has.
+              position: "absolute", inset: 0,
               width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none",
               filter: isFallback && article.id
                 ? `hue-rotate(${hueShift}deg) saturate(${(article.id % 2) ? 1.3 : 1}) brightness(1.4)`

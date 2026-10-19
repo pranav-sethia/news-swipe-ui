@@ -17,7 +17,18 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    // Only treat this as "your session is invalid" when the rejection
+    // actually came from authMiddleware verifying the bearer token itself -
+    // it always prefixes its error this way (see authMiddleware.js). Several
+    // endpoints legitimately return 401/403 for reasons that have nothing to
+    // do with the current token - a wrong password on /auth/login, a wrong
+    // confirmation password on DELETE /api/account, a Google nonce/email
+    // mismatch - and those must never wipe a perfectly valid session/guest
+    // token out from under the user just because they mistyped something.
+    const message = error.response?.data?.error;
+    const isSessionInvalid = error.response && (error.response.status === 401 || error.response.status === 403)
+      && typeof message === 'string' && message.startsWith('Unauthorized:');
+    if (isSessionInvalid) {
       localStorage.removeItem('token');
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login?expired=true';

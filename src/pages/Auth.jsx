@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import * as api from "../api.js";
 import { C, CATEGORY_COLORS } from "../theme.js";
 import { useIsMobile, useGuestSession } from "../hooks.js";
-import { track } from "../analytics.js";
+import { track, identify } from "../analytics.js";
 import Lenis from "lenis";
 import AuthModal from "../components/AuthModal.jsx";
 
@@ -70,6 +70,10 @@ const DEMO_ROWS = [
     pts: 64, readMinutes: 3, comments: 152, discoveryType: "random", category: "Startups & VC", illustration: "rebrand", liked: false,
   },
 ];
+
+function decodeToken(token) {
+  try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
+}
 
 // Mirrors the real card's badge logic (NewsCard.jsx:224-295) exactly,
 // including the fallback discovery states - so the demo actually shows the
@@ -1060,6 +1064,8 @@ export default function Auth() {
             // a returning user signing back in with Google should never see
             // onboarding again just because they logged in.
             if (res.data.isNewUser) localStorage.removeItem("hs_onboarding_done");
+            const decoded = decodeToken(res.data.token);
+            if (decoded?.user?.id) identify(String(decoded.user.id), { isGuest: false });
             track("login_completed", { method: "google" });
             navigate("/", { replace: true });
           })

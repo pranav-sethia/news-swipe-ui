@@ -107,6 +107,16 @@ export function ExpandableSidebar({ swipeCount, onUnliked, onRequestReset, onReq
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeTab]);
 
+  // Every other overlay in the app (AuthModal, the reset/delete-account
+  // dialogs) closes on Escape - the sidebar panel didn't, which was an
+  // inconsistency rather than a deliberate choice.
+  useEffect(() => {
+    if (!activeTab) return;
+    const handleEscape = (e) => { if (e.key === "Escape") setActiveTab(null); };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [activeTab]);
+
   const toggleTab = (tab) => setActiveTab((prev) => (prev === tab ? null : tab));
 
   const [streak, setStreak] = useState(0);

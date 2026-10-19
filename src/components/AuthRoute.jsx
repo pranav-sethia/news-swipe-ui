@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { resetAnalyticsIdentity } from '../analytics.js';
 
 function isTokenExpired(token) {
   try {
@@ -16,6 +17,7 @@ const AuthRoute = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    resetAnalyticsIdentity();
     navigate('/login');
   };
 

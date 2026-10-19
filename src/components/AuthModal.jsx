@@ -8,7 +8,7 @@ import * as api from "../api.js";
 import { C } from "../theme.js";
 import { EASE } from "../motion.js";
 import { GOOGLE_CLIENT_ID } from "../config.js";
-import { track } from "../analytics.js";
+import { track, identify } from "../analytics.js";
 import { useGuestSession } from "../hooks.js";
 
 function decodeToken(token) {
@@ -103,12 +103,16 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
       if (mode === "login") {
         const res = await api.login(email, password);
         localStorage.setItem("token", res.data.token);
+        const decoded = decodeToken(res.data.token);
+        if (decoded?.user?.id) identify(String(decoded.user.id), { isGuest: false });
         track("login_completed", { method: "password" });
         onAuthenticated?.({ action: "login", wasGuest });
       } else {
         const res = await api.register(email, password);
         localStorage.setItem("token", res.data.token);
         if (!wasGuest) localStorage.removeItem("hs_onboarding_done");
+        const decoded = decodeToken(res.data.token);
+        if (decoded?.user?.id) identify(String(decoded.user.id), { isGuest: false });
         track(wasGuest ? "guest_converted" : "signup_completed");
         onAuthenticated?.({ action: "register", wasGuest });
       }
@@ -145,12 +149,20 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
             exit={reduceMotion ? {} : { opacity: 0, scale: 0.94, y: 16 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             sx={{
-              width: "100%", maxWidth: 440, maxHeight: "95vh", overflow: "hidden",
+              width: "100%", maxWidth: 440, maxHeight: "92vh",
+              display: "flex", flexDirection: "column",
               borderRadius: "20px", background: "rgba(15,15,15,0.97)", border: `1px solid ${C.border}`,
-              boxShadow: "0 24px 60px rgba(0,0,0,0.55)", p: { xs: 3.5, md: 4.5 }, position: "relative",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.55)", position: "relative",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+            {/* Header stays pinned; only the content below it scrolls, and only
+                if it's ever genuinely taller than the viewport (e.g. a very
+                short window) - this is a safety net, not the target experience.
+                The spacing throughout this modal is tuned to fit without
+                scrolling on any realistic screen, including with the expired-
+                session notice shown - a hard overflow:hidden here previously
+                let that notice silently push the guest button out of reach. */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: { xs: 3.5, md: 4.5 }, pt: { xs: 3, md: 3.5 }, pb: 2, flexShrink: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, boxShadow: `0 0 8px ${C.orange}` }} />
                 <Typography sx={{ fontFamily: C.fontMono, fontWeight: 700, fontSize: "0.72rem", color: C.orange, letterSpacing: "0.08em" }}>HACKERSWIPE</Typography>
@@ -160,21 +172,23 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
               </IconButton>
             </Box>
 
+            <Box sx={{ overflowY: "auto", overflowX: "hidden", px: { xs: 3.5, md: 4.5 }, pb: { xs: 3, md: 3.5 }, minHeight: 0 }}>
+
             {showExpiredNotice && (
-              <Box sx={{ mb: 3, p: 1.8, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
-                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.8rem", color: "#e8e8e8", lineHeight: 1.5 }}>
+              <Box sx={{ mb: 2, p: 1.4, borderRadius: "10px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)" }}>
+                <Typography sx={{ fontFamily: C.fontUi, fontSize: "0.78rem", color: "#e8e8e8", lineHeight: 1.45 }}>
                   Your guest session ended. Create an account to keep a saved taste profile, or start a new guest session below.
                 </Typography>
               </Box>
             )}
 
-            <Box sx={{ display: "flex", mb: 4, borderRadius: "10px", border: `1px solid ${C.border}`, p: "3px" }}>
+            <Box sx={{ display: "flex", mb: 2.5, borderRadius: "10px", border: `1px solid ${C.border}`, p: "3px" }}>
               {["login", "register"].map((m) => (
                 <Box
                   key={m}
                   onClick={() => switchMode(m)}
                   sx={{
-                    flex: 1, textAlign: "center", py: 1, borderRadius: "8px", cursor: "pointer",
+                    flex: 1, textAlign: "center", py: 0.85, borderRadius: "8px", cursor: "pointer",
                     fontFamily: C.fontMono, fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em",
                     color: mode === m ? "#000" : C.textDim,
                     background: mode === m ? C.orange : "transparent",
@@ -189,7 +203,7 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
             <Button
               fullWidth variant="outlined" onClick={handleGoogleLogin}
               sx={{
-                mb: 3, py: 1.4, color: "#fff", borderColor: "rgba(255,255,255,0.2)",
+                mb: 2, py: 1.1, color: "#fff", borderColor: "rgba(255,255,255,0.2)",
                 fontFamily: C.fontUi, fontSize: "0.85rem", fontWeight: 600,
                 borderRadius: "10px", textTransform: "none",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5,
@@ -203,34 +217,34 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
               Continue with Google
             </Button>
 
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 3 }}>
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2 }}>
               <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, px: 1 }}>or</Typography>
             </Divider>
 
             <form onSubmit={handleSubmit}>
-              <TextField label="Email" type="email" variant="outlined" fullWidth margin="normal"
+              <TextField label="Email" type="email" variant="outlined" fullWidth margin="dense"
                 value={email} onChange={(e) => setEmail(e.target.value)} required sx={inputSx} />
-              <TextField label="Password" type="password" variant="outlined" fullWidth margin="normal"
+              <TextField label="Password" type="password" variant="outlined" fullWidth margin="dense"
                 value={password} onChange={(e) => setPassword(e.target.value)} required sx={inputSx} />
 
               {mode === "login" && (
                 <Typography
                   onClick={() => navigate("/forgot-password")}
-                  sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "right", mt: 1, cursor: "pointer", "&:hover": { color: "#fff" } }}
+                  sx={{ fontFamily: C.fontMono, fontSize: "0.7rem", color: C.textDim, textAlign: "right", mt: 0.75, cursor: "pointer", "&:hover": { color: "#fff" } }}
                 >
                   Forgot password?
                 </Typography>
               )}
 
               {error && (
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1.5, textAlign: "center" }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mt: 1.25, textAlign: "center" }}>
                   {error}
                 </Typography>
               )}
 
               <Button type="submit" variant="contained" fullWidth disabled={loading}
                 sx={{
-                  mt: 2.5, mb: 3, py: 1.5,
+                  mt: 2, mb: 2, py: 1.2,
                   fontFamily: C.fontMono, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em",
                   background: C.orange, color: "#000", borderRadius: "10px",
                   "&:hover": { background: "#e65c00" },
@@ -239,7 +253,7 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
                 {loading ? <CircularProgress size={20} sx={{ color: "#000" }} /> : (mode === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
               </Button>
               {mode === "register" && (
-                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textAlign: "center", mt: -1.5, mb: 2 }}>
+                <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textAlign: "center", mt: -1, mb: 1.5 }}>
                   By creating an account you agree to our{" "}
                   <Box component="span" onClick={() => navigate("/privacy")} sx={{ color: C.textDim, cursor: "pointer", "&:hover": { color: "#fff" } }}>
                     Privacy Policy
@@ -248,7 +262,7 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
               )}
             </form>
 
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 3 }} />
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2 }} />
 
             {guestError && (
               <Typography sx={{ fontFamily: C.fontMono, fontSize: "0.75rem", color: C.error, mb: 1.5, textAlign: "center" }}>
@@ -260,7 +274,7 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
               fullWidth onClick={handleGuest} disabled={guestLoading}
               endIcon={!guestLoading && <ArrowForward sx={{ fontSize: "1rem !important" }} />}
               sx={{
-                py: 1.3, borderRadius: "10px", textTransform: "none",
+                py: 1.1, borderRadius: "10px", textTransform: "none",
                 border: "1.5px dashed rgba(255,255,255,0.25)",
                 background: "rgba(255,255,255,0.02)",
                 display: "flex", flexDirection: "column", gap: 0.3,
@@ -282,6 +296,7 @@ export default function AuthModal({ open, onClose, initialMode = "login", onMode
                 </>
               )}
             </Button>
+            </Box>
           </Box>
         </Box>
       )}

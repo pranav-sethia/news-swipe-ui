@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MOBILE_BREAKPOINT } from './theme.js';
 import * as api from './api.js';
-import { track } from './analytics.js';
+import { track, identify } from './analytics.js';
 
 function decodeToken(token) {
   try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
@@ -26,6 +26,7 @@ export function useGuestSession(onAuthenticated) {
       const existingToken = localStorage.getItem("token");
       const decoded = existingToken ? decodeToken(existingToken) : null;
       if (decoded?.user?.isGuest && decoded.exp * 1000 > Date.now()) {
+        if (decoded.user.id) identify(String(decoded.user.id), { isGuest: true });
         onAuthenticated?.({ action: "guest", resumedExistingGuest: true });
         return;
       }
@@ -56,6 +57,8 @@ export function useGuestSession(onAuthenticated) {
       // again once they re-earn it, not have it permanently silenced by a
       // previous guest session on the same browser.
       localStorage.removeItem("hs_seen_matches_unlocked");
+      const newDecoded = decodeToken(res.data.token);
+      if (newDecoded?.user?.id) identify(String(newDecoded.user.id), { isGuest: true });
       track("guest_started");
       onAuthenticated?.({ action: "guest", resumedExistingGuest: false });
     } catch {

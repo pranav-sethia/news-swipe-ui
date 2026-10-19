@@ -267,7 +267,7 @@ export default function App() {
     const handler = (e) => {
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
-      const blocked = isResetModalOpen || isDeleteAccountModalOpen || showOnboarding || isSidebarOpen || onboardingDelayActive;
+      const blocked = isResetModalOpen || isDeleteAccountModalOpen || showOnboarding || isSidebarOpen || onboardingDelayActive || authPrompt.open;
       if (e.key === "c" || e.key === "C") {
         if (!blocked) setIsCommentsOpen(prev => !prev);
       }
@@ -277,7 +277,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isResetModalOpen, isDeleteAccountModalOpen, showOnboarding, isSidebarOpen, onboardingDelayActive, handleUndo]);
+  }, [isResetModalOpen, isDeleteAccountModalOpen, showOnboarding, isSidebarOpen, onboardingDelayActive, authPrompt.open, handleUndo]);
 
   useEffect(() => {
     if (!willShowOnboardingRef.current || isLoading || articles.length === 0) return;
@@ -485,7 +485,22 @@ export default function App() {
       setLastSwiped(null); // Prevent undoing an article from the wiped profile
       await api.resetSwipes();
       setSwipeCount((p) => p + 1);
-      
+
+      // A real profile reset means the match-badge state must genuinely
+      // start over too, not just the server-side swipe log - without this,
+      // the badge slot stays stuck ("done"/blank if matches were already
+      // unlocked, or a stale "LIKE N MORE" count otherwise) until a hard
+      // refresh remounts the component. badgeSeededRef alone isn't enough:
+      // the one-shot seeding effect below also checks the persistent
+      // hs_seen_matches_unlocked flag (deliberately, so a page refresh AFTER
+      // unlocking matches doesn't show "building taste" again) - that same
+      // flag would otherwise immediately re-latch badgePhase to "done" on
+      // the very next fetchFeed call below, even with a reset ref.
+      badgeSeededRef.current = false;
+      setBadgePhase("progress");
+      setLikeProgress(0);
+      localStorage.removeItem("hs_seen_matches_unlocked");
+
       // Force unlock any pending fetches that might have been inflight before reset
       isFetchingRef.current = false;
       await fetchFeed(true);
@@ -496,6 +511,16 @@ export default function App() {
   const [deleteAccountNeedsPassword, setDeleteAccountNeedsPassword] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState("");
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+
+  // Shared by the dialog's onClose (Escape/backdrop) AND its Cancel button -
+  // these used to diverge, so closing via Cancel after a failed attempt left
+  // the stale password/error/needs-password state showing on the next open.
+  const closeDeleteAccountModal = () => {
+    setIsDeleteAccountModalOpen(false);
+    setDeleteAccountPassword("");
+    setDeleteAccountNeedsPassword(false);
+    setDeleteAccountError("");
+  };
 
   const handleDeleteAccount = async () => {
     setDeleteAccountError("");
@@ -657,7 +682,7 @@ export default function App() {
                   onSwipe={(dir) => handleSwipe(dir, article)}
                   onOpenComments={() => setIsCommentsOpen(true)}
                   isTop={globalIndex === articles.length - 1}
-                  isInteractive={!isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && !onboardingDelayActive}
+                  isInteractive={!isResetModalOpen && !isDeleteAccountModalOpen && !showOnboarding && !isCommentsOpen && !isSidebarOpen && !onboardingDelayActive && !authPrompt.open}
                   stackIndex={globalIndex}
                   totalCards={articles.length}
                   dataTour={globalIndex === articles.length - 1 ? "card" : undefined}
@@ -860,12 +885,7 @@ export default function App() {
       {/* Delete account modal */}
       <Dialog
         open={isDeleteAccountModalOpen}
-        onClose={() => {
-          setIsDeleteAccountModalOpen(false);
-          setDeleteAccountPassword("");
-          setDeleteAccountNeedsPassword(false);
-          setDeleteAccountError("");
-        }}
+        onClose={closeDeleteAccountModal}
         PaperProps={{ sx: { background: C.card, color: "white", borderRadius: "16px", border: `1px solid ${C.borderHot}` } }}>
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontFamily: C.fontUi, fontWeight: 700 }}>
           <WarningAmber sx={{ color: "#f39c12" }} /> Delete your account?
@@ -890,7 +910,7 @@ export default function App() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setIsDeleteAccountModalOpen(false)} sx={{ color: C.textDim, fontFamily: C.fontUi }}>Cancel</Button>
+          <Button onClick={closeDeleteAccountModal} sx={{ color: C.textDim, fontFamily: C.fontUi }}>Cancel</Button>
           <Button
             onClick={handleDeleteAccount}
             disabled={deleteAccountLoading || (deleteAccountNeedsPassword && !deleteAccountPassword)}

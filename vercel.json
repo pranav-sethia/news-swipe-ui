@@ -25,7 +25,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://news-swipe-api.onrender.com https://us.i.posthog.com; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self' https://*.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://news-swipe-api.onrender.com https://*.i.posthog.com; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     }
